@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="panel.css">
+    <link rel="stylesheet" href="theme.css">
+
+    <!-- bootstrap-icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
+    <title>Locator-X 1.0.0</title>
+</head>
+<body class="dark-theme">
+
+    <div class="container">
+        <header class="header">
+            <i class="bi-arrow-up-left-circle inspect-button header-icon-button" id="inspectBtn" title="Inspect Elements"></i>
+            <i class="bi-circle-half theme-button header-icon-button" id="themeBtn" title="change theme"></i>
+            <i class="bi bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
+            <div class="header-content">
+                <div class="title-block">
+                    <h1 class="title">Locator-X</h1>
+                    <div class="subtitle">Locator Generator & Manager</div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="navbar">
+            <ul class="nav-list">
+                <li class="nav-option" id="navHome">
+                    <div class="nav-home">
+                        <i class="bi-house"></i>
+                        <span>Home</span>
+                    </div>
+                </li>
+                <li class="nav-option" id="navPOM" style="margin-right: 8px;">
+                    <div class="nav-pom">
+                        <i class="bi-diagram-3"></i>
+                        <span>POM</span>
+                    </div>
+                </li>
+                <li class="nav-item" id="navFilter">
+                    <i class="bi-funnel"></i>
+                </li>
+                <li class="nav-item" id="navMultiSelect">
+                    <i class="bi-list-check"></i>
+                </li>
+                <li class="nav-item" id="navAbout">
+                    <i class="bi-bookmark"></i>
+                </li>
+                <li class="nav-item" id="navCustom">
+                    <i class="bi-clock-history"></i>
+                </li>
+                <li class="nav-item" id="navSettings">
+                    <i class="bi-gear"></i>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <script src="panel.js"></script>
+</body>
+</html>
