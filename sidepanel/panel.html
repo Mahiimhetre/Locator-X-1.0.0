@@ -11,7 +11,7 @@
     
     <title>Locator-X 1.0.0</title>
 </head>
-<body class="dark-theme">
+<body>
 
     <div class="container">
         <header class="header">
@@ -28,37 +28,53 @@
 
         <nav class="navbar">
             <ul class="nav-list">
-                <li class="nav-option" id="navHome">
-                    <div class="nav-home">
-                        <i class="bi-house"></i>
-                        <span>Home</span>
-                    </div>
-                </li>
-                <li class="nav-option" id="navPOM" style="margin-right: 8px;">
-                    <div class="nav-pom">
-                        <i class="bi-diagram-3"></i>
-                        <span>POM</span>
-                    </div>
-                </li>
-                <li class="nav-item" id="navFilter">
-                    <i class="bi-funnel"></i>
-                </li>
-                <li class="nav-item" id="navMultiSelect">
-                    <i class="bi-list-check"></i>
-                </li>
-                <li class="nav-item" id="navAbout">
-                    <i class="bi-bookmark"></i>
-                </li>
-                <li class="nav-item" id="navCustom">
-                    <i class="bi-clock-history"></i>
-                </li>
-                <li class="nav-item" id="navSettings">
-                    <i class="bi-gear"></i>
-                </li>
+                <div class="nav-options">
+                    <li class="nav-option" id="navHome">
+                        <div class="nav-home">
+                            <i class="bi-house"></i>
+                            <span>Home</span>
+                        </div>
+                    </li>
+                    <li class="nav-option" id="navPOM">
+                        <div class="nav-pom">
+                            <i class="bi-diagram-3"></i>
+                            <span>POM</span>
+                        </div>
+                    </li>
+                </div>
+                <div class="nav-items">
+                    <li class="nav-item" id="navFilter">
+                        <i class="bi-funnel"></i>
+                    </li>
+                    <li class="nav-item" id="navMultiSelect">
+                        <i class="bi-list-check"></i>
+                    </li>
+                    <li class="nav-item" id="navAbout">
+                        <i class="bi-bookmark"></i>
+                    </li>
+                    <li class="nav-item" id="navCustom">
+                        <i class="bi-clock-history"></i>
+                    </li>
+                    <li class="nav-item" id="navSettings">
+                        <i class="bi-gear"></i>
+                    </li>
+                </div> 
             </ul>
         </nav>
+
+        <div class="home-container">
+            home content
+        </div>
+
+        <div class="pom-content">
+            Pom contents
+        </div>
+
+        
     </div>
 
+    <script src="tabs.js"></script>
+    <script src="dropdown.js"></script>
     <script src="panel.js"></script>
 </body>
 </html>
