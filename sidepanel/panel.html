@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="panel.css">
     <link rel="stylesheet" href="theme.css">
-
     <!-- bootstrap-icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
@@ -43,20 +42,154 @@
                     </li>
                 </div>
                 <div class="nav-items">
-                    <li class="nav-item" id="navFilter">
+                    <li class="nav-item" id="navFilterButton">
                         <i class="bi-funnel"></i>
+
+
+                        <div id="filterDropdown" class="dropdown filter-dropdown">
+                            <div class="dropdown-header">
+                                <strong>Locators Filter</strong>
+                            </div>
+
+                            <!-- Dependencies Section -->
+                            <div class="dependencies-section">
+                                <div class="dependencies-header">Current Dependencies</div>
+                                <div class="dependency-items">
+                                    <div class="dependency-item">
+                                        <span class="dependency-label">Framework:</span>
+                                        <span class="dependency-value" id="frameworkDisplay">abc</span>
+                                    </div>
+                                    <div class="dependency-item">
+                                        <span class="dependency-label">Language:</span>
+                                        <span class="dependency-value" id="languageDisplay">xyz</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Scope Section -->
+                            <div class="filter-section">
+                                <div class="section-header">
+                                    <div class="scope-info">
+                                        <span>Target:</span>
+                                        <span class="scope-badge" id="currentScope">
+                                            <i id="scopeIcon" class="bi-house"></i>
+                                            <span id="scopeText">Home</span>
+                                        </span>
+                                    </div>
+                                    <i id="switchScopeBtn" class="bi-arrow-left-right scope-switch" title="Change Scope Target"></i>
+                                </div>
+                            </div>
+
+                            <!-- Select All Section -->
+                            <div class="select-all-section">
+                                <label class="select-all">
+                                    <input type="checkbox" id="locTypeAll">
+                                    <span>Select All Locators</span>
+                                </label>
+                            </div>
+
+                            <!-- Locator Options -->
+                            <div class="locator-options">
+                                <label><input type="checkbox" class="loc-type" id="idLocator" value="id" checked> ID</label>
+                                <label><input type="checkbox" class="loc-type" id="nameLocator" value="name" checked> Name</label>
+                                <label><input type="checkbox" class="loc-type" id="tagnameLocator" value="tagname" checked> Tagname</label>
+                                <label><input type="checkbox" class="loc-type" id="classNameLocator" value="className" checked> ClassName</label>
+                                <label><input type="checkbox" class="loc-type" id="cssLocator" value="css" checked> CSS</label>
+                                <label><input type="checkbox" class="loc-type" id="linkTextLocator" value="linkText" checked> LinkText</label>
+                                <label><input type="checkbox" class="loc-type" id="pLinkTextLocator" value="pLinkText" checked> Partial LinkText</label>
+                                <label class="relative-xpath-container">
+                                    <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked> 
+                                    <span>Relative XPath</span>
+                                    <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
+                                    <!-- Nested options for Relative XPath -->
+                                    <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
+                                        <fieldset class="nested-options">
+                                        <legend>Strategies</legend>
+
+                                        <label>
+                                            <input type="checkbox" class="nested-loc-type" id="indexedXpathLocator" value="indexed" checked>
+                                            Indexed XPath
+                                        </label>
+
+                                        <label>
+                                            <input type="checkbox" class="nested-loc-type" id="containsXpathLocator" value="contains" checked>
+                                            Contains
+                                        </label>
+
+                                        <label>
+                                            <input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator" value="linktext" checked>
+                                            Link Text
+                                        </label>
+
+                                        <label>
+                                            <input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator" value="partiallinktext" checked>
+                                            Partial Link Text
+                                        </label>
+
+                                        <label>
+                                            <input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath" checked>
+                                            Default XPath
+                                        </label>
+
+                                        <label>
+                                            <input type="checkbox" class="nested-loc-type" id="attributeXpathLocator" value="attribute" checked>
+                                            Attribute
+                                        </label>
+
+                                        <label>
+                                            <input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="css" checked>
+                                            CSS
+                                        </label>
+                                        </fieldset>
+                                    </div>
+                                </label>
+                                <label><input type="checkbox" class="loc-type" id="absoluteLocator" value="absolute" checked> Absolute XPath</label>
+                                <label><input type="checkbox" class="loc-type" id="playwrightLocator" value="playwright" checked> Playwright</label>
+                                <label><input type="checkbox" class="loc-type" id="jspathLocator" value="jspath" checked> JSPath</label>
+                                <label><input type="checkbox" class="loc-type" id="jqueryLocator" value="jquery" checked> jQuery</label>
+                                <label><input type="checkbox" class="loc-type" id="textLocator" value="text" checked> Text</label>
+                                <label><input type="checkbox" class="loc-type" id="testIdLocator" value="testId" checked> TestId</label>
+                                <label><input type="checkbox" class="loc-type" id="roleLocator" value="role" checked> Role</label>
+                                <label><input type="checkbox" class="loc-type" id="labelLocator" value="label" checked> Label</label>
+                                <label><input type="checkbox" class="loc-type" id="placeholderLocator" value="placeholder" checked> Placeholder</label>
+                                <label><input type="checkbox" class="loc-type" id="altTextLocator" value="altText" checked> AltText</label>
+                                <label><input type="checkbox" class="loc-type" id="titleLocator" value="title" checked> Title</label>
+                            </div>
+
+                        </div>
                     </li>
                     <li class="nav-item" id="navMultiSelect">
                         <i class="bi-list-check"></i>
+                        <div id="multiSelectDropdown" class="dropdown filter-dropdown">
+                            <div class="dropdown-header">
+                                <strong>Scan Multiple Locators</strong>
+                            </div>
+                        </div>
                     </li>
                     <li class="nav-item" id="navAbout">
                         <i class="bi-bookmark"></i>
+                        <div id="aboutDropdown" class="dropdown filter-dropdown">
+                            <div class="dropdown-header">
+                                <strong>Saved Locators</strong>
+                            </div>
+                        </div>
                     </li>
                     <li class="nav-item" id="navCustom">
                         <i class="bi-clock-history"></i>
+                        <div id="customDropdown" class="dropdown filter-dropdown">
+                            <div class="dropdown-header">
+                                <strong>History</strong>
+                            </div>
+                        </div>
                     </li>
                     <li class="nav-item" id="navSettings">
                         <i class="bi-gear"></i>
+                        <div id="settingsDropdown" class="dropdown filter-dropdown">
+                            <div class="dropdown-header">
+                                <strong>Settings</strong>
+                                <i class="bi bi-arrow-counterclockwise reset-button" id="resetDefaultsBtn" title="Reset to defaults"></i>
+                            </div>
+                        </div>
                     </li>
                 </div> 
             </ul>
@@ -72,9 +205,7 @@
 
         
     </div>
-
-    <script src="tabs.js"></script>
-    <script src="dropdown.js"></script>
+    <script src="theme.js"></script>
     <script src="panel.js"></script>
 </body>
 </html>
