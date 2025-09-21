@@ -37,6 +37,7 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+
 .header-icon-button{
   border: none;
   cursor: pointer;
@@ -96,7 +97,7 @@ body {
   z-index: 10;
 }
 
-.nav-list {
+.nav-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -110,6 +111,9 @@ body {
   display: flex;
   width: 40%;
   gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .nav-option {
@@ -142,7 +146,6 @@ body {
   border-bottom: -25px solid var(--primary-bg);
 }
 
-
 .nav-option.active::before {
   content: '';
   position: absolute;
@@ -171,11 +174,7 @@ body {
   position: relative;
 }
 
-.nav-option.active:before {
-  z-index: 1;
-}
-
-.nav-option.active:after {
+.nav-option.active:before, .nav-option.active:after {
   z-index: 1;
 }
 
@@ -198,6 +197,9 @@ body {
   width: 50%; 
   justify-content: flex-end;
   gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .nav-item {
@@ -214,13 +216,21 @@ body {
   position: relative;
 }
 
-.nav-item:hover {
-  background-color: var(--primary-bg);
+.nav-item > i{
+  box-shadow: 0 2px 6px var(--shadow-medium);
+  border-radius: 50%;
+  padding: 4px;
 }
-.nav-item i:hover {
+.nav-item > i:hover {
   background-color: var(--primary-bg);
   color: var(--accent);
-  box-shadow: 0 2px 6px var(--shadow-medium);
+  
+}
+
+.nav-item.active>i {
+  color: white;
+  background: var(--accent);
+
 }
 
 /* Content Containers */
@@ -239,21 +249,7 @@ body {
 
 /* Dropdowns-----------------------------------------------------------------------------------------------------------------*/
 
-.dropdown{
-  display: none;
-  padding: 6px;
-  overflow: auto;
-  z-index: 100;
-  transition: max-height 0.2s ease, opacity 0.2s ease;
-  border-radius: 10px;
-  border: 1px solid var(--border-light);
-  border-color: var(--border-light) !important;
-  box-sizing: border-box;
-  box-shadow: 0 4px 12px var(--shadow-medium) !important;
-  background: var(--secondary-bg) !important;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-light) transparent;
-}
+
 
 .dropdown-header {
   color: var(--accent);
@@ -266,8 +262,8 @@ body {
   border-bottom: 2px solid var(--border-dark);
 }
 
-/* filter-dropdown ------------------------------------------*/
-.filter-dropdown {
+/* navigation dropdowns ------------------------------------------*/
+.navdropdown {
   position: absolute;
   top: 100%;
   right: 0;
@@ -280,12 +276,16 @@ body {
   box-shadow: 0 4px 12px var(--shadow-medium);
   background: var(--secondary-bg);
   z-index: 100;
+  overflow: auto;
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
 }
 
 .dependencies-section {
   margin-top: 6px;
-  padding-bottom: 10px;
-  
+  padding-bottom: 8px;
 }
 
 .dependencies-header {
@@ -301,6 +301,8 @@ body {
   row-gap: 8px;
   align-items: center;
 }
+
+
 
 .dependency-item {
   display: grid;
@@ -497,6 +499,13 @@ body {
   padding: 0;
 }
 
+.relative-xpath-nested.show-above {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 1px;
+}
+
 .nested-options {
   border: none;
   margin: 0;
@@ -510,8 +519,29 @@ body {
   font-weight: 600;
   color: var(--accent);
   font-size: 9px;
-  padding: 2px;
+  padding: 2px 4px;
   margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.nested-select-all {
+  cursor: pointer;
+  color: var(--secondary-text);
+  transition: color 0.2s ease;
+  font-size: 8px;
+  padding: 1px;
+  border-radius: 2px;
+}
+
+.nested-select-all:hover {
+  color: var(--accent);
+}
+
+.nested-select-all.all-selected {
+  color: var(--accent);
 }
 
 .nested-options label {
@@ -556,13 +586,122 @@ body {
 /* reset-button-------------------------------------------- */
 .reset-button {
   cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 2px;
-  border-radius: 99px;
+  transition: all 0.3s ease;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  color: var(--secondary-text);
 }
 
 .reset-button:hover {
-  transform: rotate(-180deg);
-  color: var(--status-red-text);
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
 }
 
+/* setting dropdown---------------------------------------------------------------------- */
+
+/* Select and Option Styles */
+select {
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 9px;
+  color: var(--primary-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+select:hover {
+  border-color: var(--accent);
+  box-shadow: 0 1px 3px var(--shadow-light);
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+option {
+  background: var(--secondary-bg);
+  color: var(--primary-text);
+  padding: 2px 4px;
+  font-size: 9px;
+}
+
+option:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* Tier Group Styles */
+.tier-group {
+  margin-top: 8px;
+  padding: 6px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.tier-label {
+  color: var(--status-green-text);
+  font-weight: 600;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+.tier-options {
+  display: flex;
+  justify-content: space-evenly;
+}
+
+.tier-options label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 9px;
+  color: var(--primary-text);
+  flex: 1;
+  justify-content: center;
+}
+
+.tier-options label:hover {
+  background-color: var(--primary-bg);
+}
+
+.tier-options input[type="radio"] {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-dark);
+  border-radius: 50%;
+  background: var(--secondary-bg);
+  cursor: pointer;
+  position: relative;
+}
+
+.tier-options input[type="radio"]:checked {
+  border-color: var(--accent);
+}
+
+.tier-options input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.tier-options input[type="radio"]:hover {
+  border-color: var(--accent);
+}

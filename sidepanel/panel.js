@@ -1,277 +1,442 @@
-// Global tab management
-let currentActiveTab = 'home';
+// ============================================================================
+// LOCATOR-X WEB EXTENSION - UI CONTROLLER
+// ============================================================================
 
-// Global functions for tab switching
-window.switchToHome = function() {
-    setActiveTab('home');
-};
-
-window.switchToPOM = function() {
-    setActiveTab('pom');
-};
-
-window.getCurrentTab = function() {
-    return currentActiveTab;
-};
-
-function setActiveTab(tab) {
-    // Remove active class from all tabs
-    document.querySelectorAll('.nav-option').forEach(option => {
-        option.classList.remove('active');
-    });
+// ============================================================================
+// 1. TAB MANAGEMENT
+// ============================================================================
+const TabManager = {
+    currentActiveTab: 'home',
     
-    // Hide all content containers
-    document.querySelectorAll('.home-container, .pom-content').forEach(container => {
-        container.classList.remove('active');
-    });
+    init() {
+        this.setActiveTab('home');
+        document.getElementById('navHome').addEventListener('click', () => this.switchToHome());
+        document.getElementById('navPOM').addEventListener('click', () => this.switchToPOM());
+    },
     
-    // Update scope display
-    const scopeIcon = document.getElementById('scopeIcon');
-    const scopeText = document.getElementById('scopeText');
+    switchToHome() {
+        this.setActiveTab('home');
+    },
     
-    // Set active tab and show content
-    if (tab === 'home') {
-        document.getElementById('navHome').classList.add('active');
-        document.querySelector('.home-container').classList.add('active');
-        currentActiveTab = 'home';
-        if (scopeIcon && scopeText) {
-            scopeIcon.className = 'bi-house';
-            scopeText.textContent = 'Home';
-        }
-    } else if (tab === 'pom') {
-        document.getElementById('navPOM').classList.add('active');
-        document.querySelector('.pom-content').classList.add('active');
-        currentActiveTab = 'pom';
-        if (scopeIcon && scopeText) {
-            scopeIcon.className = 'bi-diagram-3';
-            scopeText.textContent = 'POM';
+    switchToPOM() {
+        this.setActiveTab('pom');
+    },
+    
+    getCurrentTab() {
+        return this.currentActiveTab;
+    },
+    
+    setActiveTab(tab) {
+        // Remove active class from all tabs
+        document.querySelectorAll('.nav-option').forEach(option => {
+            option.classList.remove('active');
+        });
+        
+        // Hide all content containers
+        document.querySelectorAll('.home-container, .pom-content').forEach(container => {
+            container.classList.remove('active');
+        });
+        
+        // Update scope display
+        const scopeIcon = document.getElementById('scopeIcon');
+        const scopeText = document.getElementById('scopeText');
+        
+        // Set active tab and show content
+        if (tab === 'home') {
+            document.getElementById('navHome').classList.add('active');
+            document.querySelector('.home-container').classList.add('active');
+            this.currentActiveTab = 'home';
+            if (scopeIcon && scopeText) {
+                scopeIcon.className = 'bi-house';
+                scopeText.textContent = 'Home';
+            }
+        } else if (tab === 'pom') {
+            document.getElementById('navPOM').classList.add('active');
+            document.querySelector('.pom-content').classList.add('active');
+            this.currentActiveTab = 'pom';
+            if (scopeIcon && scopeText) {
+                scopeIcon.className = 'bi-diagram-3';
+                scopeText.textContent = 'POM';
+            }
         }
     }
-}
-
-// Initialize tabs when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Set Home as default active tab
-    setActiveTab('home');
-    
-    // Add click event listeners
-    document.getElementById('navHome').addEventListener('click', () => switchToHome());
-    document.getElementById('navPOM').addEventListener('click', () => switchToPOM());
-});
-
-
-
-// Theme management
-let currentTheme = 'light';
-
-// Global theme functions
-window.toggleTheme = function() {
-    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
-    applyTheme(currentTheme);
-    saveTheme(currentTheme);
 };
 
-window.getCurrentTheme = function() {
-    return currentTheme;
-};
+// Global functions for external access
+window.switchToHome = () => TabManager.switchToHome();
+window.switchToPOM = () => TabManager.switchToPOM();
+window.getCurrentTab = () => TabManager.getCurrentTab();
 
-function applyTheme(theme) {
-    const body = document.body;
+// ============================================================================
+// 2. THEME MANAGEMENT
+// ============================================================================
+const ThemeManager = {
+    currentTheme: 'light',
     
-    if (theme === 'dark') {
-        body.classList.add('dark-theme');
-    } else {
-        body.classList.remove('dark-theme');
+    init() {
+        this.loadTheme();
+        document.getElementById('themeBtn').addEventListener('click', () => this.toggleTheme());
+    },
+    
+    toggleTheme() {
+        this.currentTheme = this.currentTheme === 'light' ? 'dark' : 'light';
+        this.applyTheme(this.currentTheme);
+        this.saveTheme(this.currentTheme);
+    },
+    
+    getCurrentTheme() {
+        return this.currentTheme;
+    },
+    
+    applyTheme(theme) {
+        const body = document.body;
+        if (theme === 'dark') {
+            body.classList.add('dark-theme');
+        } else {
+            body.classList.remove('dark-theme');
+        }
+    },
+    
+    saveTheme(theme) {
+        localStorage.setItem('locator-x-theme', theme);
+    },
+    
+    loadTheme() {
+        const savedTheme = localStorage.getItem('locator-x-theme');
+        this.currentTheme = savedTheme || 'light';
+        this.applyTheme(this.currentTheme);
     }
-}
+};
 
-function saveTheme(theme) {
-    localStorage.setItem('locator-x-theme', theme);
-}
+// Global functions for external access
+window.toggleTheme = () => ThemeManager.toggleTheme();
+window.getCurrentTheme = () => ThemeManager.getCurrentTheme();
 
-function loadTheme() {
-    const savedTheme = localStorage.getItem('locator-x-theme');
-    currentTheme = savedTheme || 'light';
-    applyTheme(currentTheme);
-}
-
-// Initialize theme when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    loadTheme();
-    
-    // Add click event listener to theme button
-    document.getElementById('themeBtn').addEventListener('click', toggleTheme);
-});
-
-
-// Dropdown management
-document.addEventListener('DOMContentLoaded', function() {
-    const dropdowns = [
+// ============================================================================
+// 3. DROPDOWN MANAGEMENT
+// ============================================================================
+const DropdownManager = {
+    dropdowns: [
         { btn: 'navFilterButton', dropdown: 'filterDropdown' },
         { btn: 'navMultiSelect', dropdown: 'multiSelectDropdown' },
         { btn: 'navAbout', dropdown: 'aboutDropdown' },
         { btn: 'navCustom', dropdown: 'customDropdown' },
         { btn: 'navSettings', dropdown: 'settingsDropdown' }
-    ];
+    ],
+    
+    init() {
+        this.setupDropdowns();
+        this.setupOutsideClickHandler();
+    },
+    
+    setupDropdowns() {
+        this.dropdowns.forEach(({ btn, dropdown }) => {
+            const btnElement = document.getElementById(btn);
+            const dropdownElement = document.getElementById(dropdown);
 
-    dropdowns.forEach(({ btn, dropdown }) => {
-        const btnElement = document.getElementById(btn);
-        const dropdownElement = document.getElementById(dropdown);
+            if (btnElement && dropdownElement) {
+                btnElement.addEventListener('click', () => {
+                    this.toggleDropdown(btn, dropdown);
+                });
 
-        if (btnElement && dropdownElement) {
-            btnElement.addEventListener('click', function() {
-                // Close all other dropdowns
-                dropdowns.forEach(({ dropdown: otherDropdown }) => {
-                    if (otherDropdown !== dropdown) {
-                        const otherElement = document.getElementById(otherDropdown);
-                        if (otherElement) otherElement.style.display = 'none';
-                    }
+                dropdownElement.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+        });
+    },
+    
+    toggleDropdown(targetBtn, targetDropdown) {
+        // Close all other dropdowns
+        this.dropdowns.forEach(({ btn, dropdown }) => {
+            if (dropdown !== targetDropdown) {
+                const element = document.getElementById(dropdown);
+                const btnElement = document.getElementById(btn);
+                if (element) element.style.display = 'none';
+                if (btnElement) btnElement.classList.remove('active');
+            }
+        });
+        
+        // Toggle target dropdown
+        const dropdownElement = document.getElementById(targetDropdown);
+        const btnElement = document.getElementById(targetBtn);
+        const isVisible = dropdownElement.style.display === 'block';
+        dropdownElement.style.display = isVisible ? 'none' : 'block';
+        btnElement.classList.toggle('active', !isVisible);
+    },
+    
+    setupOutsideClickHandler() {
+        document.addEventListener('click', (e) => {
+            const isNavItem = e.target.closest('.nav-item');
+            if (!isNavItem) {
+                this.closeAllDropdowns();
+            }
+        });
+    },
+    
+    closeAllDropdowns() {
+        this.dropdowns.forEach(({ btn, dropdown }) => {
+            const dropdownElement = document.getElementById(dropdown);
+            const btnElement = document.getElementById(btn);
+            if (dropdownElement) dropdownElement.style.display = 'none';
+            if (btnElement) btnElement.classList.remove('active');
+        });
+    }
+};
+
+// ============================================================================
+// 4. LOCATOR FILTER MANAGEMENT
+// ============================================================================
+const LocatorFilterManager = {
+    elements: {},
+    
+    init() {
+        this.cacheElements();
+        this.setupMainSelectAll();
+        this.setupIndividualCheckboxes();
+        this.setupRelativeXPathDropdown();
+        this.setupNestedSelectAll();
+        this.setupNestedCheckboxes();
+        this.setupScopeSwitch();
+        this.setupOutsideClickHandler();
+        this.updateNestedSelectAllIcon();
+    },
+    
+    cacheElements() {
+        this.elements = {
+            selectAllCheckbox: document.getElementById('locTypeAll'),
+            locTypeCheckboxes: document.querySelectorAll('.loc-type'),
+            nestedLocTypeCheckboxes: document.querySelectorAll('.nested-loc-type'),
+            relativeXPathCheckbox: document.getElementById('relativeXPath'),
+            relativeXPathNested: document.getElementById('relativeXPathNested'),
+            relativeDropdownArrow: document.getElementById('relativeDropdownArrow'),
+            nestedSelectAllIcon: document.getElementById('nestedSelectAll'),
+            switchScopeBtn: document.getElementById('switchScopeBtn'),
+            scopeIcon: document.getElementById('scopeIcon'),
+            scopeText: document.getElementById('scopeText')
+        };
+    },
+    
+    // Main Select All (includes Relative XPath with default XPath)
+    setupMainSelectAll() {
+        if (this.elements.selectAllCheckbox) {
+            this.elements.selectAllCheckbox.addEventListener('change', () => {
+                this.elements.locTypeCheckboxes.forEach(checkbox => {
+                    checkbox.checked = this.elements.selectAllCheckbox.checked;
                 });
                 
-                const isVisible = dropdownElement.style.display === 'block';
-                dropdownElement.style.display = isVisible ? 'none' : 'block';
+                // If selecting all, also check only the default XPath nested option
+                if (this.elements.selectAllCheckbox.checked) {
+                    this.elements.nestedLocTypeCheckboxes.forEach(checkbox => {
+                        checkbox.checked = checkbox.id === 'xpathLocator';
+                    });
+                } else {
+                    // If deselecting all, uncheck all nested options
+                    this.elements.nestedLocTypeCheckboxes.forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                }
+                this.updateNestedSelectAllIcon();
+            });
+        }
+    },
+    
+    // Individual outer checkboxes (includes Relative XPath in select all calculation)
+    setupIndividualCheckboxes() {
+        this.elements.locTypeCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const allChecked = Array.from(this.elements.locTypeCheckboxes).every(cb => cb.checked);
+                const noneChecked = Array.from(this.elements.locTypeCheckboxes).every(cb => !cb.checked);
+                
+                if (this.elements.selectAllCheckbox) {
+                    this.elements.selectAllCheckbox.checked = allChecked;
+                    this.elements.selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+                }
+            });
+        });
+    },
+    
+    // Relative XPath dropdown functionality
+    setupRelativeXPathDropdown() {
+        if (this.elements.relativeXPathCheckbox && this.elements.relativeDropdownArrow) {
+            // Arrow click handler
+            this.elements.relativeDropdownArrow.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleRelativeXPathNested();
             });
 
-            dropdownElement.addEventListener('click', function(e) {
+            // Checkbox change handler
+            this.elements.relativeXPathCheckbox.addEventListener('change', () => {
+                if (this.elements.relativeXPathCheckbox.checked) {
+                    this.elements.relativeXPathNested.style.display = 'block';
+                    this.elements.relativeDropdownArrow.classList.add('expanded');
+                } else {
+                    this.elements.nestedLocTypeCheckboxes.forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                }
+            });
+        }
+        
+        // Prevent nested dropdown from closing when clicking inside
+        if (this.elements.relativeXPathNested) {
+            this.elements.relativeXPathNested.addEventListener('click', (e) => {
                 e.stopPropagation();
             });
         }
-    });
-
-    // Close all dropdowns when clicking outside
-    document.addEventListener('click', function(e) {
-        const isNavItem = e.target.closest('.nav-item');
-        if (!isNavItem) {
-            dropdowns.forEach(({ dropdown }) => {
-                const dropdownElement = document.getElementById(dropdown);
-                if (dropdownElement) dropdownElement.style.display = 'none';
+    },
+    
+    toggleRelativeXPathNested() {
+        const isVisible = this.elements.relativeXPathNested.style.display === 'block';
+        
+        if (!isVisible) {
+            // Always show above since Relative XPath is typically in bottom rows
+            this.elements.relativeXPathNested.classList.add('show-above');
+        }
+        
+        this.elements.relativeXPathNested.style.display = isVisible ? 'none' : 'block';
+        this.elements.relativeDropdownArrow.classList.toggle('expanded', !isVisible);
+    },
+    
+    // Nested select all icon functionality
+    setupNestedSelectAll() {
+        if (this.elements.nestedSelectAllIcon) {
+            this.elements.nestedSelectAllIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const allChecked = Array.from(this.elements.nestedLocTypeCheckboxes).every(cb => cb.checked);
+                this.elements.nestedLocTypeCheckboxes.forEach(checkbox => {
+                    checkbox.checked = !allChecked;
+                });
+                this.updateNestedSelectAllIcon();
             });
         }
-    });
-
-    // Checkbox functionality
-    const selectAllCheckbox = document.getElementById('locTypeAll');
-    const locTypeCheckboxes = document.querySelectorAll('.loc-type');
-    const nestedLocTypeCheckboxes = document.querySelectorAll('.nested-loc-type');
-    const allCheckboxes = document.querySelectorAll('.loc-type, .nested-loc-type');
-
-    // Relative XPath dropdown functionality
-    const relativeXPathCheckbox = document.getElementById('relativeXPath');
-    const relativeXPathNested = document.getElementById('relativeXPathNested');
-    const relativeDropdownArrow = document.getElementById('relativeDropdownArrow');
-
-    // Toggle nested options when clicking on Relative XPath or arrow
-    function toggleRelativeXPathNested() {
-        const isVisible = relativeXPathNested.style.display === 'block';
-        relativeXPathNested.style.display = isVisible ? 'none' : 'block';
-        relativeDropdownArrow.classList.toggle('expanded', !isVisible);
-    }
-
-    if (relativeXPathCheckbox && relativeDropdownArrow) {
-        relativeDropdownArrow.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleRelativeXPathNested();
+    },
+    
+    // Individual nested checkboxes (update parent Relative XPath)
+    setupNestedCheckboxes() {
+        this.elements.nestedLocTypeCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const anyNestedChecked = Array.from(this.elements.nestedLocTypeCheckboxes).some(cb => cb.checked);
+                
+                if (this.elements.relativeXPathCheckbox) {
+                    if (anyNestedChecked && !this.elements.relativeXPathCheckbox.checked) {
+                        this.elements.relativeXPathCheckbox.checked = true;
+                    } else if (!anyNestedChecked && this.elements.relativeXPathCheckbox.checked) {
+                        this.elements.relativeXPathCheckbox.checked = false;
+                    }
+                }
+                
+                this.updateNestedSelectAllIcon();
+            });
         });
-
-        // Show nested options when Relative XPath is checked
-        relativeXPathCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                relativeXPathNested.style.display = 'block';
-                relativeDropdownArrow.classList.add('expanded');
+    },
+    
+    updateNestedSelectAllIcon() {
+        const allNestedChecked = Array.from(this.elements.nestedLocTypeCheckboxes).every(cb => cb.checked);
+        if (this.elements.nestedSelectAllIcon) {
+            if (allNestedChecked) {
+                this.elements.nestedSelectAllIcon.className = 'bi-check2-square nested-select-all all-selected';
             } else {
-                // Uncheck all nested options when Relative XPath is unchecked
-                nestedLocTypeCheckboxes.forEach(checkbox => {
-                    checkbox.checked = false;
+                this.elements.nestedSelectAllIcon.className = 'bi-square nested-select-all';
+            }
+        }
+    },
+    
+    // Scope switch functionality
+    setupScopeSwitch() {
+        if (this.elements.switchScopeBtn) {
+            this.elements.switchScopeBtn.addEventListener('click', () => {
+                const currentTab = TabManager.getCurrentTab();
+                if (currentTab === 'home') {
+                    TabManager.switchToPOM();
+                    this.elements.scopeIcon.className = 'bi-diagram-3';
+                    this.elements.scopeText.textContent = 'POM';
+                } else {
+                    TabManager.switchToHome();
+                    this.elements.scopeIcon.className = 'bi-house';
+                    this.elements.scopeText.textContent = 'Home';
+                }
+            });
+        }
+    },
+    
+    // Close nested dropdown when clicking outside
+    setupOutsideClickHandler() {
+        document.addEventListener('click', (e) => {
+            const relativeXPathContainer = document.querySelector('.relative-xpath-container');
+            if (relativeXPathContainer && this.elements.relativeXPathNested && 
+                !relativeXPathContainer.contains(e.target)) {
+                this.elements.relativeXPathNested.style.display = 'none';
+                if (this.elements.relativeDropdownArrow) {
+                    this.elements.relativeDropdownArrow.classList.remove('expanded');
+                }
+            }
+        });
+    },
+    
+    // API Methods for Web Extension
+    getSelectedLocators() {
+        const selected = [];
+        this.elements.locTypeCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selected.push({
+                    id: checkbox.id,
+                    value: checkbox.value,
+                    type: 'outer'
                 });
             }
         });
-    }
-
-    // Select All functionality
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            allCheckboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-            
-            // Show/hide nested options based on Relative XPath state
-            if (relativeXPathCheckbox && relativeXPathCheckbox.checked) {
-                relativeXPathNested.style.display = 'block';
-                relativeDropdownArrow.classList.add('expanded');
-            }
-        });
-    }
-
-    // Individual checkbox functionality
-    allCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const allChecked = Array.from(allCheckboxes).every(cb => cb.checked);
-            const noneChecked = Array.from(allCheckboxes).every(cb => !cb.checked);
-            
-            if (selectAllCheckbox) {
-                selectAllCheckbox.checked = allChecked;
-                selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
-            }
-        });
-    });
-
-    // Nested checkbox functionality - update parent Relative XPath checkbox
-    nestedLocTypeCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const anyNestedChecked = Array.from(nestedLocTypeCheckboxes).some(cb => cb.checked);
-            
-            if (relativeXPathCheckbox) {
-                // If any nested option is checked, ensure Relative XPath is checked
-                if (anyNestedChecked && !relativeXPathCheckbox.checked) {
-                    relativeXPathCheckbox.checked = true;
-                }
-                // If no nested options are checked, uncheck Relative XPath
-                else if (!anyNestedChecked && relativeXPathCheckbox.checked) {
-                    relativeXPathCheckbox.checked = false;
-                }
-            }
-        });
-    });
-
-    // Prevent nested options from closing when clicking inside
-    if (relativeXPathNested) {
-        relativeXPathNested.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
-    }
-
-    // Target scope switch functionality
-    const switchScopeBtn = document.getElementById('switchScopeBtn');
-    const scopeIcon = document.getElementById('scopeIcon');
-    const scopeText = document.getElementById('scopeText');
-    
-    if (switchScopeBtn) {
-        switchScopeBtn.addEventListener('click', function() {
-            const currentTab = getCurrentTab();
-            if (currentTab === 'home') {
-                switchToPOM();
-                scopeIcon.className = 'bi-diagram-3';
-                scopeText.textContent = 'POM';
-            } else {
-                switchToHome();
-                scopeIcon.className = 'bi-house';
-                scopeText.textContent = 'Home';
-            }
-        });
-    }
-
-    // Global click outside functionality for nested options
-    document.addEventListener('click', function(e) {
-        const relativeXPathContainer = document.querySelector('.relative-xpath-container');
-        const relativeXPathNested = document.getElementById('relativeXPathNested');
-        const relativeDropdownArrow = document.getElementById('relativeDropdownArrow');
         
-        if (relativeXPathContainer && relativeXPathNested && !relativeXPathContainer.contains(e.target)) {
-            relativeXPathNested.style.display = 'none';
-            if (relativeDropdownArrow) {
-                relativeDropdownArrow.classList.remove('expanded');
+        this.elements.nestedLocTypeCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selected.push({
+                    id: checkbox.id,
+                    value: checkbox.value,
+                    type: 'nested'
+                });
             }
+        });
+        
+        return selected;
+    },
+    
+    setLocatorState(locatorId, checked) {
+        const checkbox = document.getElementById(locatorId);
+        if (checkbox) {
+            checkbox.checked = checked;
+            checkbox.dispatchEvent(new Event('change'));
         }
-    });
+    }
+};
+
+// ============================================================================
+// 5. INITIALIZATION
+// ============================================================================
+document.addEventListener('DOMContentLoaded', function() {
+    TabManager.init();
+    ThemeManager.init();
+    DropdownManager.init();
+    LocatorFilterManager.init();
 });
+
+// ============================================================================
+// 6. WEB EXTENSION API
+// ============================================================================
+window.LocatorXAPI = {
+    // Tab Management
+    switchToHome: () => TabManager.switchToHome(),
+    switchToPOM: () => TabManager.switchToPOM(),
+    getCurrentTab: () => TabManager.getCurrentTab(),
+    
+    // Theme Management
+    toggleTheme: () => ThemeManager.toggleTheme(),
+    getCurrentTheme: () => ThemeManager.getCurrentTheme(),
+    
+    // Locator Management
+    getSelectedLocators: () => LocatorFilterManager.getSelectedLocators(),
+    setLocatorState: (locatorId, checked) => LocatorFilterManager.setLocatorState(locatorId, checked),
+    
+    // Dropdown Management
+    closeAllDropdowns: () => DropdownManager.closeAllDropdowns()
+};

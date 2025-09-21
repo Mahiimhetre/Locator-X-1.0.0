@@ -16,7 +16,7 @@
         <header class="header">
             <i class="bi-arrow-up-left-circle inspect-button header-icon-button" id="inspectBtn" title="Inspect Elements"></i>
             <i class="bi-circle-half theme-button header-icon-button" id="themeBtn" title="change theme"></i>
-            <i class="bi bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
+            <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
             <div class="header-content">
                 <div class="title-block">
                     <h1 class="title">Locator-X</h1>
@@ -26,8 +26,8 @@
         </header>
 
         <nav class="navbar">
-            <ul class="nav-list">
-                <div class="nav-options">
+            <div class="nav-content">
+                <ul class="nav-options">
                     <li class="nav-option" id="navHome">
                         <div class="nav-home">
                             <i class="bi-house"></i>
@@ -40,13 +40,12 @@
                             <span>POM</span>
                         </div>
                     </li>
-                </div>
-                <div class="nav-items">
+                </ul>
+                <ul class="nav-items">
                     <li class="nav-item" id="navFilterButton">
                         <i class="bi-funnel"></i>
 
-
-                        <div id="filterDropdown" class="dropdown filter-dropdown">
+                        <div id="filterDropdown" class="navdropdown">
                             <div class="dropdown-header">
                                 <strong>Locators Filter</strong>
                             </div>
@@ -57,11 +56,11 @@
                                 <div class="dependency-items">
                                     <div class="dependency-item">
                                         <span class="dependency-label">Framework:</span>
-                                        <span class="dependency-value" id="frameworkDisplay">abc</span>
+                                        <span class="dependency-value" id="frameworkDisplay">a1</span>
                                     </div>
                                     <div class="dependency-item">
                                         <span class="dependency-label">Language:</span>
-                                        <span class="dependency-value" id="languageDisplay">xyz</span>
+                                        <span class="dependency-value" id="languageDisplay">b1</span>
                                     </div>
                                 </div>
                             </div>
@@ -104,63 +103,26 @@
                                     <!-- Nested options for Relative XPath -->
                                     <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
                                         <fieldset class="nested-options">
-                                        <legend>Strategies</legend>
+                                            <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll" title="Select/Deselect All"></i></legend>
 
-                                        <label>
-                                            <input type="checkbox" class="nested-loc-type" id="indexedXpathLocator" value="indexed" checked>
-                                            Indexed XPath
-                                        </label>
-
-                                        <label>
-                                            <input type="checkbox" class="nested-loc-type" id="containsXpathLocator" value="contains" checked>
-                                            Contains
-                                        </label>
-
-                                        <label>
-                                            <input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator" value="linktext" checked>
-                                            Link Text
-                                        </label>
-
-                                        <label>
-                                            <input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator" value="partiallinktext" checked>
-                                            Partial Link Text
-                                        </label>
-
-                                        <label>
-                                            <input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath" checked>
-                                            Default XPath
-                                        </label>
-
-                                        <label>
-                                            <input type="checkbox" class="nested-loc-type" id="attributeXpathLocator" value="attribute" checked>
-                                            Attribute
-                                        </label>
-
-                                        <label>
-                                            <input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="css" checked>
-                                            CSS
-                                        </label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath" checked>Default XPath</label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator" value="contains" checked>Contains</label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator" value="indexed" checked>Indexed XPath</label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator" value="linktext" checked>Link Text</label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator" value="partiallinktext" checked>Partial Link Text</label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator" value="attribute" checked>Attribute</label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="css" checked>CSS</label>
                                         </fieldset>
                                     </div>
                                 </label>
                                 <label><input type="checkbox" class="loc-type" id="absoluteLocator" value="absolute" checked> Absolute XPath</label>
-                                <label><input type="checkbox" class="loc-type" id="playwrightLocator" value="playwright" checked> Playwright</label>
-                                <label><input type="checkbox" class="loc-type" id="jspathLocator" value="jspath" checked> JSPath</label>
-                                <label><input type="checkbox" class="loc-type" id="jqueryLocator" value="jquery" checked> jQuery</label>
-                                <label><input type="checkbox" class="loc-type" id="textLocator" value="text" checked> Text</label>
-                                <label><input type="checkbox" class="loc-type" id="testIdLocator" value="testId" checked> TestId</label>
-                                <label><input type="checkbox" class="loc-type" id="roleLocator" value="role" checked> Role</label>
-                                <label><input type="checkbox" class="loc-type" id="labelLocator" value="label" checked> Label</label>
-                                <label><input type="checkbox" class="loc-type" id="placeholderLocator" value="placeholder" checked> Placeholder</label>
-                                <label><input type="checkbox" class="loc-type" id="altTextLocator" value="altText" checked> AltText</label>
-                                <label><input type="checkbox" class="loc-type" id="titleLocator" value="title" checked> Title</label>
                             </div>
 
                         </div>
                     </li>
                     <li class="nav-item" id="navMultiSelect">
-                        <i class="bi-list-check"></i>
-                        <div id="multiSelectDropdown" class="dropdown filter-dropdown">
+                        <i class="bi-file-earmark-break"></i>
+                        <div id="multiSelectDropdown" class="navdropdown">
                             <div class="dropdown-header">
                                 <strong>Scan Multiple Locators</strong>
                             </div>
@@ -168,15 +130,16 @@
                     </li>
                     <li class="nav-item" id="navAbout">
                         <i class="bi-bookmark"></i>
-                        <div id="aboutDropdown" class="dropdown filter-dropdown">
+                        <div id="aboutDropdown" class="navdropdown">
                             <div class="dropdown-header">
                                 <strong>Saved Locators</strong>
+
                             </div>
                         </div>
                     </li>
-                    <li class="nav-item" id="navCustom">
+                    <li class="nav-item" id="navHistory">
                         <i class="bi-clock-history"></i>
-                        <div id="customDropdown" class="dropdown filter-dropdown">
+                        <div id="customDropdown" class="navdropdown">
                             <div class="dropdown-header">
                                 <strong>History</strong>
                             </div>
@@ -184,15 +147,48 @@
                     </li>
                     <li class="nav-item" id="navSettings">
                         <i class="bi-gear"></i>
-                        <div id="settingsDropdown" class="dropdown filter-dropdown">
+                        <div id="settingsDropdown" class="navdropdown">
                             <div class="dropdown-header">
                                 <strong>Settings</strong>
                                 <i class="bi bi-arrow-counterclockwise reset-button" id="resetDefaultsBtn" title="Reset to defaults"></i>
                             </div>
+                            <div class="dependencies-section">
+                                <div class="dependencies-header">Dependencies</div>
+                                <div class="dependency-items">
+                                    <div class="dependency-item">
+                                        <span class="dependency-label">Framework:</span>
+                                        <select name="frameworkSelect" id="frameworkSelect" title="Select Framework">
+                                            <option value="unknown">not sure</option>
+                                            <option value="selenium">selenium</option>
+                                            <option value="playwright">playwright</option>
+                                            <option value="cypress">cypress</option>
+                                        </select>
+                                        
+                                    </div>
+                                    <div class="dependency-item">
+                                        <span class="dependency-label">Language:</span>
+                                        <select name="languageSelect" id="languageSelect" title="Select Language">
+                                            <option value="unknown">not sure</option>
+                                            <option value="py">python</option>
+                                            <option value="java">java</option>
+                                            <option value="js">javascript</option>
+                                            <option value="ts">typescript</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tier-group">
+                                <label class="tier-label">Current Tier</label>
+                                <div class="tier-options">
+                                    <label><input type="radio" name="planTier" value="free" checked> Free</label>
+                                    <label><input type="radio" name="planTier" value="pro"> Pro</label>
+                                    <label><input type="radio" name="planTier" value="team"> Team</label>
+                                </div>
+                            </div>
                         </div>
                     </li>
-                </div> 
-            </ul>
+                </ul> 
+            </div>
         </nav>
 
         <div class="home-container">
