@@ -121,6 +121,7 @@ body {
 
 .nav-option:hover {
   background-color: var(--primary-bg);
+  z-index: 1;
 }
 
 .nav-option:hover .nav-home,
@@ -132,7 +133,7 @@ body {
   background-color: var(--primary-bg);
   border-radius: 8px 8px 0 0;
   position: relative;
-  margin-bottom: -5px;
+  margin-bottom: -4.2px;
   border: 1px solid var(--border-light);
   border-bottom: none;
 }
