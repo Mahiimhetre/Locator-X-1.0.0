@@ -48,6 +48,7 @@ const LocatorX = {
     // Theme Management
     theme: {
         current: 'light',
+        rotation: 0,
         
         init() {
             this.load();
@@ -56,6 +57,8 @@ const LocatorX = {
         
         toggle() {
             this.current = this.current === 'light' ? 'dark' : 'light';
+            this.rotation += 180;
+            document.getElementById('themeBtn').style.transform = `rotate(${this.rotation}deg)`;
             this.apply();
             localStorage.setItem('locator-x-theme', this.current);
         },
@@ -129,8 +132,21 @@ const LocatorX = {
             this.setupCheckboxes();
             this.setupRelativeXPath();
             this.setupScopeSwitch();
+            this.loadFiltersFromStorage();
             this.saveCurrentFilters('home');
             this.updateTable();
+        },
+        
+        loadFiltersFromStorage() {
+            chrome.storage.local.get(['enabledFilters'], (result) => {
+                if (result.enabledFilters && result.enabledFilters.length > 0) {
+                    // Set checkboxes based on stored filters
+                    document.querySelectorAll('.loc-type, .nested-loc-type').forEach(cb => {
+                        cb.checked = result.enabledFilters.includes(cb.id);
+                    });
+                    this.updateNestedIcon();
+                }
+            });
         },
         
         saveCurrentFilters(tab) {
@@ -222,6 +238,9 @@ const LocatorX = {
                     });
                     this.updateNestedIcon();
                     
+                    // Save to storage
+                    chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
+                    
                     if (LocatorX.tabs.current === 'home') {
                         this.updateTable();
                     } else if (LocatorX.tabs.current === 'pom') {
@@ -246,6 +265,9 @@ const LocatorX = {
                         selectAll.indeterminate = !allChecked && !noneChecked;
                     }
                     
+                    // Save to storage
+                    chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
+                    
                     if (LocatorX.tabs.current === 'home') {
                         this.updateTable();
                     } else {
@@ -264,6 +286,9 @@ const LocatorX = {
                     }
                     this.updateNestedIcon();
                     
+                    // Save to storage
+                    chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
+                    
                     if (LocatorX.tabs.current === 'home') {
                         this.updateTable();
                     } else {
@@ -278,18 +303,20 @@ const LocatorX = {
             if (!tbody) return;
             
             const checkedTypes = this.getCheckedTypes();
+            const enabledIds = this.getEnabledFilterIds();
+            
+            // Save enabled filters to storage
+            chrome.storage.local.set({ enabledFilters: enabledIds });
+            
             tbody.innerHTML = '';
             
+            // Show placeholder rows for enabled types
             checkedTypes.forEach(type => {
-                const matchCount = Math.floor(Math.random() * 4);
-                const matchClass = matchCount === 0 ? 'match-none' : 
-                                 matchCount === 1 ? 'match-single' : 'match-multiple';
-                
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><span class="match-count ${matchClass}">${matchCount}</span></td>
+                    <td><span class="match-count match-none">-</span></td>
                     <td>${type}</td>
-                    <td class="editable">sample-${type.toLowerCase()}</td>
+                    <td class="editable">Click inspect and select element</td>
                     <td>
                         <i class="bi-clipboard" title="Copy"></i>
                         <i class="bi-bookmark-plus" title="Save"></i>
@@ -299,6 +326,60 @@ const LocatorX = {
             });
             
             this.updatePOMTable();
+        },
+        
+        displayGeneratedLocators(locators) {
+            if (LocatorX.tabs.current === 'home') {
+                // Update home table
+                const tbody = document.querySelector('.home-container .locator-table tbody');
+                if (!tbody) return;
+                
+                tbody.innerHTML = '';
+                locators.forEach(locator => {
+                    const matchClass = locator.matches === 0 ? 'match-none' : 
+                                     locator.matches === 1 ? 'match-single' : 'match-multiple';
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><span class="match-count ${matchClass}">${locator.matches}</span></td>
+                        <td>${locator.type}</td>
+                        <td class="editable">${locator.locator}</td>
+                        <td>
+                            <i class="bi-clipboard" title="Copy"></i>
+                            <i class="bi-bookmark-plus" title="Save"></i>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else if (LocatorX.tabs.current === 'pom') {
+                // Update POM table - add new row with generated locators
+                const pomTable = document.querySelector('.pom-content .pom-table');
+                if (!pomTable) return;
+                
+                const tbody = pomTable.querySelector('tbody');
+                const newRowIndex = tbody.children.length + 1;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${newRowIndex}</td>`;
+                
+                // Add locator data for each enabled column
+                const checkedTypes = this.getCheckedTypes();
+                checkedTypes.forEach(type => {
+                    const matchingLocator = locators.find(loc => loc.type === type);
+                    const locatorValue = matchingLocator ? matchingLocator.locator : '-';
+                    row.innerHTML += `<td class="editable">${locatorValue}</td>`;
+                });
+                
+                row.innerHTML += `<td><i class="bi-clipboard" title="Copy"></i><i class="bi-trash" title="Delete"></i></td>`;
+                tbody.appendChild(row);
+            }
+        },
+        
+        getEnabledFilterIds() {
+            const enabledIds = [];
+            const checkboxes = document.querySelectorAll('.loc-type:checked, .nested-loc-type:checked');
+            checkboxes.forEach(cb => enabledIds.push(cb.id));
+            return enabledIds;
         },
         
         updatePOMTable() {
@@ -316,24 +397,15 @@ const LocatorX = {
             });
             thead.innerHTML += '<th>Actions</th>';
             
-            // Update existing rows or create sample row
-            if (tbody.children.length === 0) {
-                const row = document.createElement('tr');
-                row.innerHTML = '<td>1</td>';
-                checkedTypes.forEach(type => {
-                    row.innerHTML += `<td class="editable">sample-${type.toLowerCase()}</td>`;
-                });
-                row.innerHTML += `<td><i class="bi-clipboard" title="Copy"></i><i class="bi-trash" title="Delete"></i></td>`;
-                tbody.appendChild(row);
-            } else {
-                // Update existing rows
+            // Update existing rows only - no dummy data creation
+            if (tbody.children.length > 0) {
                 Array.from(tbody.children).forEach((row, index) => {
                     const cells = row.querySelectorAll('td');
                     const newRow = document.createElement('tr');
                     newRow.innerHTML = `<td>${index + 1}</td>`;
                     
                     checkedTypes.forEach((type, i) => {
-                        const existingValue = cells[i + 1] ? cells[i + 1].textContent : `sample-${type.toLowerCase()}`;
+                        const existingValue = cells[i + 1] ? cells[i + 1].textContent : '-';
                         newRow.innerHTML += `<td class="editable">${existingValue}</td>`;
                     });
                     
@@ -482,6 +554,345 @@ const LocatorX = {
         }
     },
 
+    // Search Suggestions
+    search: {
+        suggestions: [
+            // XPath Axes
+            { type: 'ancestor::', value: 'ancestor::' },
+            { type: 'ancestor-or-self::', value: 'ancestor-or-self::' },
+            { type: 'attribute::', value: 'attribute::' },
+            { type: 'child::', value: 'child::' },
+            { type: 'descendant::', value: 'descendant::' },
+            { type: 'descendant-or-self::', value: 'descendant-or-self::' },
+            { type: 'following::', value: 'following::' },
+            { type: 'following-sibling::', value: 'following-sibling::' },
+            { type: 'parent::', value: 'parent::' },
+            { type: 'preceding::', value: 'preceding::' },
+            { type: 'preceding-sibling::', value: 'preceding-sibling::' },
+            { type: 'self::', value: 'self::' },
+
+            // XPath Functions
+            { type: 'contains()', value: 'contains()' },
+            { type: 'text()', value: 'text()' },
+            { type: 'starts-with()', value: 'starts-with()' },
+            { type: 'ends-with()', value: 'ends-with()' },
+            { type: 'normalize-space()', value: 'normalize-space()' },
+            { type: 'last()', value: 'last()' },
+            { type: 'position()', value: 'position()' },
+            { type: 'count()', value: 'count()' },
+            { type: 'not()', value: 'not()' },
+            { type: 'string-length()', value: 'string-length()' },
+            { type: 'substring()', value: 'substring()' },
+            { type: 'translate()', value: 'translate()' },
+            { type: 'floor()', value: 'floor()' },
+            { type: 'ceiling()', value: 'ceiling()' },
+            { type: 'round()', value: 'round()' },
+
+            // Operators
+            { type: 'and', value: 'and' },
+            { type: 'or', value: 'or' },
+            { type: 'mod', value: 'mod' },
+            { type: 'div', value: 'div' },
+            { type: '//', value: '//' },
+            { type: '/', value: '/' },
+            { type: '*', value: '*' },
+            { type: '|', value: '|' },
+            { type: '!=', value: '!=' },
+
+            // Common Attributes
+            { type: '@id', value: '@id' },
+            { type: '@class', value: '@class' },
+            { type: '@name', value: '@name' },
+            { type: '@type', value: '@type' },
+            { type: '@href', value: '@href' },
+            { type: '@src', value: '@src' },
+            { type: '@value', value: '@value' },
+            { type: '@title', value: '@title' },
+            { type: '@alt', value: '@alt' },
+            { type: '@placeholder', value: '@placeholder' },
+            { type: '@style', value: '@style' },
+            { type: '@data-testid', value: '@data-testid' },
+            { type: '@role', value: '@role' },
+            { type: '@aria-label', value: '@aria-label' },
+
+            // HTML Tags
+            { type: 'div', value: 'div' },
+            { type: 'span', value: 'span' },
+            { type: 'a', value: 'a' },
+            { type: 'input', value: 'input' },
+            { type: 'button', value: 'button' },
+            { type: 'form', value: 'form' },
+            { type: 'img', value: 'img' },
+            { type: 'label', value: 'label' },
+            { type: 'select', value: 'select' },
+            { type: 'option', value: 'option' },
+            { type: 'textarea', value: 'textarea' },
+            { type: 'ul', value: 'ul' },
+            { type: 'li', value: 'li' },
+            { type: 'ol', value: 'ol' },
+            { type: 'table', value: 'table' },
+            { type: 'tr', value: 'tr' },
+            { type: 'td', value: 'td' },
+            { type: 'th', value: 'th' },
+            { type: 'thead', value: 'thead' },
+            { type: 'tbody', value: 'tbody' },
+            { type: 'h1', value: 'h1' },
+            { type: 'h2', value: 'h2' },
+            { type: 'h3', value: 'h3' },
+            { type: 'h4', value: 'h4' },
+            { type: 'h5', value: 'h5' },
+            { type: 'h6', value: 'h6' },
+            { type: 'p', value: 'p' },
+            { type: 'nav', value: 'nav' },
+            { type: 'header', value: 'header' },
+            { type: 'footer', value: 'footer' },
+            { type: 'section', value: 'section' },
+            { type: 'article', value: 'article' },
+            { type: 'aside', value: 'aside' },
+            { type: 'main', value: 'main' },
+            { type: 'iframe', value: 'iframe' },
+            { type: 'svg', value: 'svg' },
+            { type: 'path', value: 'path' }
+        ],
+        selectedIndex: -1,
+        
+        init() {
+            const input = document.getElementById('searchInput');
+            const dropdown = document.getElementById('searchDropdown');
+            
+            if (input && dropdown) {
+                input.addEventListener('input', () => this.handleInput(input, dropdown));
+                input.addEventListener('keydown', (e) => this.handleKeydown(e, input, dropdown));
+                input.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        dropdown.classList.remove('visible');
+                        setTimeout(() => dropdown.style.display = 'none', 150);
+                    }, 200);
+                });
+                input.addEventListener('focus', () => {
+                    if (input.value.length > 0) {
+                        this.handleInput(input, dropdown);
+                    }
+                });
+            }
+        },
+        
+        handleInput(input, dropdown) {
+            const value = input.value.toLowerCase();
+            if (value.length === 0) {
+                dropdown.classList.remove('visible');
+                dropdown.style.display = 'none';
+                return;
+            }
+            
+            const matches = this.suggestions.filter(s => 
+                s.value.toLowerCase().includes(value) || 
+                s.type.toLowerCase().includes(value)
+            );
+            
+            if (matches.length > 0) {
+                this.renderDropdown(matches, value, dropdown);
+                dropdown.style.display = 'block';
+                // Force reflow
+                dropdown.offsetHeight;
+                dropdown.classList.add('visible');
+            } else {
+                dropdown.classList.remove('visible');
+                dropdown.style.display = 'none';
+            }
+            
+            this.selectedIndex = -1;
+        },
+        
+        renderDropdown(matches, query, dropdown) {
+            dropdown.innerHTML = '';
+            matches.forEach((match, index) => {
+                const div = document.createElement('div');
+                div.className = 'dropdown-item';
+                div.setAttribute('role', 'option');
+                div.setAttribute('aria-selected', 'false');
+                
+                // Highlight matching part
+                const text = match.type;
+                const lowerText = text.toLowerCase();
+                const queryIndex = lowerText.indexOf(query);
+                
+                let html = '';
+                if (queryIndex >= 0) {
+                    html = text.substring(0, queryIndex) + 
+                           '<strong>' + text.substring(queryIndex, queryIndex + query.length) + '</strong>' + 
+                           text.substring(queryIndex + query.length);
+                } else {
+                    html = text;
+                }
+                
+                div.innerHTML = `
+                    <i class="bi-search item-icon"></i>
+                    <span>${html}</span>
+                `;
+                
+                div.addEventListener('click', () => {
+                    const input = document.getElementById('searchInput');
+                    input.value = match.type;
+                    dropdown.classList.remove('visible');
+                    dropdown.style.display = 'none';
+                    input.focus();
+                });
+                
+                div.addEventListener('mouseenter', () => {
+                    this.selectedIndex = index;
+                    this.updateSelection(dropdown);
+                });
+                
+                dropdown.appendChild(div);
+            });
+        },
+        
+        handleKeydown(e, input, dropdown) {
+            if (!dropdown.classList.contains('visible')) return;
+            
+            const items = dropdown.querySelectorAll('.dropdown-item');
+            if (items.length === 0) return;
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this.selectedIndex = (this.selectedIndex + 1) % items.length;
+                this.updateSelection(dropdown);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.selectedIndex = (this.selectedIndex - 1 + items.length) % items.length;
+                this.updateSelection(dropdown);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.selectedIndex >= 0) {
+                    items[this.selectedIndex].click();
+                }
+            } else if (e.key === 'Escape') {
+                dropdown.classList.remove('visible');
+                dropdown.style.display = 'none';
+            }
+        },
+        
+        updateSelection(dropdown) {
+            const items = dropdown.querySelectorAll('.dropdown-item');
+            items.forEach((item, index) => {
+                if (index === this.selectedIndex) {
+                    item.classList.add('active');
+                    item.setAttribute('aria-selected', 'true');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('active');
+                    item.setAttribute('aria-selected', 'false');
+                }
+            });
+        }
+    },
+
+    // Inspect Button Management
+    inspect: {
+        isActive: false,
+        currentMode: 'home',
+        
+        init() {
+            const inspectBtn = document.getElementById('inspectBtn');
+            if (inspectBtn) {
+                inspectBtn.addEventListener('click', () => this.toggle());
+                // Right-click to turn off inspect mode for both home and POM
+                inspectBtn.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    if (this.isActive) {
+                        this.deactivate();
+                    }
+                });
+            }
+            
+            // Listen for messages from content script
+            chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+                if (message.action === 'locatorsGenerated') {
+                    LocatorX.filters.displayGeneratedLocators(message.locators);
+                    // Auto-deactivate only in Home mode
+                    if (LocatorX.tabs.current === 'home') {
+                        this.deactivate();
+                    }
+                    // POM mode stays active for multiple captures
+                } else if (message.action === 'deactivateInspect') {
+                    // Handle ESC key and right-click deactivation from content script
+                    this.deactivate();
+                }
+            });
+        },
+        
+        toggle() {
+            if (!SiteSupport.isSupported) return;
+            if (this.isActive) {
+                this.deactivate();
+            } else {
+                this.activate();
+            }
+        },
+        
+        activate() {
+            this.isActive = true;
+            this.currentMode = LocatorX.tabs.current;
+            
+            // Clear dummy data from POM table when starting inspect
+            if (this.currentMode === 'pom') {
+                const pomTable = document.querySelector('.pom-content .pom-table tbody');
+                if (pomTable) {
+                    pomTable.innerHTML = '';
+                }
+            }
+            
+            this.updateUI();
+            
+            // Send message to content script
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0]) {
+                    chrome.tabs.sendMessage(tabs[0].id, { action: 'startScanning' });
+                }
+            });
+        },
+        
+        deactivate() {
+            this.isActive = false;
+            this.updateUI();
+            
+            // Send message to content script
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0]) {
+                    chrome.tabs.sendMessage(tabs[0].id, { action: 'stopScanning' });
+                }
+            });
+        },
+        
+        updateUI() {
+            const inspectBtn = document.getElementById('inspectBtn');
+            if (!inspectBtn) return;
+            
+            if (!SiteSupport.isSupported) {
+                inspectBtn.className = 'bi-arrow-up-left-circle inspect-button header-icon-button disabled';
+                inspectBtn.style.animation = 'none';
+                inspectBtn.style.color = '';
+                return;
+            }
+            
+            if (this.isActive) {
+                inspectBtn.className = 'bi-arrow-up-left-circle-fill inspect-button header-icon-button';
+                if (this.currentMode === 'home') {
+                    inspectBtn.style.animation = 'pulse-green 2s infinite';
+                    inspectBtn.style.color = '#28a745';
+                } else {
+                    inspectBtn.style.animation = 'pulse-red 2s infinite';
+                    inspectBtn.style.color = '#dc3545';
+                }
+            } else {
+                inspectBtn.className = 'bi-arrow-up-left-circle inspect-button header-icon-button';
+                inspectBtn.style.animation = 'none';
+                inspectBtn.style.color = '';
+            }
+        }
+    },
+
     // Initialize all modules
     init() {
         document.addEventListener('DOMContentLoaded', () => {
@@ -493,6 +904,8 @@ const LocatorX = {
             this.table.init();
             this.savedLocators.init();
             this.notifications.init();
+            this.search.init();
+            this.inspect.init();
         });
     },
 
@@ -581,6 +994,7 @@ const LocatorX = {
     savedLocators: {
         init() {
             this.updateDropdown();
+            this.setupSavedActions();
         },
         
         updateDropdown() {
@@ -625,13 +1039,22 @@ const LocatorX = {
                 
                 content += '</div>';
                 dropdown.innerHTML = content;
-                
-                this.setupSavedActions();
             }
+            
+            // Always setup actions after updating content
+            this.setupSavedActions();
         },
         
         setupSavedActions() {
-            document.addEventListener('click', (e) => {
+            // Use event delegation on the dropdown container
+            const dropdown = document.getElementById('aboutDropdown');
+            if (!dropdown) return;
+            
+            // Remove existing listener
+            dropdown.removeEventListener('click', this.handleSavedClick);
+            
+            // Add new listener with proper binding
+            this.handleSavedClick = (e) => {
                 if (e.target.classList.contains('saved-copy')) {
                     const item = e.target.closest('.saved-item');
                     const locator = item.querySelector('.saved-locator').textContent;
@@ -648,7 +1071,9 @@ const LocatorX = {
                     this.updateDropdown();
                     LocatorX.notifications.success('Deleted!');
                 }
-            });
+            };
+            
+            dropdown.addEventListener('click', this.handleSavedClick);
         }
     },
 
@@ -685,7 +1110,7 @@ const LocatorX = {
                         if (isTimestampName) {
                             // Direct rename without message
                             if (!name) {
-                                name = new Date().toLocaleString();
+                                name = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                             }
                             existing.name = name;
                             localStorage.setItem('locator-x-saved', JSON.stringify(saved));
@@ -698,7 +1123,7 @@ const LocatorX = {
                             );
                             if (rename) {
                                 if (!name) {
-                                    name = new Date().toLocaleString();
+                                    name = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                                 }
                                 existing.name = name;
                                 localStorage.setItem('locator-x-saved', JSON.stringify(saved));
@@ -711,7 +1136,7 @@ const LocatorX = {
                     } else {
                         // New locator
                         if (!name) {
-                            name = new Date().toLocaleString();
+                            name = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                         }
                         
                         saved.push({ 
@@ -747,7 +1172,7 @@ const LocatorX = {
                     const type = typeCell.textContent;
                     
                     // Save with auto-generated name
-                    const savedName = `${type}_${locator}`;
+                    const savedName = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                     const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
                     saved.push({ name: savedName, type, locator, date: new Date().toISOString() });
                     localStorage.setItem('locator-x-saved', JSON.stringify(saved));
@@ -773,9 +1198,30 @@ const LocatorX = {
         },
         
         setupEditableCells() {
-            document.addEventListener('dblclick', (e) => {
-                if (e.target.classList.contains('editable')) {
-                    this.makeEditable(e.target);
+            let clickCount = 0;
+            let clickTimeout;
+            
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('editable') && !e.target.classList.contains('editing')) {
+                    clickCount++;
+                    
+                    if (clickCount === 1) {
+                        clickTimeout = setTimeout(() => {
+                            // Single click - highlight in search
+                            const locator = e.target.textContent;
+                            const searchInput = document.querySelector('.search-input');
+                            if (searchInput) {
+                                searchInput.value = locator;
+                                searchInput.focus();
+                            }
+                            clickCount = 0;
+                        }, 300);
+                    } else if (clickCount === 2) {
+                        // Double click - make editable
+                        clearTimeout(clickTimeout);
+                        this.makeEditable(e.target);
+                        clickCount = 0;
+                    }
                 }
             });
         },

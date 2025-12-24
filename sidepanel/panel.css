@@ -36,6 +36,12 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
 /* Global Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 6px;
@@ -76,10 +82,22 @@ body {
 }
 
 .inspect-button { left: 5px; }
-.theme-button { right: 25px; }
+.theme-button { right: 25px; transition: transform 0.3s ease;}
 .login-btn { right: 5px; }
 
 .header-icon-button:hover { color: var(--accent); }
+
+.header-icon-button.disabled {
+  color: var(--border-dark) !important;
+  cursor: not-allowed !important;
+  opacity: 0.5;
+  animation: none !important;
+}
+
+.header-icon-button.disabled:hover {
+  color: var(--border-dark) !important;
+  transform: none !important;
+}
 
 .header-content {
   display: flex;
@@ -95,6 +113,7 @@ body {
   margin: auto;
   background: linear-gradient(90deg, #1e90ff, #ff7a00);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -109,6 +128,26 @@ body {
 .title-block {
   display: flex;
   align-items: center;
+  position: relative;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 8px;
+  background-color: var(--border-dark);
+  transition: background-color 0.3s ease;
+}
+
+.status-dot.supported {
+  background-color: var(--status-green-text);
+  box-shadow: 0 0 4px var(--status-green);
+}
+
+.status-dot.unsupported {
+  background-color: var(--status-red-text);
+  box-shadow: 0 0 4px var(--status-red);
 }
 
 .subtitle {
@@ -248,6 +287,7 @@ body {
 .main-content {
   flex: 1;
   overflow-y: auto;
+  padding-bottom: 50px;
 }
 
 .home-container, .pom-content {
@@ -268,6 +308,73 @@ body {
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
+  position: relative;
+}
+
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%; /* Matches input width + button width roughly, but input is flex: 1. */
+  /* Actually, the container includes the button. If I want it to match the input width, I should probably wrap the input in a div or adjust the width. 
+     The requirement says "same width" as the input field. 
+     The input is flex: 1 inside the container. The button is fixed width.
+     If I make the dropdown width 100% of the container, it will cover the button too.
+     If I want it to match the input, I should probably calculate the width or wrap the input.
+     
+     Let's look at the HTML again.
+     <div class="search-container">
+        <input ...>
+        <div id="searchDropdown"></div>
+        <button ...>
+     </div>
+     
+     If I set dropdown left: 0 and right: 36px (button width + gap), it might work.
+     Button width is 28px. Gap is 8px. So 36px.
+  */
+  width: calc(100% - 36px);
+  margin-top: 4px;
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow-medium);
+  z-index: 1000;
+  display: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease-in;
+}
+
+.search-dropdown.visible {
+  display: block;
+  opacity: 1;
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--primary-text);
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropdown-item:hover,
+.dropdown-item.active {
+  background-color: var(--surface-2);
+  color: var(--accent);
+}
+
+.dropdown-item strong {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.dropdown-item .item-icon {
+  font-size: 12px;
+  color: var(--secondary-text);
 }
 
 .search-input {
@@ -288,8 +395,8 @@ body {
 }
 
 .execute-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: none;
   border-radius: 50%;
   background: var(--accent);
@@ -298,7 +405,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 18px;
   transition: all 0.2s ease;
 }
 
@@ -355,7 +462,7 @@ body {
   border-radius: 8px;
   overflow: auto;
   border: 1px solid var(--border-light);
-  max-height: 300px;
+  max-height: 180px;
 }
 
 .locator-table {
@@ -382,6 +489,12 @@ body {
 
 .locator-table .editable {
   cursor: text;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  height: 20px;
 }
 
 .locator-table .editing {
@@ -843,64 +956,7 @@ select:focus {
   align-items: center;
   gap: 4px;
 }
-/* Saved Locators Dropdown Styles */
-.saved-item {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border-light);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
 
-.saved-item:last-child {
-    border-bottom: none;
-}
-
-.saved-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.saved-info strong {
-    font-size: 12px;
-    color: var(--primary-text);
-}
-
-.saved-type {
-    font-size: 10px;
-    background: var(--accent-color);
-    color: white;
-    padding: 2px 6px;
-    border-radius: 8px;
-}
-
-.saved-locator {
-    font-family: monospace;
-    font-size: 11px;
-    color: var(--secondary-text);
-    background: var(--bg-secondary);
-    padding: 4px 6px;
-    border-radius: 4px;
-    word-break: break-all;
-}
-
-.saved-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-}
-
-.saved-actions i {
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--secondary-text);
-    transition: color 0.2s;
-}
-
-.saved-actions i:hover {
-    color: var(--accent-color);
-}
 /* Notification System */
 .notification-container {
     position: fixed;
@@ -1027,4 +1083,190 @@ select:focus {
     bottom: 0;
     background: rgba(0, 0, 0, 0.3);
     z-index: 1000;
+}
+
+/* Saved Items Styles */
+.saved-item {
+    padding: 8px;
+    margin: 2px 0;
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.saved-item:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 4px var(--shadow-light);
+    transform: translateY(-1px);
+}
+
+.saved-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.saved-name {
+    font-size: 11px;
+    color: var(--primary-text);
+    font-weight: 600;
+    flex: 1;
+    margin-right: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.saved-type {
+    font-size: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.saved-locator {
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    color: var(--secondary-text);
+    background: var(--surface-2);
+    padding: 4px 6px;
+    border-radius: 4px;
+    word-break: break-all;
+    border-left: 3px solid var(--accent);
+    margin: 4px 0;
+    line-height: 1.2;
+}
+
+.saved-copy, .saved-delete {
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    margin-left: 2px;
+}
+
+.saved-copy {
+    color: var(--accent);
+}
+
+.saved-copy:hover {
+    background: var(--accent-muted);
+    color: var(--accent-hover);
+}
+
+.saved-delete {
+    color: var(--status-red-text);
+}
+
+.saved-delete:hover {
+    background: var(--status-red);
+    color: #dc3545;
+}
+
+/* Footer */
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-light);
+  background: linear-gradient(135deg, var(--secondary-bg) 0%, var(--surface-2) 100%);
+  box-shadow: 0 -2px 8px var(--shadow-light);
+  z-index: 100;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-text {
+  font-size: 9px;
+  color: var(--secondary-text);
+  font-weight: 500;
+}
+
+.footer-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.version-badge {
+  background: var(--accent);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 8px;
+  font-weight: 600;
+}
+/* Home table sticky header */
+.locator-table thead th {
+  position: sticky;
+  top: 0;
+  /* z-index: 10; */
+  white-space: nowrap;
+  /* min-width: fit-content; */
+  min-width: -webkit-fill-available;
+  background: var(--surface-2);
+}
+/* POM table single line cells */
+.pom-table td {
+  white-space: nowrap;
+  overflow-x: auto;
+  max-width: 80px;
+}
+
+.pom-table td::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes pulse-green{
+    0% { 
+        color: #27ae60;
+        filter: drop-shadow(0 0 4px rgba(39, 174, 96, 0.4));
+    }
+    50% { 
+        color: #2ecc71;
+        filter: drop-shadow(0 0 8px rgba(39, 174, 96, 0.6));
+        transform: scale(1.1);
+    }
+    100% { 
+        color: #27ae60;
+        filter: drop-shadow(0 0 4px rgba(39, 174, 96, 0.4));
+    }
+}
+
+/* Red pulse for POM */
+@keyframes pulse-red {
+    0% {
+        color: #c0392b;
+        filter: drop-shadow(0 0 4px rgba(192, 57, 43, 0.4));
+    }
+    50% {
+        color: #e74c3c;
+        filter: drop-shadow(0 0 8px rgba(192, 57, 43, 0.6));
+        transform: scale(1.1);
+    }
+    100% {
+        color: #c0392b;
+        filter: drop-shadow(0 0 4px rgba(192, 57, 43, 0.4));
+    }
+}
+
+.pom-table td {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

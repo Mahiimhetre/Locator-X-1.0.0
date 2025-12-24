@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Locator-X",
+  "version": "1.0.0",
+  "description": "Generate and manage web element locators for test automation",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "sidePanel"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["core/locator-generator.js", "content/domScanner.js"],
+      "css": ["content/highlight.css"],
+      "run_at": "document_end"
+    }
+  ],
+  
+  "side_panel": {
+    "default_path": "sidepanel/panel.html"
+  },
+  
+  "action": {
+    "default_title": "Locator-X",
+    "default_icon": {
+      "16": "assets/icons/default16.png",
+      "48": "assets/icons/default48.png",
+      "128": "assets/icons/default128.png"
+    }
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "core/locator-generator.js",
+        "core/storage-manager.js", 
+        "core/filter-manager.js",
+        "core/locator-x-core.js",
+        "content/highlight.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  
+  "devtools_page": "devtools/devtools.html"
+}
