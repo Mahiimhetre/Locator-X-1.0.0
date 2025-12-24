@@ -473,7 +473,7 @@ body {
 
 /* Table */
 .table-container {
-  margin-bottom: 16px;
+  margin-bottom: 5px;
   border-radius: 8px;
   overflow: auto;
   border: 1px solid var(--border-light);
@@ -1248,6 +1248,54 @@ select:focus {
   max-width: 80px;
 }
 
+
+/* Round Scroll Capsule Marquee */
+.element-detail-container {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 5px 4px 0 4px;
+  padding: 4px 12px;
+  border-radius: 20px !important;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 1px solid var(--border-light);
+  background: var(--surface-3);
+  position: relative;
+  /* height: 24px; */
+  /* Premium Edge Fade */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+}
+
+.element-detail-text {
+  font-size: 11px;
+  color: var(--secondary-text);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  opacity: 0.9;
+  display: inline-block;
+  padding-left: 100%;
+  /* Start outside right */
+  animation: round-scroll 12s linear infinite;
+  will-change: transform;
+}
+
+@keyframes round-scroll {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-99%);
+  }
+
+  /* Ensure it clears the left edge */
+}
+
+.dark-theme .element-detail-text {
+  color: #a0aec0;
+}
+
 .pom-table td::-webkit-scrollbar {
   display: none;
 }
@@ -1393,9 +1441,16 @@ select:focus {
   background-color: var(--status-red);
 }
 
+.dark-theme .element-detail-container {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .element-detail-text {
+  color: #a0aec0;
+}
+
 /* Adjust table container to fit with nav */
 .pom-content .table-container {
   height: calc(100% - 70px);
-  /* Adjust based on new nav height */
-  border-top: none;
 }

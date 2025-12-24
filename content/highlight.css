@@ -1,27 +1,37 @@
-/* Current highlight styles */
-.locator-x-highlight {
+/* Non-intrusive floating overlay */
+.locator-x-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    pointer-events: none !important;
+    z-index: 2147483647 !important;
+    /* Max value */
     border: 2px dashed #00d4ff !important;
-    border-radius: 6px !important;
     background: rgba(0, 212, 255, 0.1) !important;
-    cursor: pointer !important;
-    position: relative !important;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.5) !important;
+    border-radius: 4px !important;
+    transition: all 0.1s ease-out !important;
+    display: none;
+    box-sizing: border-box !important;
+    will-change: transform, width, height;
 }
 
-.locator-x-highlight::before {
-    content: attr(data-locator-type);
+.locator-x-overlay::before {
+    content: attr(data-label);
     position: absolute !important;
     top: -10px !important;
     left: 6px !important;
     background: #2c3e50 !important;
     color: white !important;
-    padding: 2px 5px !important;
-    font: 10px/1 monospace; /* fixed line-height for compact height */
-    font-family: monospace !important;
+    padding: 3px 6px !important;
+    font: 10px monospace !important;
     border-radius: 3px !important;
-    z-index: 99999 !important;
-    pointer-events: none !important;
     white-space: nowrap !important;
-    max-width: 120px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Keep for retro-compatibility or fallback if needed */
+.locator-x-highlight {
+    outline: 2px dashed #00d4ff !important;
+    outline-offset: -2px !important;
 }

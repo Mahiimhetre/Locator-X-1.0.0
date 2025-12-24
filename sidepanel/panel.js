@@ -430,7 +430,6 @@ const LocatorX = {
 
         updateFiltersForDependencies() {
             const framework = document.getElementById('frameworkSelect').value;
-            const language = document.getElementById('languageSelect').value;
 
             // Framework-specific filter rules
             if (framework === 'cypress') {
@@ -444,11 +443,6 @@ const LocatorX = {
             if (framework === 'playwright') {
                 this.enableFilter('cssLocator');
                 this.enableFilter('xpathLocator');
-            }
-
-            // Language-specific filter rules
-            if (language === 'js') {
-                this.enableFilter('cssLocator');
             }
 
             // Update tables based on current tab
@@ -561,13 +555,44 @@ const LocatorX = {
 
             tbody.innerHTML = '';
 
-            // Show placeholder rows for enabled types
-            checkedTypes.forEach(type => {
+            // If we have actual captured data, show that
+            if (this.lastLocators && this.lastLocators.length > 0) {
+                this.renderHomeTable(this.lastLocators);
+            } else {
+                // Otherwise show "structural" empty rows for enabled filters
+                const checkedTypes = this.getCheckedTypes();
+                checkedTypes.forEach(type => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><span class="match-count match-none">-</span></td>
+                        <td>${type}</td>
+                        <td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>
+                        <td>
+                            <i class="bi-clipboard disabled" title="Copy"></i>
+                            <i class="bi-bookmark-plus disabled" title="Save"></i>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            this.updatePOMTable();
+        },
+
+        renderHomeTable(locators) {
+            const tbody = document.querySelector('.home-container .locator-table tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+            locators.forEach(locator => {
+                const matchClass = locator.matches === 0 ? 'match-none' :
+                    locator.matches === 1 ? 'match-single' : 'match-multiple';
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><span class="match-count match-none">-</span></td>
-                    <td>${type}</td>
-                    <td class="editable">Click inspect and select element</td>
+                    <td><span class="match-count ${matchClass}">${locator.matches}</span></td>
+                    <td>${locator.type}</td>
+                    <td class="editable">${locator.locator}</td>
                     <td>
                         <i class="bi-clipboard" title="Copy"></i>
                         <i class="bi-bookmark-plus" title="Save"></i>
@@ -575,11 +600,9 @@ const LocatorX = {
                 `;
                 tbody.appendChild(row);
             });
-
-            this.updatePOMTable();
         },
 
-        displayGeneratedLocators(locators) {
+        displayGeneratedLocators(locators, elementInfo = null) {
             // Check for duplicate (same locators within 500ms)
             const now = Date.now();
             if (this.lastLocators &&
@@ -591,27 +614,13 @@ const LocatorX = {
             this.lastLocatorTime = now;
 
             if (LocatorX.tabs.current === 'home') {
-                // Update home table
-                const tbody = document.querySelector('.home-container .locator-table tbody');
-                if (!tbody) return;
+                this.renderHomeTable(locators);
 
-                tbody.innerHTML = '';
-                locators.forEach(locator => {
-                    const matchClass = locator.matches === 0 ? 'match-none' :
-                        locator.matches === 1 ? 'match-single' : 'match-multiple';
-
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><span class="match-count ${matchClass}">${locator.matches}</span></td>
-                        <td>${locator.type}</td>
-                        <td class="editable">${locator.locator}</td>
-                        <td>
-                            <i class="bi-clipboard" title="Copy"></i>
-                            <i class="bi-bookmark-plus" title="Save"></i>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
+                // Update element detail
+                const detailEl = document.getElementById('homeElementDetail');
+                if (detailEl && elementInfo) {
+                    detailEl.textContent = elementInfo;
+                }
             } else if (LocatorX.tabs.current === 'pom') {
                 // Check if page selected
                 let currentPage = LocatorX.pom.getCurrentPage();
@@ -808,11 +817,9 @@ const LocatorX = {
         }
     },
 
-    // Dependency Synchronization
     dependencies: {
         init() {
             const framework = document.getElementById('frameworkSelect');
-            const language = document.getElementById('languageSelect');
 
             if (framework) {
                 framework.addEventListener('change', e => {
@@ -820,14 +827,6 @@ const LocatorX = {
                     LocatorX.filters.updateFiltersForDependencies();
                 });
                 this.updateDisplay('frameworkDisplay', framework.value);
-            }
-
-            if (language) {
-                language.addEventListener('change', e => {
-                    this.updateDisplay('languageDisplay', e.target.value);
-                    LocatorX.filters.updateFiltersForDependencies();
-                });
-                this.updateDisplay('languageDisplay', language.value);
             }
         },
 
@@ -1092,12 +1091,11 @@ const LocatorX = {
             // Listen for messages from content script
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 if (message.action === 'locatorsGenerated') {
-                    LocatorX.filters.displayGeneratedLocators(message.locators);
-                    // Auto-deactivate only in Home mode
+                    LocatorX.filters.displayGeneratedLocators(message.locators, message.elementInfo);
+                    // Auto-deactivate picking in Home mode after successful capture
                     if (LocatorX.tabs.current === 'home') {
                         this.deactivate();
                     }
-                    // POM mode stays active for multiple captures
                 } else if (message.action === 'deactivateInspect') {
                     // Handle ESC key and right-click deactivation from content script
                     this.deactivate();
@@ -1122,8 +1120,9 @@ const LocatorX = {
 
             // Send message to content script
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (tabs[0]) {
-                    chrome.tabs.sendMessage(tabs[0].id, { action: 'startScanning' });
+                const tab = tabs[0];
+                if (tab && tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('edge://')) {
+                    chrome.tabs.sendMessage(tab.id, { action: 'startScanning' }).catch(() => { });
                 }
             });
         },
@@ -1134,8 +1133,9 @@ const LocatorX = {
 
             // Send message to content script
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (tabs[0]) {
-                    chrome.tabs.sendMessage(tabs[0].id, { action: 'stopScanning' });
+                const tab = tabs[0];
+                if (tab && tab.id) {
+                    chrome.tabs.sendMessage(tab.id, { action: 'stopScanning' }).catch(() => { });
                 }
             });
         },
@@ -1169,32 +1169,30 @@ const LocatorX = {
     },
 
     // Initialize all modules
-    init() {
+    async init() {
         this.core = new LocatorXCore();
-        this.core.initialize();
-        document.addEventListener('DOMContentLoaded', async () => {
-            LocatorX.core = new LocatorXCore();
-            await LocatorX.core.initialize();
+        await this.core.initialize();
 
-            LocatorX.modal = new LocatorXModal(); // Init Modal
+        this.modal = new LocatorXModal();
+        this.tabs.init();
+        this.theme.init();
+        this.dropdowns.init();
+        this.filters.init();
+        this.dependencies.init();
+        this.search.init();
+        this.pom.init();
+        this.table.init();
+        this.savedLocators.init();
+        this.notifications.init();
+        this.inspect.init();
 
-            LocatorX.tabs.init();
-            LocatorX.theme.init();
-            LocatorX.dropdowns.init();
-            LocatorX.filters.init();
-            LocatorX.dependencies.init();
-            LocatorX.search.init();
-            LocatorX.pom.init(); // Init POM listeners and initial load
-            LocatorX.table.init();
-            LocatorX.savedLocators.init();
-            LocatorX.notifications.init();
-            LocatorX.inspect.init();
+        // Check site support
+        if (typeof SiteSupport !== 'undefined') {
+            SiteSupport.check();
+        }
 
-            // Check site support
-            if (typeof SiteSupport !== 'undefined') {
-                SiteSupport.check();
-            }
-        });
+        // Establish persistent connection to background for lifecycle management
+        chrome.runtime.connect({ name: 'locatorx-panel' });
     },
 
     // Notification System
@@ -1560,8 +1558,10 @@ const LocatorX = {
     }
 };
 
-// Initialize the application
-LocatorX.init();
+// Initialize the application with error handling
+LocatorX.init().catch(err => {
+    console.error('Failed to initialize Locator-X:', err);
+});
 
 // Export API for external use
 window.LocatorXAPI = {
