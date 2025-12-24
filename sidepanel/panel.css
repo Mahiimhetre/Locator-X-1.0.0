@@ -81,11 +81,22 @@ body {
   border-radius: 3px;
 }
 
-.inspect-button { left: 5px; }
-.theme-button { right: 25px; transition: transform 0.3s ease;}
-.login-btn { right: 5px; }
+.inspect-button {
+  left: 5px;
+}
 
-.header-icon-button:hover { color: var(--accent); }
+.theme-button {
+  right: 25px;
+  transition: transform 0.3s ease;
+}
+
+.login-btn {
+  right: 5px;
+}
+
+.header-icon-button:hover {
+  color: var(--accent);
+}
 
 .header-icon-button.disabled {
   color: var(--border-dark) !important;
@@ -234,7 +245,8 @@ body {
   box-shadow: -3px 3px 0 var(--primary-bg);
 }
 
-.nav-home, .nav-pom {
+.nav-home,
+.nav-pom {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -267,18 +279,18 @@ body {
   position: relative;
 }
 
-.nav-item > i {
+.nav-item>i {
   box-shadow: 0 2px 6px var(--shadow-medium);
   border-radius: 50%;
   padding: 4px;
 }
 
-.nav-item > i:hover {
+.nav-item>i:hover {
   background-color: var(--primary-bg);
   color: var(--accent);
 }
 
-.nav-item.active > i {
+.nav-item.active>i {
   color: white;
   background: var(--accent);
 }
@@ -290,7 +302,8 @@ body {
   padding-bottom: 50px;
 }
 
-.home-container, .pom-content {
+.home-container,
+.pom-content {
   padding: 16px;
   display: none;
   background-color: var(--primary-bg);
@@ -298,7 +311,8 @@ body {
   margin-top: -1px;
 }
 
-.home-container.active, .pom-content.active {
+.home-container.active,
+.pom-content.active {
   display: block;
 }
 
@@ -315,7 +329,8 @@ body {
   position: absolute;
   top: 100%;
   left: 0;
-  width: 100%; /* Matches input width + button width roughly, but input is flex: 1. */
+  width: 100%;
+  /* Matches input width + button width roughly, but input is flex: 1. */
   /* Actually, the container includes the button. If I want it to match the input width, I should probably wrap the input in a div or adjust the width. 
      The requirement says "same width" as the input field. 
      The input is flex: 1 inside the container. The button is fixed width.
@@ -426,7 +441,7 @@ body {
   flex: 1;
   padding: 6px 12px;
   border: 1px solid var(--border-light);
-  border-radius: 20px;
+  border-radius: 50px;
   background: var(--secondary-bg);
   color: var(--primary-text);
   font-size: 10px;
@@ -442,7 +457,7 @@ body {
 .save-btn {
   padding: 6px 12px;
   border: none;
-  border-radius: 15px;
+  border-radius: 50px;
   background: var(--highlight);
   color: white;
   cursor: pointer;
@@ -687,18 +702,18 @@ body {
   color: white;
   font-size: 9px;
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   gap: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .scope-badge:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
   background: linear-gradient(135deg, #20c997 0%, #28a745 100%);
 }
 
@@ -959,217 +974,219 @@ select:focus {
 
 /* Notification System */
 .notification-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-width: 300px;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 300px;
 }
 
 .notification {
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transform: translateX(100%);
-    opacity: 0;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .notification.show {
-    transform: translateX(0);
-    opacity: 1;
+  transform: translateX(0);
+  opacity: 1;
 }
 
 .notification.success {
-    background: #d4edda;
-    color: #155724;
-    border-left: 4px solid #28a745;
+  background: #d4edda;
+  color: #155724;
+  border-left: 4px solid #28a745;
 }
 
 .notification.error {
-    background: #f8d7da;
-    color: #721c24;
-    border-left: 4px solid #dc3545;
+  background: #f8d7da;
+  color: #721c24;
+  border-left: 4px solid #dc3545;
 }
 
 .notification.warning {
-    background: #fff3cd;
-    color: #856404;
-    border-left: 4px solid #ffc107;
+  background: #fff3cd;
+  color: #856404;
+  border-left: 4px solid #ffc107;
 }
 
 .notification.info {
-    background: #d1ecf1;
-    color: #0c5460;
-    border-left: 4px solid #17a2b8;
+  background: #d1ecf1;
+  color: #0c5460;
+  border-left: 4px solid #17a2b8;
 }
 
 .notification i {
-    font-size: 14px;
+  font-size: 14px;
 }
+
 /* Custom Confirmation Dialog */
 .confirmation-dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--bg-primary);
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    z-index: 1001;
-    min-width: 300px;
-    max-width: 400px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 1001;
+  min-width: 300px;
+  max-width: 400px;
 }
 
 .confirmation-header {
-    padding: 16px 20px 12px;
-    border-bottom: 1px solid var(--border-light);
-    font-weight: 600;
-    color: var(--primary-text);
-    font-size: 14px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+  color: var(--primary-text);
+  font-size: 14px;
 }
 
 .confirmation-body {
-    padding: 16px 20px;
-    color: var(--secondary-text);
-    font-size: 12px;
-    line-height: 1.4;
+  padding: 16px 20px;
+  color: var(--secondary-text);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .confirmation-actions {
-    padding: 12px 20px 16px;
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
+  padding: 12px 20px 16px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .confirmation-btn {
-    padding: 6px 12px;
-    border: none;
-    border-radius: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .confirmation-btn.primary {
-    background: var(--accent-color);
-    color: white;
+  background: var(--accent-color);
+  color: white;
 }
 
 .confirmation-btn.secondary {
-    background: var(--bg-secondary);
-    color: var(--secondary-text);
-    border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  color: var(--secondary-text);
+  border: 1px solid var(--border-light);
 }
 
 .confirmation-btn:hover {
-    opacity: 0.8;
+  opacity: 0.8;
 }
 
 .confirmation-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.3);
-    z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
 }
 
 /* Saved Items Styles */
 .saved-item {
-    padding: 8px;
-    margin: 2px 0;
-    background: var(--secondary-bg);
-    border: 1px solid var(--border-light);
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    cursor: pointer;
+  padding: 8px;
+  margin: 2px 0;
+  background: var(--secondary-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .saved-item:hover {
-    border-color: var(--accent);
-    box-shadow: 0 2px 4px var(--shadow-light);
-    transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 2px 4px var(--shadow-light);
+  transform: translateY(-1px);
 }
 
 .saved-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
 }
 
 .saved-name {
-    font-size: 11px;
-    color: var(--primary-text);
-    font-weight: 600;
-    flex: 1;
-    margin-right: 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  font-size: 11px;
+  color: var(--primary-text);
+  font-weight: 600;
+  flex: 1;
+  margin-right: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .saved-type {
-    font-size: 8px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-    color: white;
-    padding: 2px 6px;
-    border-radius: 8px;
-    font-weight: 600;
-    text-transform: uppercase;
-    margin-right: 8px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  font-size: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: white;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-right: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .saved-locator {
-    font-family: 'Courier New', monospace;
-    font-size: 9px;
-    color: var(--secondary-text);
-    background: var(--surface-2);
-    padding: 4px 6px;
-    border-radius: 4px;
-    word-break: break-all;
-    border-left: 3px solid var(--accent);
-    margin: 4px 0;
-    line-height: 1.2;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  color: var(--secondary-text);
+  background: var(--surface-2);
+  padding: 4px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+  border-left: 3px solid var(--accent);
+  margin: 4px 0;
+  line-height: 1.2;
 }
 
-.saved-copy, .saved-delete {
-    cursor: pointer;
-    font-size: 12px;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-    margin-left: 2px;
+.saved-copy,
+.saved-delete {
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  margin-left: 2px;
 }
 
 .saved-copy {
-    color: var(--accent);
+  color: var(--accent);
 }
 
 .saved-copy:hover {
-    background: var(--accent-muted);
-    color: var(--accent-hover);
+  background: var(--accent-muted);
+  color: var(--accent-hover);
 }
 
 .saved-delete {
-    color: var(--status-red-text);
+  color: var(--status-red-text);
 }
 
 .saved-delete:hover {
-    background: var(--status-red);
-    color: #dc3545;
+  background: var(--status-red);
+  color: #dc3545;
 }
 
 /* Footer */
@@ -1212,6 +1229,7 @@ select:focus {
   font-size: 8px;
   font-weight: 600;
 }
+
 /* Home table sticky header */
 .locator-table thead th {
   position: sticky;
@@ -1222,6 +1240,7 @@ select:focus {
   min-width: -webkit-fill-available;
   background: var(--surface-2);
 }
+
 /* POM table single line cells */
 .pom-table td {
   white-space: nowrap;
@@ -1233,40 +1252,150 @@ select:focus {
   display: none;
 }
 
-@keyframes pulse-green{
-    0% { 
-        color: #27ae60;
-        filter: drop-shadow(0 0 4px rgba(39, 174, 96, 0.4));
-    }
-    50% { 
-        color: #2ecc71;
-        filter: drop-shadow(0 0 8px rgba(39, 174, 96, 0.6));
-        transform: scale(1.1);
-    }
-    100% { 
-        color: #27ae60;
-        filter: drop-shadow(0 0 4px rgba(39, 174, 96, 0.4));
-    }
+@keyframes pulse-green {
+  0% {
+    color: #27ae60;
+    filter: drop-shadow(0 0 4px rgba(39, 174, 96, 0.4));
+  }
+
+  50% {
+    color: #2ecc71;
+    filter: drop-shadow(0 0 8px rgba(39, 174, 96, 0.6));
+    transform: scale(1.1);
+  }
+
+  100% {
+    color: #27ae60;
+    filter: drop-shadow(0 0 4px rgba(39, 174, 96, 0.4));
+  }
 }
 
 /* Red pulse for POM */
 @keyframes pulse-red {
-    0% {
-        color: #c0392b;
-        filter: drop-shadow(0 0 4px rgba(192, 57, 43, 0.4));
-    }
-    50% {
-        color: #e74c3c;
-        filter: drop-shadow(0 0 8px rgba(192, 57, 43, 0.6));
-        transform: scale(1.1);
-    }
-    100% {
-        color: #c0392b;
-        filter: drop-shadow(0 0 4px rgba(192, 57, 43, 0.4));
-    }
+  0% {
+    color: #c0392b;
+    filter: drop-shadow(0 0 4px rgba(192, 57, 43, 0.4));
+  }
+
+  50% {
+    color: #e74c3c;
+    filter: drop-shadow(0 0 8px rgba(192, 57, 43, 0.6));
+    transform: scale(1.1);
+  }
+
+  100% {
+    color: #c0392b;
+    filter: drop-shadow(0 0 4px rgba(192, 57, 43, 0.4));
+  }
 }
+
 
 .pom-table td {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* POM Navigation Styles (Capsule & Floating) */
+/* POM Navigation Styles (Compact Capsule) */
+.pom-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 8px;
+  /* Compact padding */
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 50px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  height: 36px;
+  /* Fixed height for consistency */
+}
+
+.pom-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Reduced gap */
+  flex: 1;
+  margin-right: 8px;
+}
+
+.pom-icon {
+  font-size: 14px;
+  /* Smaller icon */
+  color: var(--accent);
+  padding-left: 4px;
+}
+
+.pom-page-select {
+  flex: 1;
+  padding: 4px 8px;
+  /* Compact select */
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: var(--primary-text);
+  font-size: 12px;
+  /* Smaller font */
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  height: 28px;
+}
+
+.pom-page-select:hover {
+  background-color: var(--surface-2);
+}
+
+.pom-page-select:focus {
+  background-color: var(--surface-2);
+}
+
+.pom-actions {
+  display: flex;
+  gap: 2px;
+  /* Tighter actions */
+  align-items: center;
+  padding-right: 2px;
+}
+
+.action-btn {
+  width: 26px;
+  /* Smaller buttons */
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--secondary-text);
+  transition: all 0.2s ease;
+  font-size: 13px;
+}
+
+.action-btn:hover {
+  color: var(--accent);
+  background-color: var(--surface-2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.action-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+#deletePageBtn:hover {
+  color: var(--status-red-text);
+  background-color: var(--status-red);
+}
+
+/* Adjust table container to fit with nav */
+.pom-content .table-container {
+  height: calc(100% - 70px);
+  /* Adjust based on new nav height */
+  border-top: none;
 }

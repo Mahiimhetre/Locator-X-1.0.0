@@ -34,6 +34,37 @@ class StorageManager {
         return saved.length !== filtered.length;
     }
 
+    // POM Pages Management
+    getPOMPages() {
+        return JSON.parse(localStorage.getItem(`${this.prefix}-pom-pages`) || '[]');
+    }
+
+    savePOMPage(page) {
+        const pages = this.getPOMPages();
+        const existingIndex = pages.findIndex(p => p.id === page.id);
+        
+        if (existingIndex !== -1) {
+            pages[existingIndex] = { ...pages[existingIndex], ...page, updatedAt: new Date().toISOString() };
+        } else {
+            pages.push({
+                ...page,
+                id: page.id || `pom_${Date.now()}`,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            });
+        }
+        
+        localStorage.setItem(`${this.prefix}-pom-pages`, JSON.stringify(pages));
+        return existingIndex !== -1 ? 'updated' : 'created';
+    }
+
+    deletePOMPage(pageId) {
+        const pages = this.getPOMPages();
+        const filtered = pages.filter(p => p.id !== pageId);
+        localStorage.setItem(`${this.prefix}-pom-pages`, JSON.stringify(filtered));
+        return pages.length !== filtered.length;
+    }
+
     // Settings Management
     getSettings() {
         return JSON.parse(localStorage.getItem(`${this.prefix}-settings`) || '{}');

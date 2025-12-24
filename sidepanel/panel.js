@@ -3,22 +3,255 @@
 
 const LocatorX = {
     core: null,
+    modal: null,
+
+    // POM Management
+    pom: {
+        currentPageId: null,
+
+        init() {
+            this.setupEventListeners();
+            this.loadPages();
+        },
+
+        setupEventListeners() {
+            const select = document.getElementById('pomPageSelect');
+            const addBtn = document.getElementById('addPageBtn');
+            const editBtn = document.getElementById('editPageBtn');
+            const deleteBtn = document.getElementById('deletePageBtn');
+
+            if (select) {
+                select.addEventListener('change', (e) => this.switchPage(e.target.value));
+            }
+
+            if (addBtn) addBtn.addEventListener('click', () => this.createPage());
+            if (editBtn) editBtn.addEventListener('click', () => this.renamePage());
+            if (deleteBtn) deleteBtn.addEventListener('click', () => this.deletePage());
+        },
+
+        loadPages() {
+            const pages = LocatorX.core.getPOMPages();
+            const select = document.getElementById('pomPageSelect');
+            if (!select) return;
+
+            select.innerHTML = '<option value="" disabled selected>Select Page</option>';
+
+            pages.forEach(page => {
+                const option = document.createElement('option');
+                option.value = page.id;
+                option.textContent = page.name;
+                select.appendChild(option);
+            });
+
+            // Restore last selected page or default
+            if (this.currentPageId && pages.find(p => p.id === this.currentPageId)) {
+                select.value = this.currentPageId;
+                this.updateUI(this.currentPageId);
+            } else if (pages.length > 0) {
+                this.switchPage(pages[0].id);
+            } else {
+                this.updateUI(null);
+            }
+        },
+
+
+        async createPage(defaultName = '') {
+            const name = await LocatorX.modal.prompt(
+                'Create New Page',
+                defaultName,
+                'Enter a descriptive name for your new POM page...'
+            );
+            if (!name) return null;
+
+            const newPage = {
+                id: `pom_${Date.now()}`,
+                name: name,
+                locators: []
+            };
+
+            LocatorX.core.savePOMPage(newPage);
+            this.loadPages();
+            this.switchPage(newPage.id);
+            return newPage;
+        },
+
+        async renamePage() {
+            if (!this.currentPageId) return;
+
+            const pages = LocatorX.core.getPOMPages();
+            const page = pages.find(p => p.id === this.currentPageId);
+            if (!page) return;
+
+            const newName = await LocatorX.modal.prompt(
+                'Rename Page',
+                page.name,
+                `Enter a new name for "${page.name}"`
+            );
+            if (!newName || newName === page.name) return;
+
+            page.name = newName;
+            LocatorX.core.savePOMPage(page);
+            this.loadPages();
+        },
+
+        async deletePage() {
+            if (!this.currentPageId) return;
+
+            const pages = LocatorX.core.getPOMPages();
+            const page = pages.find(p => p.id === this.currentPageId);
+            const pageName = page ? page.name : 'this page';
+
+            const confirmed = await LocatorX.modal.confirm(
+                'Delete Page',
+                `Are you sure you want to delete <span style="font-weight:600; color:var(--status-red-text);">"${pageName}"</span>?<br>This action cannot be undone.`,
+                { icon: 'bi-exclamation-triangle-fill' }
+            );
+            if (!confirmed) return;
+
+            LocatorX.core.deletePOMPage(this.currentPageId);
+            this.currentPageId = null;
+            this.loadPages();
+        },
+
+        switchPage(pageId) {
+            this.currentPageId = pageId;
+            const select = document.getElementById('pomPageSelect');
+            if (select) select.value = pageId;
+
+            this.updateUI(pageId);
+        },
+
+        getCurrentPage() {
+            if (!this.currentPageId) return null;
+            const pages = LocatorX.core.getPOMPages();
+            return pages.find(p => p.id === this.currentPageId);
+        },
+
+        addLocatorToPage(locator) {
+            const page = this.getCurrentPage();
+            if (!page) {
+                alert('Please select or create a page first.');
+                return;
+            }
+
+            // Check duplicates in the page
+            const exists = page.locators.some(l => l.locator === locator.locator && l.type === locator.type);
+            if (exists) return; // Silent return or notify
+
+            page.locators.push(locator);
+            LocatorX.core.savePOMPage(page);
+            this.updateUI(this.currentPageId);
+        },
+
+        updateUI(pageId) {
+            const editBtn = document.getElementById('editPageBtn');
+            const deleteBtn = document.getElementById('deletePageBtn');
+            const tableBody = document.querySelector('.pom-table tbody');
+
+            if (!pageId) {
+                if (editBtn) editBtn.classList.add('disabled');
+                if (deleteBtn) deleteBtn.classList.add('disabled');
+                if (tableBody) tableBody.innerHTML = '';
+                return;
+            }
+
+            if (editBtn) editBtn.classList.remove('disabled');
+            if (deleteBtn) deleteBtn.classList.remove('disabled');
+
+            // Render Table
+            this.renderTable(pageId);
+        },
+
+        renderTable(pageId) {
+            const pages = LocatorX.core.getPOMPages();
+            const page = pages.find(p => p.id === pageId);
+            if (!page || !page.locators) return;
+
+            // Reuse existing table update logic but with specific data
+            // We need to adapt the existing updatePOMTable logic to handle stored locators
+            // For now, let's just clear and show what we have
+
+            const tbody = document.querySelector('.pom-table tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            // This part needs to be clever. The existing logic renders rows based on *scanned* results.
+            // But here we are showing *saved* locators for the page. 
+            // Ideally, a POM page is a list of ELEMENTS, and each element has multiple strategies.
+            // OR, is it a list of chosen locators?
+            // Looking at the requirement: "create multiple pom pages... add a navbar... backend"
+            // Usually POM = Class with locators.
+
+            // The previous Logic was:
+            // updatePOMTable() -> takes generated locators and adds a row.
+
+            // If we look at existing `displayGeneratedLocators` for POM:
+            // It adds a row with columns for each enabled filter type.
+            // So one row = one element, with multiple locator columns.
+
+            // So our data structure for a page should be:
+            // page.elements = [ { id:..., locators: [ {type: 'id', locator: '...'}, ... ] } ]
+
+            // Let's adjust `addLocatorToPage` (actually we need to add an *element* with all its locators).
+            // When scanning, `displayGeneratedLocators` is called with a LIST of locators for ONE element.
+
+            // So:
+            /*
+            page: {
+                elements: [
+                    [ {type: 'id', locator:'...'}, {type: 'name', value: '...'} ] // One element's locators
+                ]
+            }
+            */
+
+            page.locators.forEach((elementLocators, index) => { // elementLocators is Array of locators
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${index + 1}</td>`;
+
+                const checkedTypes = LocatorX.filters.getCheckedTypes();
+                checkedTypes.forEach(type => {
+                    const matching = elementLocators.find(l => l.type === type);
+                    const val = matching ? matching.locator : '-';
+                    row.innerHTML += `<td class="editable">${val}</td>`;
+                });
+
+                row.innerHTML += `<td><i class="bi-clipboard" title="Copy"></i><i class="bi-trash" title="Delete"></i></td>`;
+                tbody.appendChild(row);
+            });
+        },
+
+        deleteLocator(row) {
+            // row ends up being the TR.
+            // But we need the index relative to the body, or we can rely on rowIndex (minus header).
+            const tbody = row.parentElement;
+            const index = Array.from(tbody.children).indexOf(row);
+
+            if (index === -1) return;
+
+            const page = this.getCurrentPage();
+            if (page && page.locators) {
+                page.locators.splice(index, 1);
+                LocatorX.core.savePOMPage(page);
+                this.renderTable(page.id);
+            }
+        }
+    },
 
     // Tab Management
     tabs: {
         current: 'home',
-        
+
         init() {
             document.getElementById('navHome').addEventListener('click', () => this.switch('home'));
             document.getElementById('navPOM').addEventListener('click', () => this.switch('pom'));
             this.switch('home');
         },
-        
+
         switch(tab) {
             // Update UI
             document.querySelectorAll('.nav-option').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.home-container, .pom-content').forEach(el => el.classList.remove('active'));
-            
+
             if (tab === 'home') {
                 LocatorX.filters.saveCurrentFilters('pom');
                 LocatorX.filters.loadFilters('home');
@@ -33,10 +266,24 @@ const LocatorX = {
                 document.querySelector('.pom-content').classList.add('active');
                 this.updateScope('bi-diagram-3', 'POM');
                 LocatorX.filters.updatePOMTable();
+
+                // Init POM if needed
+                if (!LocatorX.pom.currentPageId) {
+                    LocatorX.pom.init();
+                } else {
+                    // re-render in case filter changed
+                    LocatorX.pom.renderTable(LocatorX.pom.currentPageId);
+                }
             }
             this.current = tab;
+
+            // Sync Inspect Mode if active
+            if (LocatorX.inspect && LocatorX.inspect.isActive) {
+                LocatorX.inspect.currentMode = tab;
+                LocatorX.inspect.updateUI();
+            }
         },
-        
+
         updateScope(icon, text) {
             const scopeIcon = document.getElementById('scopeIcon');
             const scopeText = document.getElementById('scopeText');
@@ -51,12 +298,12 @@ const LocatorX = {
     theme: {
         current: 'light',
         rotation: 0,
-        
+
         init() {
             this.load();
             document.getElementById('themeBtn').addEventListener('click', () => this.toggle());
         },
-        
+
         toggle() {
             this.current = this.current === 'light' ? 'dark' : 'light';
             this.rotation += 180;
@@ -64,11 +311,11 @@ const LocatorX = {
             this.apply();
             localStorage.setItem('locator-x-theme', this.current);
         },
-        
+
         apply() {
             document.body.classList.toggle('dark-theme', this.current === 'dark');
         },
-        
+
         load() {
             this.current = localStorage.getItem('locator-x-theme') || 'light';
             this.apply();
@@ -83,28 +330,28 @@ const LocatorX = {
             { btn: 'navHistory', dropdown: 'customDropdown' },
             { btn: 'navSettings', dropdown: 'settingsDropdown' }
         ],
-        
+
         init() {
             this.list.forEach(({ btn, dropdown }) => {
                 const btnEl = document.getElementById(btn);
                 const dropdownEl = document.getElementById(dropdown);
-                
+
                 if (btnEl && dropdownEl) {
                     btnEl.addEventListener('click', () => this.toggle(btn, dropdown));
                     dropdownEl.addEventListener('click', e => e.stopPropagation());
                 }
             });
-            
+
             document.addEventListener('click', e => {
-                if (!e.target.closest('.nav-item')) this.closeAll();
+                if (e.target && e.target.closest && !e.target.closest('.nav-item')) this.closeAll();
             });
         },
-        
+
         toggle(targetBtn, targetDropdown) {
             this.list.forEach(({ btn, dropdown }) => {
                 const el = document.getElementById(dropdown);
                 const btnEl = document.getElementById(btn);
-                
+
                 if (dropdown === targetDropdown) {
                     const isVisible = el.style.display === 'block';
                     el.style.display = isVisible ? 'none' : 'block';
@@ -115,7 +362,7 @@ const LocatorX = {
                 }
             });
         },
-        
+
         closeAll() {
             this.list.forEach(({ btn, dropdown }) => {
                 document.getElementById(dropdown).style.display = 'none';
@@ -130,7 +377,7 @@ const LocatorX = {
         pomFilters: {},
         lastLocators: null,
         lastLocatorTime: 0,
-        
+
         init() {
             this.setupSelectAll();
             this.setupCheckboxes();
@@ -140,7 +387,7 @@ const LocatorX = {
             this.saveCurrentFilters('home');
             this.updateTable();
         },
-        
+
         loadFiltersFromStorage() {
             chrome.storage.local.get(['enabledFilters'], (result) => {
                 if (result.enabledFilters && result.enabledFilters.length > 0) {
@@ -152,7 +399,7 @@ const LocatorX = {
                 }
             });
         },
-        
+
         saveCurrentFilters(tab) {
             const filters = {};
             document.querySelectorAll('.loc-type').forEach(cb => {
@@ -161,30 +408,30 @@ const LocatorX = {
             document.querySelectorAll('.nested-loc-type').forEach(cb => {
                 filters[cb.id] = cb.checked;
             });
-            
+
             if (tab === 'home') {
                 this.homeFilters = filters;
             } else {
                 this.pomFilters = filters;
             }
         },
-        
+
         loadFilters(tab) {
             const filters = tab === 'home' ? this.homeFilters : this.pomFilters;
             if (Object.keys(filters).length === 0) return;
-            
+
             Object.keys(filters).forEach(id => {
                 const checkbox = document.getElementById(id);
                 if (checkbox) checkbox.checked = filters[id];
             });
-            
+
             this.updateNestedIcon();
         },
-        
+
         updateFiltersForDependencies() {
             const framework = document.getElementById('frameworkSelect').value;
             const language = document.getElementById('languageSelect').value;
-            
+
             // Framework-specific filter rules
             if (framework === 'cypress') {
                 this.disableFilter('linkTextLocator');
@@ -193,17 +440,17 @@ const LocatorX = {
                 this.enableFilter('linkTextLocator');
                 this.enableFilter('pLinkTextLocator');
             }
-            
+
             if (framework === 'playwright') {
                 this.enableFilter('cssLocator');
                 this.enableFilter('xpathLocator');
             }
-            
+
             // Language-specific filter rules
             if (language === 'js') {
                 this.enableFilter('cssLocator');
             }
-            
+
             // Update tables based on current tab
             if (LocatorX.tabs.current === 'home') {
                 this.updateTable();
@@ -211,7 +458,7 @@ const LocatorX = {
                 this.updatePOMTable();
             }
         },
-        
+
         disableFilter(filterId) {
             const checkbox = document.getElementById(filterId);
             if (checkbox) {
@@ -220,7 +467,7 @@ const LocatorX = {
                 checkbox.parentElement.style.opacity = '0.5';
             }
         },
-        
+
         enableFilter(filterId) {
             const checkbox = document.getElementById(filterId);
             if (checkbox) {
@@ -228,12 +475,12 @@ const LocatorX = {
                 checkbox.parentElement.style.opacity = '1';
             }
         },
-        
+
         setupSelectAll() {
             const selectAll = document.getElementById('locTypeAll');
             const checkboxes = document.querySelectorAll('.loc-type');
             const nestedCheckboxes = document.querySelectorAll('.nested-loc-type');
-            
+
             if (selectAll) {
                 selectAll.addEventListener('change', () => {
                     checkboxes.forEach(cb => cb.checked = selectAll.checked);
@@ -241,10 +488,10 @@ const LocatorX = {
                         cb.checked = selectAll.checked && cb.id === 'xpathLocator';
                     });
                     this.updateNestedIcon();
-                    
+
                     // Save to storage
                     chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
-                    
+
                     if (LocatorX.tabs.current === 'home') {
                         this.updateTable();
                     } else if (LocatorX.tabs.current === 'pom') {
@@ -253,25 +500,25 @@ const LocatorX = {
                 });
             }
         },
-        
+
         setupCheckboxes() {
             const selectAll = document.getElementById('locTypeAll');
             const checkboxes = document.querySelectorAll('.loc-type');
             const nestedCheckboxes = document.querySelectorAll('.nested-loc-type');
-            
+
             checkboxes.forEach(cb => {
                 cb.addEventListener('change', () => {
                     const allChecked = Array.from(checkboxes).every(c => c.checked);
                     const noneChecked = Array.from(checkboxes).every(c => !c.checked);
-                    
+
                     if (selectAll) {
                         selectAll.checked = allChecked;
                         selectAll.indeterminate = !allChecked && !noneChecked;
                     }
-                    
+
                     // Save to storage
                     chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
-                    
+
                     if (LocatorX.tabs.current === 'home') {
                         this.updateTable();
                     } else {
@@ -279,20 +526,20 @@ const LocatorX = {
                     }
                 });
             });
-            
+
             nestedCheckboxes.forEach(cb => {
                 cb.addEventListener('change', () => {
                     const relativeXPath = document.getElementById('relativeXPath');
                     const anyNested = Array.from(nestedCheckboxes).some(c => c.checked);
-                    
+
                     if (relativeXPath) {
                         relativeXPath.checked = anyNested;
                     }
                     this.updateNestedIcon();
-                    
+
                     // Save to storage
                     chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
-                    
+
                     if (LocatorX.tabs.current === 'home') {
                         this.updateTable();
                     } else {
@@ -301,19 +548,19 @@ const LocatorX = {
                 });
             });
         },
-        
+
         updateTable() {
             const tbody = document.querySelector('.locator-table tbody');
             if (!tbody) return;
-            
+
             const checkedTypes = this.getCheckedTypes();
             const enabledIds = this.getEnabledFilterIds();
-            
+
             // Save enabled filters to storage
             chrome.storage.local.set({ enabledFilters: enabledIds });
-            
+
             tbody.innerHTML = '';
-            
+
             // Show placeholder rows for enabled types
             checkedTypes.forEach(type => {
                 const row = document.createElement('tr');
@@ -328,15 +575,15 @@ const LocatorX = {
                 `;
                 tbody.appendChild(row);
             });
-            
+
             this.updatePOMTable();
         },
-        
+
         displayGeneratedLocators(locators) {
             // Check for duplicate (same locators within 500ms)
             const now = Date.now();
-            if (this.lastLocators && 
-                (now - this.lastLocatorTime < 500) && 
+            if (this.lastLocators &&
+                (now - this.lastLocatorTime < 500) &&
                 JSON.stringify(this.lastLocators) === JSON.stringify(locators)) {
                 return;
             }
@@ -347,12 +594,12 @@ const LocatorX = {
                 // Update home table
                 const tbody = document.querySelector('.home-container .locator-table tbody');
                 if (!tbody) return;
-                
+
                 tbody.innerHTML = '';
                 locators.forEach(locator => {
-                    const matchClass = locator.matches === 0 ? 'match-none' : 
-                                     locator.matches === 1 ? 'match-single' : 'match-multiple';
-                    
+                    const matchClass = locator.matches === 0 ? 'match-none' :
+                        locator.matches === 1 ? 'match-single' : 'match-multiple';
+
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td><span class="match-count ${matchClass}">${locator.matches}</span></td>
@@ -366,82 +613,91 @@ const LocatorX = {
                     tbody.appendChild(row);
                 });
             } else if (LocatorX.tabs.current === 'pom') {
-                // Update POM table - add new row with generated locators
-                const pomTable = document.querySelector('.pom-content .pom-table');
-                if (!pomTable) return;
-                
-                const tbody = pomTable.querySelector('tbody');
+                // Check if page selected
+                let currentPage = LocatorX.pom.getCurrentPage();
 
-                // Check for duplicates
-                const checkedTypes = this.getCheckedTypes();
-                const existingRowsData = Array.from(tbody.rows).map(row => {
-                    const rowData = {};
-                    checkedTypes.forEach((type, index) => {
-                        rowData[type] = row.cells[index + 1].textContent;
-                    });
-                    return rowData;
-                });
+                // Auto-create page if none exists or none selected
+                if (!currentPage) {
+                    LocatorX.modal.prompt(
+                        'Create First Page',
+                        'Page 1',
+                        'No pages exist yet. Enter a name to create your first POM page:'
+                    )
+                        .then(name => {
+                            if (name) {
+                                // Create page manually to get the ID and object
+                                const newPage = {
+                                    id: `pom_${Date.now()}`,
+                                    name: name,
+                                    locators: []
+                                };
+                                LocatorX.core.savePOMPage(newPage);
+                                LocatorX.pom.loadPages();
+                                LocatorX.pom.switchPage(newPage.id);
+                                currentPage = newPage;
 
-                if (LocatorX.core.checkDuplicatePOM(existingRowsData, locators, checkedTypes)) return;
+                                // Now add the locators
+                                this.addLocatorsToPage(currentPage, locators);
+                            }
+                        });
+                    return;
+                }
 
-                const newRowIndex = tbody.children.length + 1;
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `<td>${newRowIndex}</td>`;
-                
-                // Add locator data for each enabled column
-                // const checkedTypes = this.getCheckedTypes();
-                checkedTypes.forEach(type => {
-                    const matchingLocator = locators.find(loc => loc.type === type);
-                    const locatorValue = matchingLocator ? matchingLocator.locator : '-';
-                    row.innerHTML += `<td class="editable">${locatorValue}</td>`;
-                });
-                
-                row.innerHTML += `<td><i class="bi-clipboard" title="Copy"></i><i class="bi-trash" title="Delete"></i></td>`;
-                tbody.appendChild(row);
+                this.addLocatorsToPage(currentPage, locators);
             }
         },
-        
+
+        addLocatorsToPage(page, locators) {
+            const tbody = document.querySelector('.pom-content .pom-table tbody');
+            if (!tbody) return;
+
+            // Check for duplicates (existing logic)
+            /* The existing logic reads from DOM which is fine for visual duplicates, 
+               but we should check the data model */
+            const isDuplicate = page.locators.some(l => JSON.stringify(l) === JSON.stringify(locators));
+            if (isDuplicate) {
+                LocatorX.notifications.warning(`Already added to "${page.name}"`);
+                return;
+            }
+
+            // Add to storage
+            page.locators.push(locators);
+            LocatorX.core.savePOMPage(page);
+
+            // Re-render
+            LocatorX.pom.renderTable(page.id);
+        },
+
         getEnabledFilterIds() {
             const enabledIds = [];
             const checkboxes = document.querySelectorAll('.loc-type:checked, .nested-loc-type:checked');
             checkboxes.forEach(cb => enabledIds.push(cb.id));
             return enabledIds;
         },
-        
+
         updatePOMTable() {
             const pomTable = document.querySelector('.pom-table');
             if (!pomTable) return;
-            
+
             const checkedTypes = this.getCheckedTypes();
-            const thead = pomTable.querySelector('thead tr');
-            const tbody = pomTable.querySelector('tbody');
-            
-            // Update header
-            thead.innerHTML = '<th>#</th>';
-            checkedTypes.forEach(type => {
-                thead.innerHTML += `<th>${type}</th>`;
-            });
-            thead.innerHTML += '<th>Actions</th>';
-            
-            // Update existing rows only - no dummy data creation
-            if (tbody.children.length > 0) {
-                Array.from(tbody.children).forEach((row, index) => {
-                    const cells = row.querySelectorAll('td');
-                    const newRow = document.createElement('tr');
-                    newRow.innerHTML = `<td>${index + 1}</td>`;
-                    
-                    checkedTypes.forEach((type, i) => {
-                        const existingValue = cells[i + 1] ? cells[i + 1].textContent : '-';
-                        newRow.innerHTML += `<td class="editable">${existingValue}</td>`;
-                    });
-                    
-                    newRow.innerHTML += `<td><i class="bi-clipboard" title="Copy"></i><i class="bi-trash" title="Delete"></i></td>`;
-                    row.replaceWith(newRow);
+
+            // If we are in POM mode and have a page, re-render it
+            if (LocatorX.tabs.current === 'pom' && LocatorX.pom.currentPageId) {
+                LocatorX.pom.renderTable(LocatorX.pom.currentPageId);
+            }
+
+            // Header update is still needed
+            const headermain = pomTable.querySelector('thead tr');
+            if (headermain) {
+                const checkedTypes = this.getCheckedTypes();
+                headermain.innerHTML = '<th>#</th>';
+                checkedTypes.forEach(type => {
+                    headermain.innerHTML += `<th>${type}</th>`;
                 });
+                headermain.innerHTML += '<th>Actions</th>';
             }
         },
-        
+
         getCheckedTypes() {
             const types = [];
             const typeMap = {
@@ -454,14 +710,14 @@ const LocatorX = {
                 'pLinkTextLocator': 'Partial LinkText',
                 'absoluteLocator': 'Absolute XPath'
             };
-            
+
             Object.keys(typeMap).forEach(id => {
                 const checkbox = document.getElementById(id);
                 if (checkbox && checkbox.checked) {
                     types.push(typeMap[id]);
                 }
             });
-            
+
             const relativeXPath = document.getElementById('relativeXPath');
             if (relativeXPath && relativeXPath.checked) {
                 const nestedTypes = {
@@ -473,7 +729,7 @@ const LocatorX = {
                     'attributeXpathLocator': 'Attribute XPath',
                     'cssXpathLocator': 'CSS XPath'
                 };
-                
+
                 Object.keys(nestedTypes).forEach(id => {
                     const checkbox = document.getElementById(id);
                     if (checkbox && checkbox.checked) {
@@ -481,16 +737,16 @@ const LocatorX = {
                     }
                 });
             }
-            
+
             return types;
         },
-        
+
         setupRelativeXPath() {
             const arrow = document.getElementById('relativeDropdownArrow');
             const nested = document.getElementById('relativeXPathNested');
             const checkbox = document.getElementById('relativeXPath');
             const nestedIcon = document.getElementById('nestedSelectAll');
-            
+
             if (arrow && nested) {
                 arrow.addEventListener('click', e => {
                     e.stopPropagation();
@@ -499,10 +755,10 @@ const LocatorX = {
                     arrow.classList.toggle('expanded', !isVisible);
                     if (!isVisible) nested.classList.add('show-above');
                 });
-                
+
                 nested.addEventListener('click', e => e.stopPropagation());
             }
-            
+
             if (checkbox) {
                 checkbox.addEventListener('change', () => {
                     if (!checkbox.checked) {
@@ -510,7 +766,7 @@ const LocatorX = {
                     }
                 });
             }
-            
+
             if (nestedIcon) {
                 nestedIcon.addEventListener('click', e => {
                     e.stopPropagation();
@@ -520,15 +776,15 @@ const LocatorX = {
                     this.updateNestedIcon();
                 });
             }
-            
+
             document.addEventListener('click', e => {
-                if (!e.target.closest('.relative-xpath-container')) {
+                if (!e.target || !e.target.closest || !e.target.closest('.relative-xpath-container')) {
                     nested.style.display = 'none';
                     arrow.classList.remove('expanded');
                 }
             });
         },
-        
+
         setupScopeSwitch() {
             const switchBtn = document.getElementById('switchScopeBtn');
             if (switchBtn) {
@@ -538,15 +794,15 @@ const LocatorX = {
                 });
             }
         },
-        
+
         updateNestedIcon() {
             const icon = document.getElementById('nestedSelectAll');
             const checkboxes = document.querySelectorAll('.nested-loc-type');
-            
+
             if (icon) {
                 const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-                icon.className = allChecked ? 
-                    'bi-check2-square nested-select-all all-selected' : 
+                icon.className = allChecked ?
+                    'bi-check2-square nested-select-all all-selected' :
                     'bi-square nested-select-all';
             }
         }
@@ -557,7 +813,7 @@ const LocatorX = {
         init() {
             const framework = document.getElementById('frameworkSelect');
             const language = document.getElementById('languageSelect');
-            
+
             if (framework) {
                 framework.addEventListener('change', e => {
                     this.updateDisplay('frameworkDisplay', e.target.value);
@@ -565,7 +821,7 @@ const LocatorX = {
                 });
                 this.updateDisplay('frameworkDisplay', framework.value);
             }
-            
+
             if (language) {
                 language.addEventListener('change', e => {
                     this.updateDisplay('languageDisplay', e.target.value);
@@ -574,7 +830,7 @@ const LocatorX = {
                 this.updateDisplay('languageDisplay', language.value);
             }
         },
-        
+
         updateDisplay(displayId, value) {
             const display = document.getElementById(displayId);
             if (display) display.textContent = value;
@@ -682,11 +938,11 @@ const LocatorX = {
             { type: 'path', value: 'path' }
         ],
         selectedIndex: -1,
-        
+
         init() {
             const input = document.getElementById('searchInput');
             const dropdown = document.getElementById('searchDropdown');
-            
+
             if (input && dropdown) {
                 input.addEventListener('input', () => this.handleInput(input, dropdown));
                 input.addEventListener('keydown', (e) => this.handleKeydown(e, input, dropdown));
@@ -703,7 +959,7 @@ const LocatorX = {
                 });
             }
         },
-        
+
         handleInput(input, dropdown) {
             const value = input.value.toLowerCase();
             if (value.length === 0) {
@@ -711,12 +967,12 @@ const LocatorX = {
                 dropdown.style.display = 'none';
                 return;
             }
-            
-            const matches = this.suggestions.filter(s => 
-                s.value.toLowerCase().includes(value) || 
+
+            const matches = this.suggestions.filter(s =>
+                s.value.toLowerCase().includes(value) ||
                 s.type.toLowerCase().includes(value)
             );
-            
+
             if (matches.length > 0) {
                 this.renderDropdown(matches, value, dropdown);
                 dropdown.style.display = 'block';
@@ -727,10 +983,10 @@ const LocatorX = {
                 dropdown.classList.remove('visible');
                 dropdown.style.display = 'none';
             }
-            
+
             this.selectedIndex = -1;
         },
-        
+
         renderDropdown(matches, query, dropdown) {
             dropdown.innerHTML = '';
             matches.forEach((match, index) => {
@@ -738,26 +994,26 @@ const LocatorX = {
                 div.className = 'dropdown-item';
                 div.setAttribute('role', 'option');
                 div.setAttribute('aria-selected', 'false');
-                
+
                 // Highlight matching part
                 const text = match.type;
                 const lowerText = text.toLowerCase();
                 const queryIndex = lowerText.indexOf(query);
-                
+
                 let html = '';
                 if (queryIndex >= 0) {
-                    html = text.substring(0, queryIndex) + 
-                           '<strong>' + text.substring(queryIndex, queryIndex + query.length) + '</strong>' + 
-                           text.substring(queryIndex + query.length);
+                    html = text.substring(0, queryIndex) +
+                        '<strong>' + text.substring(queryIndex, queryIndex + query.length) + '</strong>' +
+                        text.substring(queryIndex + query.length);
                 } else {
                     html = text;
                 }
-                
+
                 div.innerHTML = `
                     <i class="bi-search item-icon"></i>
                     <span>${html}</span>
                 `;
-                
+
                 div.addEventListener('click', () => {
                     const input = document.getElementById('searchInput');
                     input.value = match.type;
@@ -765,22 +1021,22 @@ const LocatorX = {
                     dropdown.style.display = 'none';
                     input.focus();
                 });
-                
+
                 div.addEventListener('mouseenter', () => {
                     this.selectedIndex = index;
                     this.updateSelection(dropdown);
                 });
-                
+
                 dropdown.appendChild(div);
             });
         },
-        
+
         handleKeydown(e, input, dropdown) {
             if (!dropdown.classList.contains('visible')) return;
-            
+
             const items = dropdown.querySelectorAll('.dropdown-item');
             if (items.length === 0) return;
-            
+
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 this.selectedIndex = (this.selectedIndex + 1) % items.length;
@@ -799,7 +1055,7 @@ const LocatorX = {
                 dropdown.style.display = 'none';
             }
         },
-        
+
         updateSelection(dropdown) {
             const items = dropdown.querySelectorAll('.dropdown-item');
             items.forEach((item, index) => {
@@ -819,7 +1075,7 @@ const LocatorX = {
     inspect: {
         isActive: false,
         currentMode: 'home',
-        
+
         init() {
             const inspectBtn = document.getElementById('inspectBtn');
             if (inspectBtn) {
@@ -832,7 +1088,7 @@ const LocatorX = {
                     }
                 });
             }
-            
+
             // Listen for messages from content script
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 if (message.action === 'locatorsGenerated') {
@@ -848,7 +1104,7 @@ const LocatorX = {
                 }
             });
         },
-        
+
         toggle() {
             if (!SiteSupport.isSupported) return;
             if (this.isActive) {
@@ -857,21 +1113,13 @@ const LocatorX = {
                 this.activate();
             }
         },
-        
+
         activate() {
             this.isActive = true;
             this.currentMode = LocatorX.tabs.current;
-            
-            // Clear dummy data from POM table when starting inspect
-            if (this.currentMode === 'pom') {
-                const pomTable = document.querySelector('.pom-content .pom-table tbody');
-                if (pomTable) {
-                    pomTable.innerHTML = '';
-                }
-            }
-            
+
             this.updateUI();
-            
+
             // Send message to content script
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs[0]) {
@@ -879,11 +1127,11 @@ const LocatorX = {
                 }
             });
         },
-        
+
         deactivate() {
             this.isActive = false;
             this.updateUI();
-            
+
             // Send message to content script
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs[0]) {
@@ -891,18 +1139,18 @@ const LocatorX = {
                 }
             });
         },
-        
+
         updateUI() {
             const inspectBtn = document.getElementById('inspectBtn');
             if (!inspectBtn) return;
-            
+
             if (!SiteSupport.isSupported) {
                 inspectBtn.className = 'bi-arrow-up-left-circle inspect-button header-icon-button disabled';
                 inspectBtn.style.animation = 'none';
                 inspectBtn.style.color = '';
                 return;
             }
-            
+
             if (this.isActive) {
                 inspectBtn.className = 'bi-arrow-up-left-circle-fill inspect-button header-icon-button';
                 if (this.currentMode === 'home') {
@@ -924,17 +1172,28 @@ const LocatorX = {
     init() {
         this.core = new LocatorXCore();
         this.core.initialize();
-        document.addEventListener('DOMContentLoaded', () => {
-            this.tabs.init();
-            this.theme.init();
-            this.dropdowns.init();
-            this.filters.init();
-            this.dependencies.init();
-            this.table.init();
-            this.savedLocators.init();
-            this.notifications.init();
-            this.search.init();
-            this.inspect.init();
+        document.addEventListener('DOMContentLoaded', async () => {
+            LocatorX.core = new LocatorXCore();
+            await LocatorX.core.initialize();
+
+            LocatorX.modal = new LocatorXModal(); // Init Modal
+
+            LocatorX.tabs.init();
+            LocatorX.theme.init();
+            LocatorX.dropdowns.init();
+            LocatorX.filters.init();
+            LocatorX.dependencies.init();
+            LocatorX.search.init();
+            LocatorX.pom.init(); // Init POM listeners and initial load
+            LocatorX.table.init();
+            LocatorX.savedLocators.init();
+            LocatorX.notifications.init();
+            LocatorX.inspect.init();
+
+            // Check site support
+            if (typeof SiteSupport !== 'undefined') {
+                SiteSupport.check();
+            }
         });
     },
 
@@ -943,40 +1202,40 @@ const LocatorX = {
         init() {
             this.container = document.getElementById('notificationContainer');
         },
-        
+
         show(message, type = 'info', duration = 3000) {
             if (!this.container) return;
-            
+
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
-            
+
             const icons = {
                 success: 'bi-check-circle',
                 error: 'bi-x-circle',
                 warning: 'bi-exclamation-triangle',
                 info: 'bi-info-circle'
             };
-            
+
             notification.innerHTML = `
                 <i class="${icons[type] || icons.info}"></i>
                 <span>${message}</span>
             `;
-            
+
             this.container.appendChild(notification);
-            
+
             setTimeout(() => notification.classList.add('show'), 100);
-            
+
             setTimeout(() => {
                 notification.classList.remove('show');
                 setTimeout(() => notification.remove(), 300);
             }, duration);
         },
-        
+
         confirm(message, title = 'Confirm') {
             return new Promise((resolve) => {
                 const overlay = document.createElement('div');
                 overlay.className = 'confirmation-overlay';
-                
+
                 const dialog = document.createElement('div');
                 dialog.className = 'confirmation-dialog';
                 dialog.innerHTML = `
@@ -987,15 +1246,15 @@ const LocatorX = {
                         <button class="confirmation-btn primary" data-action="confirm">Confirm</button>
                     </div>
                 `;
-                
+
                 document.body.appendChild(overlay);
                 document.body.appendChild(dialog);
-                
+
                 const cleanup = () => {
                     overlay.remove();
                     dialog.remove();
                 };
-                
+
                 dialog.addEventListener('click', (e) => {
                     if (e.target.dataset.action === 'confirm') {
                         cleanup();
@@ -1005,14 +1264,14 @@ const LocatorX = {
                         resolve(false);
                     }
                 });
-                
+
                 overlay.addEventListener('click', () => {
                     cleanup();
                     resolve(false);
                 });
             });
         },
-        
+
         success(message, duration) { this.show(message, 'success', duration); },
         error(message, duration) { this.show(message, 'error', duration); },
         warning(message, duration) { this.show(message, 'warning', duration); },
@@ -1025,13 +1284,13 @@ const LocatorX = {
             this.updateDropdown();
             this.setupSavedActions();
         },
-        
+
         updateDropdown() {
             const dropdown = document.getElementById('aboutDropdown');
             if (!dropdown) return;
-            
+
             const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
-            
+
             if (saved.length === 0) {
                 dropdown.innerHTML = `
                     <div class="dropdown-header">
@@ -1051,7 +1310,7 @@ const LocatorX = {
                     </div>
                     <div class="dropdown-content">
                 `;
-                
+
                 saved.forEach((item, index) => {
                     content += `
                         <div class="saved-item" data-index="${index}">
@@ -1065,23 +1324,23 @@ const LocatorX = {
                         </div>
                     `;
                 });
-                
+
                 content += '</div>';
                 dropdown.innerHTML = content;
             }
-            
+
             // Always setup actions after updating content
             this.setupSavedActions();
         },
-        
+
         setupSavedActions() {
             // Use event delegation on the dropdown container
             const dropdown = document.getElementById('aboutDropdown');
             if (!dropdown) return;
-            
+
             // Remove existing listener
             dropdown.removeEventListener('click', this.handleSavedClick);
-            
+
             // Add new listener with proper binding
             this.handleSavedClick = (e) => {
                 if (e.target.classList.contains('saved-copy')) {
@@ -1090,7 +1349,7 @@ const LocatorX = {
                     navigator.clipboard.writeText(locator);
                     LocatorX.notifications.success('Copied!');
                 }
-                
+
                 if (e.target.classList.contains('saved-delete')) {
                     const item = e.target.closest('.saved-item');
                     const index = parseInt(item.dataset.index);
@@ -1101,7 +1360,7 @@ const LocatorX = {
                     LocatorX.notifications.success('Deleted!');
                 }
             };
-            
+
             dropdown.addEventListener('click', this.handleSavedClick);
         }
     },
@@ -1113,29 +1372,29 @@ const LocatorX = {
             this.setupEditableCells();
             this.setupSaveButton();
         },
-        
+
         setupSaveButton() {
             const saveBtn = document.querySelector('.save-btn');
             const saveInput = document.querySelector('.save-input');
             const searchInput = document.querySelector('.search-input');
-            
+
             if (saveBtn && saveInput && searchInput) {
                 saveBtn.addEventListener('click', async () => {
                     const locator = searchInput.value.trim();
                     let name = saveInput.value.trim();
-                    
+
                     if (!locator) {
                         LocatorX.notifications.error('Please enter a locator in the search field');
                         return;
                     }
-                    
+
                     const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
                     const existing = saved.find(item => item.locator === locator);
-                    
+
                     if (existing) {
                         // Check if existing has timestamp name (starts with date)
                         const isTimestampName = /^\d{4}-\d{2}-\d{2}/.test(existing.name);
-                        
+
                         if (isTimestampName) {
                             // Direct rename without message
                             if (!name) {
@@ -1167,25 +1426,27 @@ const LocatorX = {
                         if (!name) {
                             name = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                         }
-                        
-                        saved.push({ 
-                            name, 
-                            type: 'Manual', 
-                            locator, 
-                            date: new Date().toISOString() 
+
+                        saved.push({
+                            name,
+                            type: 'Manual',
+                            locator,
+                            date: new Date().toISOString()
                         });
                         localStorage.setItem('locator-x-saved', JSON.stringify(saved));
                         LocatorX.notifications.success(`Locator saved as "${name}"`);
                     }
-                    
+
                     saveInput.value = '';
                     LocatorX.savedLocators.updateDropdown();
                 });
             }
         },
-        
+
         setupCopyButtons() {
             document.addEventListener('click', (e) => {
+                if (!e.target || !e.target.closest) return;
+
                 if (e.target.classList.contains('bi-clipboard')) {
                     const row = e.target.closest('tr');
                     const locatorCell = row.querySelector('.editable');
@@ -1199,13 +1460,13 @@ const LocatorX = {
                     const typeCell = row.cells[1];
                     const locator = locatorCell.textContent;
                     const type = typeCell.textContent;
-                    
+
                     // Save with auto-generated name
                     const savedName = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                     const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
-                    
+
                     const isDuplicate = saved.some(item => item.locator === locator && item.type === type);
-                    
+
                     if (isDuplicate) {
                         LocatorX.notifications.warning('Locator already saved');
                         return;
@@ -1218,12 +1479,16 @@ const LocatorX = {
                 }
                 if (e.target.classList.contains('bi-trash')) {
                     const row = e.target.closest('tr');
-                    row.remove();
-                    this.updateRowNumbers();
+                    if (row.closest('.pom-table')) {
+                        LocatorX.pom.deleteLocator(row);
+                    } else {
+                        row.remove();
+                        this.updateRowNumbers();
+                    }
                 }
             });
         },
-        
+
         updateRowNumbers() {
             const pomTable = document.querySelector('.pom-content .locator-table tbody');
             if (pomTable) {
@@ -1233,15 +1498,17 @@ const LocatorX = {
                 });
             }
         },
-        
+
         setupEditableCells() {
             let clickCount = 0;
             let clickTimeout;
-            
+
             document.addEventListener('click', (e) => {
+                if (!e.target || !e.target.classList) return;
+
                 if (e.target.classList.contains('editable') && !e.target.classList.contains('editing')) {
                     clickCount++;
-                    
+
                     if (clickCount === 1) {
                         clickTimeout = setTimeout(() => {
                             // Single click - highlight in search
@@ -1262,25 +1529,25 @@ const LocatorX = {
                 }
             });
         },
-        
+
         makeEditable(cell) {
             const currentValue = cell.textContent;
             cell.classList.add('editing');
-            
+
             const input = document.createElement('input');
             input.type = 'text';
             input.value = currentValue;
-            
+
             cell.innerHTML = '';
             cell.appendChild(input);
             input.focus();
             input.select();
-            
+
             const finishEdit = () => {
                 cell.textContent = input.value || currentValue;
                 cell.classList.remove('editing');
             };
-            
+
             input.addEventListener('blur', finishEdit);
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') finishEdit();

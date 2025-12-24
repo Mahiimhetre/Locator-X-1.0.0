@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="panel.css">
+    <link rel="stylesheet" href="../shared/modal.css">
+    <link rel="stylesheet" href="theme.css">
     <link rel="stylesheet" href="theme.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <title>Locator-X 1.0.0</title>
 </head>
+
 <body>
     <div class="container">
         <header class="header">
-            <i class="bi-arrow-up-left-circle inspect-button header-icon-button" id="inspectBtn" title="Inspect Elements"></i>
+            <i class="bi-arrow-up-left-circle inspect-button header-icon-button" id="inspectBtn"
+                title="Inspect Elements"></i>
             <i class="bi-circle-half theme-button header-icon-button" id="themeBtn" title="Change theme"></i>
             <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
             <div class="header-content">
@@ -67,7 +72,8 @@
                             </div>
                             <div class="dropdown-content">
                                 <div class="empty-state">
-                                    <i class="bi-clock-history" style="font-size: 24px; color: var(--border-dark); margin-bottom: 8px;"></i>
+                                    <i class="bi-clock-history"
+                                        style="font-size: 24px; color: var(--border-dark); margin-bottom: 8px;"></i>
                                     <p style="color: var(--secondary-text); margin: 0;">No recent activity</p>
                                 </div>
                             </div>
@@ -121,7 +127,8 @@
                                             <span id="scopeText">Home</span>
                                         </span>
                                     </div>
-                                    <i id="switchScopeBtn" class="bi-arrow-left-right scope-switch" title="Change Scope Target"></i>
+                                    <i id="switchScopeBtn" class="bi-arrow-left-right scope-switch"
+                                        title="Change Scope Target"></i>
                                 </div>
                             </div>
                             <div class="select-all-section">
@@ -131,35 +138,54 @@
                                 </label>
                             </div>
                             <div class="locator-options">
-                                <label><input type="checkbox" class="loc-type" id="idLocator" value="id" checked> ID</label>
-                                <label><input type="checkbox" class="loc-type" id="nameLocator" value="name" checked> Name</label>
-                                <label><input type="checkbox" class="loc-type" id="tagnameLocator" value="tagname" checked> Tagname</label>
-                                <label><input type="checkbox" class="loc-type" id="classNameLocator" value="className" checked> ClassName</label>
-                                <label><input type="checkbox" class="loc-type" id="cssLocator" value="css" checked> CSS</label>
-                                <label><input type="checkbox" class="loc-type" id="linkTextLocator" value="linkText" checked> LinkText</label>
-                                <label><input type="checkbox" class="loc-type" id="pLinkTextLocator" value="pLinkText" checked> Partial LinkText</label>
+                                <label><input type="checkbox" class="loc-type" id="idLocator" value="id" checked>
+                                    ID</label>
+                                <label><input type="checkbox" class="loc-type" id="nameLocator" value="name" checked>
+                                    Name</label>
+                                <label><input type="checkbox" class="loc-type" id="tagnameLocator" value="tagname"
+                                        checked> Tagname</label>
+                                <label><input type="checkbox" class="loc-type" id="classNameLocator" value="className"
+                                        checked> ClassName</label>
+                                <label><input type="checkbox" class="loc-type" id="cssLocator" value="css" checked>
+                                    CSS</label>
+                                <label><input type="checkbox" class="loc-type" id="linkTextLocator" value="linkText"
+                                        checked> LinkText</label>
+                                <label><input type="checkbox" class="loc-type" id="pLinkTextLocator" value="pLinkText"
+                                        checked> Partial LinkText</label>
                                 <label class="relative-xpath-container">
-                                    <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked> 
+                                    <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked>
                                     <span>Relative XPath</span>
                                     <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
                                     <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
                                         <fieldset class="nested-options">
-                                            <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll" title="Select/Deselect All"></i></legend>
-                                            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath" checked>Default XPath</label>
-                                            <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator" value="contains" checked>Contains</label>
-                                            <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator" value="indexed" checked>Indexed XPath</label>
-                                            <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator" value="linktext" checked>Link Text</label>
-                                            <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator" value="partiallinktext" checked>Partial Link Text</label>
-                                            <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator" value="attribute" checked>Attribute</label>
-                                            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="css" checked>CSS</label>
+                                            <legend>Strategies <i class="bi-check2-square nested-select-all"
+                                                    id="nestedSelectAll" title="Select/Deselect All"></i></legend>
+                                            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator"
+                                                    value="xpath" checked>Default XPath</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="containsXpathLocator" value="contains" checked>Contains</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="indexedXpathLocator" value="indexed" checked>Indexed
+                                                XPath</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="LinkTextXpathLocator" value="linktext" checked>Link Text</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="PLinkTextXpathLocator" value="partiallinktext" checked>Partial
+                                                Link Text</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="attributeXpathLocator" value="attribute"
+                                                    checked>Attribute</label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator"
+                                                    value="css" checked>CSS</label>
                                         </fieldset>
                                     </div>
                                 </label>
-                                <label><input type="checkbox" class="loc-type" id="absoluteLocator" value="absolute" checked> Absolute XPath</label>
+                                <label><input type="checkbox" class="loc-type" id="absoluteLocator" value="absolute"
+                                        checked> Absolute XPath</label>
                             </div>
                         </div>
                     </li>
-                </ul> 
+                </ul>
             </div>
         </nav>
 
@@ -167,7 +193,8 @@
             <div class="notification-container" id="notificationContainer"></div>
             <div class="home-container active">
                 <div class="search-container">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Enter selector or element..." autocomplete="off">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Enter selector or element..."
+                        autocomplete="off">
                     <div id="searchDropdown" class="search-dropdown"></div>
                     <button class="execute-btn" title="Execute">
                         <i class="bi-play-fill"></i>
@@ -190,15 +217,28 @@
                             </tr>
                         </thead>
                         <tbody>
-                          
+
                         </tbody>
                     </table>
                 </div>
-                
+
 
 
             </div>
             <div class="pom-content">
+                <div class="pom-navigation">
+                    <div class="pom-selector-group">
+                        <i class="bi-file-earmark-richtext pom-icon"></i>
+                        <select id="pomPageSelect" class="pom-page-select" title="Select Page">
+                            <option value="" disabled selected>Select Page</option>
+                        </select>
+                    </div>
+                    <div class="pom-actions">
+                        <i class="bi-plus-circle-dotted action-btn" id="addPageBtn" title="New Page"></i>
+                        <i class="bi-pencil action-btn" id="editPageBtn" title="Rename Page"></i>
+                        <i class="bi-trash action-btn" id="deletePageBtn" title="Delete Page"></i>
+                    </div>
+                </div>
                 <div class="table-container">
                     <table class="locator-table pom-table">
                         <thead>
@@ -215,12 +255,12 @@
                         </tbody>
                     </table>
                 </div>
-                
-                
-                
+
+
+
             </div>
         </main>
-        
+
         <footer class="footer">
             <div class="footer-content">
                 <span class="footer-text">© 2024 Locator-X</span>
@@ -235,6 +275,8 @@
     <script src="../core/filter-manager.js"></script>
     <script src="../core/locator-generator.js"></script>
     <script src="../core/locator-x-core.js"></script>
+    <script src="../shared/modal.js"></script>
     <script src="panel.js"></script>
 </body>
+
 </html>

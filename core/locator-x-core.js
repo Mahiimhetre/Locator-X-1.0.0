@@ -9,11 +9,11 @@ class LocatorXCore {
 
     async initialize() {
         if (this.initialized) return;
-        
+
         // Load saved settings
         this.settings = this.storage.getSettings();
         this.theme = this.storage.getTheme();
-        
+
         this.initialized = true;
     }
 
@@ -23,7 +23,7 @@ class LocatorXCore {
         const locators = this.generator.generateLocators(element, {
             strategies: enabledFilters
         });
-        
+
         // Add to history
         this.storage.addToHistory({
             type: 'generation',
@@ -31,7 +31,7 @@ class LocatorXCore {
             locators: locators,
             filters: enabledFilters
         });
-        
+
         return locators;
     }
 
@@ -43,29 +43,29 @@ class LocatorXCore {
 
     updateFilters(tab, filters) {
         this.storage.saveFilterState(tab, filters);
-        
+
         // Validate with current framework/language
         const framework = this.getSetting('framework', 'unknown');
         const language = this.getSetting('language', 'unknown');
-        
+
         return this.filterManager.validateFilterCombination(
-            this.getEnabledFilters(tab), 
-            framework, 
+            this.getEnabledFilters(tab),
+            framework,
             language
         );
     }
 
     applyDependencyRules(framework, language) {
         const defaultFilters = this.filterManager.createDefaultFilterState();
-        
+
         let homeFilters = this.filterManager.applyFrameworkRules(framework, defaultFilters);
         homeFilters = this.filterManager.applyLanguageRules(language, homeFilters);
-        
+
         let pomFilters = { ...homeFilters };
-        
+
         this.storage.saveFilterState('home', homeFilters);
         this.storage.saveFilterState('pom', pomFilters);
-        
+
         return { homeFilters, pomFilters };
     }
 
@@ -76,7 +76,7 @@ class LocatorXCore {
 
     saveSetting(key, value) {
         this.storage.saveSetting(key, value);
-        
+
         // Apply dependency rules if framework or language changed
         if (key === 'framework' || key === 'language') {
             const framework = this.getSetting('framework', 'unknown');
@@ -100,6 +100,19 @@ class LocatorXCore {
 
     deleteLocator(id) {
         return this.storage.deleteLocator(id);
+    }
+
+    // POM Management
+    getPOMPages() {
+        return this.storage.getPOMPages();
+    }
+
+    savePOMPage(page) {
+        return this.storage.savePOMPage(page);
+    }
+
+    deletePOMPage(pageId) {
+        return this.storage.deletePOMPage(pageId);
     }
 
     // Theme Management
