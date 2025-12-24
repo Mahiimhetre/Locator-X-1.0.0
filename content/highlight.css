@@ -30,8 +30,69 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
 }
 
+/* Custom Context Menu Styles */
+.locator-x-context-menu {
+    position: fixed !important;
+    z-index: 2147483647 !important;
+    background: #1e1e1e !important;
+    border: 1px solid #333 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+    padding: 8px 0 !important;
+    min-width: 220px !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    color: #e0e0e0 !important;
+    font-size: 13px !important;
+}
+
+.locator-x-context-menu .menu-header {
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    color: #00d4ff !important;
+    border-bottom: 1px solid #333 !important;
+    margin-bottom: 4px !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.locator-x-context-menu .menu-item-group {
+    padding: 6px 16px !important;
+}
+
+.locator-x-context-menu .menu-label {
+    font-size: 11px !important;
+    color: #888 !important;
+    margin-bottom: 4px !important;
+}
+
+.locator-x-context-menu .menu-actions {
+    display: flex !important;
+    gap: 4px !important;
+}
+
+.locator-x-context-menu .menu-action {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: 4px 8px !important;
+    background: #2a2a2a !important;
+    border: 1px solid #444 !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 10px !important;
+    transition: all 0.2s !important;
+}
+
+.locator-x-context-menu .menu-action:hover {
+    background: #00d4ff !important;
+    color: #000 !important;
+    border-color: #00d4ff !important;
+}
+
 /* Keep for retro-compatibility or fallback if needed */
 .locator-x-highlight {
     outline: 2px dashed #00d4ff !important;
     outline-offset: -2px !important;
+    background: rgba(0, 212, 255, 0.15) !important;
+    transition: all 0.2s ease !important;
 }

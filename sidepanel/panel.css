@@ -317,6 +317,7 @@ body {
 }
 
 /* Search Container */
+/* Search Container & Dropdown Enhancements */
 .search-container {
   display: flex;
   align-items: center;
@@ -325,61 +326,65 @@ body {
   position: relative;
 }
 
+.search-input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 50px;
+  background: var(--secondary-bg);
+  color: var(--primary-text);
+  font-size: 13px;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.15);
+  transform: translateY(-1px);
+}
+
 .search-dropdown {
   position: absolute;
   top: 100%;
   left: 0;
-  width: 100%;
-  /* Matches input width + button width roughly, but input is flex: 1. */
-  /* Actually, the container includes the button. If I want it to match the input width, I should probably wrap the input in a div or adjust the width. 
-     The requirement says "same width" as the input field. 
-     The input is flex: 1 inside the container. The button is fixed width.
-     If I make the dropdown width 100% of the container, it will cover the button too.
-     If I want it to match the input, I should probably calculate the width or wrap the input.
-     
-     Let's look at the HTML again.
-     <div class="search-container">
-        <input ...>
-        <div id="searchDropdown"></div>
-        <button ...>
-     </div>
-     
-     If I set dropdown left: 0 and right: 36px (button width + gap), it might work.
-     Button width is 28px. Gap is 8px. So 36px.
-  */
   width: calc(100% - 36px);
-  margin-top: 4px;
   background: var(--secondary-bg);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px var(--shadow-medium);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 8px 24px var(--shadow-medium);
   z-index: 1000;
   display: none;
-  overflow: hidden;
+  max-height: 250px;
+  overflow-y: auto;
   opacity: 0;
-  transition: opacity 0.15s ease-in;
+  transform: translateY(-8px);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: -8px;
+  padding-top: 8px;
 }
 
 .search-dropdown.visible {
   display: block;
   opacity: 1;
+  transform: translateY(0);
 }
 
 .dropdown-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 11px;
-  color: var(--primary-text);
-  transition: background-color 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
 }
 
 .dropdown-item:hover,
 .dropdown-item.active {
-  background-color: var(--surface-2);
-  color: var(--accent);
+  background: var(--surface-2);
+  border-left-color: var(--accent);
 }
 
 .dropdown-item strong {
@@ -387,26 +392,59 @@ body {
   color: var(--accent);
 }
 
-.dropdown-item .item-icon {
-  font-size: 12px;
+.item-icon {
+  margin-right: 12px;
   color: var(--secondary-text);
+  font-size: 14px;
 }
 
-.search-input {
+.item-text {
   flex: 1;
-  padding: 8px 16px;
-  border: 1px solid var(--border-light);
-  border-radius: 25px;
-  background: var(--secondary-bg);
+  font-size: 13px;
   color: var(--primary-text);
-  font-size: 11px;
-  outline: none;
-  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.search-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+.match-count-badge {
+  display: inline-block;
+  min-width: 24px;
+  padding: 2px 8px;
+  margin-right: 12px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+  line-height: normal;
+}
+
+.category-tag {
+  color: var(--secondary-text);
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 4px;
+  opacity: 0.8;
+}
+
+.live-test-item {
+  background: rgba(52, 152, 219, 0.08);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.live-test-item:hover {
+  background: rgba(52, 152, 219, 0.15);
+}
+
+.live-test-item .item-icon {
+  color: var(--accent);
+  font-size: 16px;
 }
 
 .execute-btn {

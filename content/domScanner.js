@@ -4,6 +4,7 @@ class DOMScanner {
         this.isActive = false;
         this.isLocked = false;
         this.highlightedElement = null;
+        this.lastRightClickedElement = null;
         this.overlay = this.createOverlay();
         this.setupEventListeners();
         this.repositionOverlay = this.repositionOverlay.bind(this);
@@ -24,14 +25,55 @@ class DOMScanner {
                 this.startScanning();
                 sendResponse({ success: true });
             } else if (message.action === 'stopScanning') {
-                this.stopScanning();
+                this.stopScanning(message.force);
                 sendResponse({ success: true });
+            } else if (message.action === 'evaluateSelector') {
+                const results = this.evaluateSelector(message.selector);
+                sendResponse(results);
+            } else if (message.action === 'getPageStructure') {
+                const structure = this.getPageStructure();
+                sendResponse(structure);
+            } else if (message.action === 'contextMenuLocator') {
+                this.handleContextMenuLocator(message.type);
+            } else if (message.action === 'highlightMatches') {
+                this.highlightMatches(message.selector);
+            } else if (message.action === 'clearMatchHighlights') {
+                this.clearMatchHighlights();
             }
         });
 
+        // Global tracker for context menu
+        document.addEventListener('contextmenu', (e) => {
+            const element = (e.target.id === 'locatorXOverlay') ? this.highlightedElement : e.target;
+            this.lastRightClickedElement = element;
+
+            if (element) {
+                if (!this.generator) {
+                    this.generator = new LocatorGenerator();
+                }
+
+                const values = {};
+                const strategies = [
+                    'id', 'name', 'className', 'xpath', 'css', 'jsPath', 'absoluteXPath'
+                ];
+
+                strategies.forEach(strategy => {
+                    try {
+                        values[strategy] = this.generator.strategies[strategy](element) || 'Not available';
+                    } catch (err) {
+                        values[strategy] = 'Error generating';
+                    }
+                });
+
+                chrome.runtime.sendMessage({
+                    action: 'updateContextMenuValues',
+                    values: values
+                });
+            }
+        }, true);
+
         this.handleMouseMove = this.handleMouseMove.bind(this);
         this.handleMouseClick = this.handleMouseClick.bind(this);
-        this.handleRightClick = this.handleRightClick.bind(this);
         this.handleKeyPress = this.handleKeyPress.bind(this);
     }
 
@@ -41,7 +83,6 @@ class DOMScanner {
         this.isActive = true;
         document.addEventListener('mousemove', this.handleMouseMove, true);
         document.addEventListener('click', this.handleMouseClick, true);
-        document.addEventListener('contextmenu', this.handleRightClick, true);
         document.addEventListener('keydown', this.handleKeyPress, true);
         window.addEventListener('scroll', this.repositionOverlay, true);
         window.addEventListener('resize', this.repositionOverlay, true);
@@ -51,15 +92,20 @@ class DOMScanner {
         document.body.style.cursor = 'crosshair';
     }
 
-    stopScanning() {
-        if (!this.isActive) return;
+    stopScanning(force = false) {
+        if (!this.isActive && !force) return;
 
         this.isActive = false;
         document.removeEventListener('mousemove', this.handleMouseMove, true);
         document.removeEventListener('click', this.handleMouseClick, true);
-        document.removeEventListener('contextmenu', this.handleRightClick, true);
         document.removeEventListener('keydown', this.handleKeyPress, true);
-        // Do NOT clearHighlight here to allow persistence
+        window.removeEventListener('scroll', this.repositionOverlay, true);
+        window.removeEventListener('resize', this.repositionOverlay, true);
+
+        if (force) {
+            this.clearHighlight();
+        }
+
         document.body.style.userSelect = '';
         document.body.style.cursor = '';
     }
@@ -98,13 +144,6 @@ class DOMScanner {
         });
     }
 
-    handleRightClick(event) {
-        if (!this.isActive) return;
-        event.preventDefault();
-        event.stopPropagation();
-        chrome.runtime.sendMessage({ action: 'deactivateInspect' });
-        this.stopScanning();
-    }
 
     handleKeyPress(event) {
         if (event.key === 'Escape') {
@@ -159,6 +198,45 @@ class DOMScanner {
         }
     }
 
+    highlightMatches(selector) {
+        // Clear previous highlights
+        this.clearMatchHighlights();
+
+        if (!selector) return;
+
+        try {
+            let matches = [];
+            const isXpath = selector.startsWith('/') || selector.startsWith('(');
+
+            if (isXpath) {
+                const result = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                for (let i = 0; i < Math.min(result.snapshotLength, 50); i++) {
+                    matches.push(result.snapshotItem(i));
+                }
+            } else {
+                matches = Array.from(document.querySelectorAll(selector)).slice(0, 50);
+            }
+
+            matches.forEach(el => {
+                if (el && el.classList && el.id !== 'locatorXOverlay') {
+                    el.classList.add('locator-x-highlight');
+                }
+            });
+
+            // Scroll first match into view
+            if (matches.length > 0 && matches[0].scrollIntoView) {
+                matches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } catch (e) {
+            console.warn('Error highlighting matches:', e);
+        }
+    }
+
+    clearMatchHighlights() {
+        const highlighted = document.querySelectorAll('.locator-x-highlight');
+        highlighted.forEach(el => el.classList.remove('locator-x-highlight'));
+    }
+
     getOverlayLabel(element) {
         const tag = element.tagName.toLowerCase();
         const id = element.id ? `#${element.id}` : '';
@@ -173,6 +251,96 @@ class DOMScanner {
             this.generator = new LocatorGenerator();
         }
         return this.generator.generateLocators(element, enabledTypes);
+    }
+
+    evaluateSelector(selector) {
+        if (!selector) return { count: 0 };
+        try {
+            let matches = [];
+            let count = 0;
+
+            const isXpath = selector.startsWith('/') || selector.startsWith('(');
+            if (isXpath) {
+                const result = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                count = result.snapshotLength;
+            } else {
+                const nodes = document.querySelectorAll(selector);
+                count = nodes.length;
+            }
+
+            return { count };
+        } catch (e) {
+            return { count: 0, error: e.message };
+        }
+    }
+
+    // Context menu methods removed - using native browser context menu
+
+    getPageStructure() {
+        const commonTags = [
+            'div', 'span', 'a', 'button', 'input', 'form', 'img', 'label',
+            'select', 'option', 'textarea', 'ul', 'li', 'ol', 'table',
+            'tr', 'td', 'th', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p',
+            'nav', 'header', 'footer', 'section', 'article', 'aside', 'main'
+        ];
+
+        const structure = {
+            tags: {},
+            ids: {},
+            classes: {},
+            attributes: {
+                name: {},
+                role: {},
+                'data-testid': {},
+                placeholder: {}
+            },
+            textFragments: new Set()
+        };
+
+        // Scan all elements for a comprehensive map
+        const allElements = document.getElementsByTagName('*');
+        for (let i = 0; i < allElements.length; i++) {
+            const el = allElements[i];
+            const tag = el.tagName.toLowerCase();
+
+            // Tags
+            if (commonTags.includes(tag)) {
+                structure.tags[tag] = (structure.tags[tag] || 0) + 1;
+            }
+
+            // IDs
+            if (el.id && !el.id.startsWith('locator-x')) {
+                structure.ids[el.id] = (structure.ids[el.id] || 0) + 1;
+            }
+
+            // Classes
+            if (el.classList.length > 0) {
+                el.classList.forEach(cls => {
+                    if (!cls.startsWith('locator-x')) {
+                        structure.classes[cls] = (structure.classes[cls] || 0) + 1;
+                    }
+                });
+            }
+
+            // Attributes
+            ['name', 'role', 'data-testid', 'placeholder'].forEach(attr => {
+                const val = el.getAttribute(attr);
+                if (val) {
+                    structure.attributes[attr][val] = (structure.attributes[attr][val] || 0) + 1;
+                }
+            });
+
+            // Text fragments (minimal threshold)
+            if (el.children.length === 0 && el.textContent.trim().length > 2 && el.textContent.trim().length < 50) {
+                const text = el.textContent.trim();
+                structure.textFragments.add(text);
+            }
+        }
+
+        // Convert Set to Array for JSON transmission
+        structure.textFragments = Array.from(structure.textFragments).slice(0, 50);
+
+        return structure;
     }
 
     getElementInfo(element) {
@@ -196,10 +364,48 @@ class DOMScanner {
                 if (!value) continue;
             }
 
-            attrs += ` ${attr.name}="${value}"`;
         }
 
         return `<${tagName}${attrs}>`;
+    }
+
+    handleContextMenuLocator(menuId) {
+        const element = this.lastRightClickedElement;
+        if (!element) return;
+
+        if (!this.generator) {
+            this.generator = new LocatorGenerator();
+        }
+
+        const typeMap = {
+            'copy-id': 'id',
+            'copy-name': 'name',
+            'copy-class': 'className',
+            'copy-rel-xpath': 'xpath',
+            'copy-css': 'css',
+            'copy-js-path': 'jsPath',
+            'copy-abs-xpath': 'absoluteXPath'
+        };
+
+        const strategy = typeMap[menuId];
+        if (strategy) {
+            const locator = this.generator.strategies[strategy](element);
+            if (locator) {
+                navigator.clipboard.writeText(locator).then(() => {
+                    chrome.runtime.sendMessage({
+                        action: 'notification',
+                        type: 'success',
+                        message: `Copied ${this.generator.getDisplayName(strategy)} to clipboard!`
+                    });
+                });
+            } else {
+                chrome.runtime.sendMessage({
+                    action: 'notification',
+                    type: 'error',
+                    message: `Could not generate locator for ${strategy}`
+                });
+            }
+        }
     }
 }
 

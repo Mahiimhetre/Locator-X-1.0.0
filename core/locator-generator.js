@@ -12,9 +12,9 @@ class LocatorGenerator {
             tagname: (element) => element.tagName.toLowerCase(),
             css: (element) => this.generateCSSSelector(element),
             linkText: (element) => element.tagName === 'A' ? element.textContent.trim() : null,
-            partialLinkText: (element) => element.tagName === 'A' ? element.textContent.trim() : null,
             absoluteXPath: (element) => this.generateAbsoluteXPath(element),
-            
+            jsPath: (element) => `document.querySelector('${this.generateCSSSelector(element)}')`,
+
             // Relative XPath variants
             xpath: (element) => this.generateRelativeXPath(element),
             containsXpath: (element) => this.generateContainsXPath(element),
@@ -38,7 +38,7 @@ class LocatorGenerator {
         const locators = [];
         const typeMap = {
             'idLocator': 'id',
-            'nameLocator': 'name', 
+            'nameLocator': 'name',
             'classNameLocator': 'className',
             'tagnameLocator': 'tagname',
             'cssLocator': 'css',
@@ -75,7 +75,7 @@ class LocatorGenerator {
         const names = {
             'id': 'ID',
             'name': 'Name',
-            'className': 'ClassName', 
+            'className': 'ClassName',
             'tagname': 'TagName',
             'css': 'CSS',
             'linkText': 'LinkText',
@@ -98,7 +98,7 @@ class LocatorGenerator {
             const cleaned = this.cleanClassName(element.className);
             if (cleaned) return `.${cleaned.split(' ').join('.')}`;
         }
-        
+
         let path = [];
         let current = element;
         while (current && current.nodeType === Node.ELEMENT_NODE) {
@@ -206,6 +206,25 @@ class LocatorGenerator {
         } catch (e) {
             return 0;
         }
+    }
+
+    getDisplayName(strategy) {
+        const names = {
+            id: 'ID',
+            name: 'Name',
+            className: 'Class Name',
+            css: 'CSS Selector',
+            xpath: 'Relative XPath',
+            containsXpath: 'Contains XPath',
+            indexedXpath: 'Indexed XPath',
+            linkTextXpath: 'Link Text XPath',
+            partialLinkTextXpath: 'Partial Link XPath',
+            attributeXpath: 'Attribute XPath',
+            cssXpath: 'CSS XPath',
+            absoluteXPath: 'Absolute XPath',
+            jsPath: 'JS Path'
+        };
+        return names[strategy] || strategy;
     }
 }
 

@@ -838,104 +838,7 @@ const LocatorX = {
 
     // Search Suggestions
     search: {
-        suggestions: [
-            // XPath Axes
-            { type: 'ancestor::', value: 'ancestor::' },
-            { type: 'ancestor-or-self::', value: 'ancestor-or-self::' },
-            { type: 'attribute::', value: 'attribute::' },
-            { type: 'child::', value: 'child::' },
-            { type: 'descendant::', value: 'descendant::' },
-            { type: 'descendant-or-self::', value: 'descendant-or-self::' },
-            { type: 'following::', value: 'following::' },
-            { type: 'following-sibling::', value: 'following-sibling::' },
-            { type: 'parent::', value: 'parent::' },
-            { type: 'preceding::', value: 'preceding::' },
-            { type: 'preceding-sibling::', value: 'preceding-sibling::' },
-            { type: 'self::', value: 'self::' },
-
-            // XPath Functions
-            { type: 'contains()', value: 'contains()' },
-            { type: 'text()', value: 'text()' },
-            { type: 'starts-with()', value: 'starts-with()' },
-            { type: 'ends-with()', value: 'ends-with()' },
-            { type: 'normalize-space()', value: 'normalize-space()' },
-            { type: 'last()', value: 'last()' },
-            { type: 'position()', value: 'position()' },
-            { type: 'count()', value: 'count()' },
-            { type: 'not()', value: 'not()' },
-            { type: 'string-length()', value: 'string-length()' },
-            { type: 'substring()', value: 'substring()' },
-            { type: 'translate()', value: 'translate()' },
-            { type: 'floor()', value: 'floor()' },
-            { type: 'ceiling()', value: 'ceiling()' },
-            { type: 'round()', value: 'round()' },
-
-            // Operators
-            { type: 'and', value: 'and' },
-            { type: 'or', value: 'or' },
-            { type: 'mod', value: 'mod' },
-            { type: 'div', value: 'div' },
-            { type: '//', value: '//' },
-            { type: '/', value: '/' },
-            { type: '*', value: '*' },
-            { type: '|', value: '|' },
-            { type: '!=', value: '!=' },
-
-            // Common Attributes
-            { type: '@id', value: '@id' },
-            { type: '@class', value: '@class' },
-            { type: '@name', value: '@name' },
-            { type: '@type', value: '@type' },
-            { type: '@href', value: '@href' },
-            { type: '@src', value: '@src' },
-            { type: '@value', value: '@value' },
-            { type: '@title', value: '@title' },
-            { type: '@alt', value: '@alt' },
-            { type: '@placeholder', value: '@placeholder' },
-            { type: '@style', value: '@style' },
-            { type: '@data-testid', value: '@data-testid' },
-            { type: '@role', value: '@role' },
-            { type: '@aria-label', value: '@aria-label' },
-
-            // HTML Tags
-            { type: 'div', value: 'div' },
-            { type: 'span', value: 'span' },
-            { type: 'a', value: 'a' },
-            { type: 'input', value: 'input' },
-            { type: 'button', value: 'button' },
-            { type: 'form', value: 'form' },
-            { type: 'img', value: 'img' },
-            { type: 'label', value: 'label' },
-            { type: 'select', value: 'select' },
-            { type: 'option', value: 'option' },
-            { type: 'textarea', value: 'textarea' },
-            { type: 'ul', value: 'ul' },
-            { type: 'li', value: 'li' },
-            { type: 'ol', value: 'ol' },
-            { type: 'table', value: 'table' },
-            { type: 'tr', value: 'tr' },
-            { type: 'td', value: 'td' },
-            { type: 'th', value: 'th' },
-            { type: 'thead', value: 'thead' },
-            { type: 'tbody', value: 'tbody' },
-            { type: 'h1', value: 'h1' },
-            { type: 'h2', value: 'h2' },
-            { type: 'h3', value: 'h3' },
-            { type: 'h4', value: 'h4' },
-            { type: 'h5', value: 'h5' },
-            { type: 'h6', value: 'h6' },
-            { type: 'p', value: 'p' },
-            { type: 'nav', value: 'nav' },
-            { type: 'header', value: 'header' },
-            { type: 'footer', value: 'footer' },
-            { type: 'section', value: 'section' },
-            { type: 'article', value: 'article' },
-            { type: 'aside', value: 'aside' },
-            { type: 'main', value: 'main' },
-            { type: 'iframe', value: 'iframe' },
-            { type: 'svg', value: 'svg' },
-            { type: 'path', value: 'path' }
-        ],
+        manager: new SuggestionManager(),
         selectedIndex: -1,
 
         init() {
@@ -959,45 +862,101 @@ const LocatorX = {
             }
         },
 
-        handleInput(input, dropdown) {
-            const value = input.value.toLowerCase();
+        async handleInput(input, dropdown) {
+            const value = input.value.trim();
             if (value.length === 0) {
                 dropdown.classList.remove('visible');
                 dropdown.style.display = 'none';
                 return;
             }
 
-            const matches = this.suggestions.filter(s =>
-                s.value.toLowerCase().includes(value) ||
-                s.type.toLowerCase().includes(value)
-            );
+            // Sync with current DOM structure for truly "related" suggestions
+            await this.refreshDOMContext();
 
-            if (matches.length > 0) {
-                this.renderDropdown(matches, value, dropdown);
-                dropdown.style.display = 'block';
-                // Force reflow
-                dropdown.offsetHeight;
-                dropdown.classList.add('visible');
-            } else {
-                dropdown.classList.remove('visible');
-                dropdown.style.display = 'none';
-            }
+            // Use SuggestionManager for precise filtering
+            const suggestions = this.manager.getSuggestions(value);
+
+            // Trigger live evaluation (debounced)
+            clearTimeout(this.evalTimeout);
+            this.evalTimeout = setTimeout(() => {
+                this.performEvaluation(value, suggestions, dropdown);
+            }, 300);
+
+            this.renderDropdown(suggestions, value, dropdown, null);
+            dropdown.style.display = 'block';
+            dropdown.offsetHeight;
+            dropdown.classList.add('visible');
 
             this.selectedIndex = -1;
         },
 
-        renderDropdown(matches, query, dropdown) {
+        async refreshDOMContext() {
+            return new Promise((resolve) => {
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    const tab = tabs[0];
+                    if (tab && tab.id) {
+                        chrome.tabs.sendMessage(tab.id, { action: 'getPageStructure' }, (response) => {
+                            if (response) {
+                                this.manager.updatePageContext(response);
+                            }
+                            resolve();
+                        });
+                    } else {
+                        resolve();
+                    }
+                });
+            });
+        },
+
+        async performEvaluation(query, suggestions, dropdown) {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const tab = tabs[0];
+                if (tab && tab.id) {
+                    chrome.tabs.sendMessage(tab.id, { action: 'evaluateSelector', selector: query }, (response) => {
+                        if (response && typeof response.count !== 'undefined') {
+                            this.renderDropdown(suggestions, query, dropdown, response.count);
+
+                            // Trigger highlighting if matches found
+                            if (response.count > 0) {
+                                chrome.tabs.sendMessage(tab.id, {
+                                    action: 'highlightMatches',
+                                    selector: query
+                                }).catch(() => { });
+                            }
+                        }
+                    });
+                }
+            });
+        },
+
+        renderDropdown(matches, query, dropdown, activeMatchCount) {
             dropdown.innerHTML = '';
+
+            // Add "Live Test" item if query looks like a selector
+            if (query.length > 2) {
+                const liveItem = document.createElement('div');
+                liveItem.className = 'dropdown-item live-test-item';
+                const countText = typeof activeMatchCount === 'number' ? `${activeMatchCount} matches` : 'Scanning...';
+                liveItem.innerHTML = `
+                    <div class="match-count-badge">${countText}</div>
+                    <span class="item-text">Run: <strong>${query}</strong></span>
+                    <i class="bi-play-circle item-icon" style="margin-left: 8px;"></i>
+                `;
+                liveItem.addEventListener('click', () => {
+                    const executeBtn = document.querySelector('.execute-btn');
+                    if (executeBtn) executeBtn.click();
+                });
+                dropdown.appendChild(liveItem);
+            }
+
             matches.forEach((match, index) => {
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
                 div.setAttribute('role', 'option');
-                div.setAttribute('aria-selected', 'false');
 
-                // Highlight matching part
                 const text = match.type;
                 const lowerText = text.toLowerCase();
-                const queryIndex = lowerText.indexOf(query);
+                const queryIndex = lowerText.indexOf(query.toLowerCase());
 
                 let html = '';
                 if (queryIndex >= 0) {
@@ -1008,9 +967,16 @@ const LocatorX = {
                     html = text;
                 }
 
+                // Show match count BEFORE the locator as requested
+                // Show match count BEFORE the locator as requested
+                // Show category if it's not a standard one
+                const categoryInfo = ['Tag', 'ID', 'Class'].includes(match.category)
+                    ? ''
+                    : `<span class="category-tag">(${match.category})</span> `;
+
                 div.innerHTML = `
-                    <i class="bi-search item-icon"></i>
-                    <span>${html}</span>
+                    <div class="match-count-badge">${match.count}</div>
+                    <span class="item-text">${categoryInfo}${html}</span>
                 `;
 
                 div.addEventListener('click', () => {
@@ -1018,12 +984,32 @@ const LocatorX = {
                     input.value = match.type;
                     dropdown.classList.remove('visible');
                     dropdown.style.display = 'none';
+                    this.handleInput(input, dropdown);
                     input.focus();
                 });
 
+                // Add hover highlighting
                 div.addEventListener('mouseenter', () => {
-                    this.selectedIndex = index;
-                    this.updateSelection(dropdown);
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        const tab = tabs[0];
+                        if (tab && tab.id) {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'highlightMatches',
+                                selector: match.type
+                            }).catch(() => { });
+                        }
+                    });
+                });
+
+                div.addEventListener('mouseleave', () => {
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        const tab = tabs[0];
+                        if (tab && tab.id) {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'clearMatchHighlights'
+                            }).catch(() => { });
+                        }
+                    });
                 });
 
                 dropdown.appendChild(div);
@@ -1099,6 +1085,9 @@ const LocatorX = {
                 } else if (message.action === 'deactivateInspect') {
                     // Handle ESC key and right-click deactivation from content script
                     this.deactivate();
+                } else if (message.action === 'notification') {
+                    if (message.type === 'success') LocatorX.notifications.success(message.message);
+                    else if (message.type === 'error') LocatorX.notifications.error(message.message);
                 }
             });
         },
@@ -1313,7 +1302,7 @@ const LocatorX = {
                     content += `
                         <div class="saved-item" data-index="${index}">
                             <div class="saved-row">
-                                <span class="saved-name">${item.name}</span>
+                                <span class="saved-name editable">${item.name}</span>
                                 <span class="saved-type">${item.type}</span>
                                 <i class="bi-clipboard saved-copy" title="Copy"></i>
                                 <i class="bi-x saved-delete" title="Delete"></i>
@@ -1509,26 +1498,42 @@ const LocatorX = {
 
                     if (clickCount === 1) {
                         clickTimeout = setTimeout(() => {
-                            // Single click - highlight in search
-                            const locator = e.target.textContent;
-                            const searchInput = document.querySelector('.search-input');
-                            if (searchInput) {
-                                searchInput.value = locator;
-                                searchInput.focus();
+                            // Single click - highlight in search (only for locator cells, not name cells)
+                            if (!e.target.classList.contains('saved-name')) {
+                                const locator = e.target.textContent;
+                                const searchInput = document.querySelector('.search-input');
+                                if (searchInput) {
+                                    searchInput.value = locator;
+                                    searchInput.focus();
+                                }
                             }
                             clickCount = 0;
                         }, 300);
                     } else if (clickCount === 2) {
                         // Double click - make editable
                         clearTimeout(clickTimeout);
-                        this.makeEditable(e.target);
+
+                        let onSave = null;
+                        if (e.target.classList.contains('saved-name')) {
+                            const savedItem = e.target.closest('.saved-item');
+                            const index = parseInt(savedItem.dataset.index);
+                            onSave = (newName) => {
+                                const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
+                                if (saved[index]) {
+                                    saved[index].name = newName;
+                                    localStorage.setItem('locator-x-saved', JSON.stringify(saved));
+                                }
+                            };
+                        }
+
+                        this.makeEditable(e.target, onSave);
                         clickCount = 0;
                     }
                 }
             });
         },
 
-        makeEditable(cell) {
+        makeEditable(cell, onSave = null) {
             const currentValue = cell.textContent;
             cell.classList.add('editing');
 
@@ -1542,8 +1547,13 @@ const LocatorX = {
             input.select();
 
             const finishEdit = () => {
-                cell.textContent = input.value || currentValue;
+                const newValue = input.value || currentValue;
+                cell.textContent = newValue;
                 cell.classList.remove('editing');
+
+                if (onSave && newValue !== currentValue) {
+                    onSave(newValue);
+                }
             };
 
             input.addEventListener('blur', finishEdit);
