@@ -2,6 +2,8 @@
 // Clean, minimal implementation with dependency synchronization
 
 const LocatorX = {
+    core: null,
+
     // Tab Management
     tabs: {
         current: 'home',
@@ -126,6 +128,8 @@ const LocatorX = {
     filters: {
         homeFilters: {},
         pomFilters: {},
+        lastLocators: null,
+        lastLocatorTime: 0,
         
         init() {
             this.setupSelectAll();
@@ -329,6 +333,16 @@ const LocatorX = {
         },
         
         displayGeneratedLocators(locators) {
+            // Check for duplicate (same locators within 500ms)
+            const now = Date.now();
+            if (this.lastLocators && 
+                (now - this.lastLocatorTime < 500) && 
+                JSON.stringify(this.lastLocators) === JSON.stringify(locators)) {
+                return;
+            }
+            this.lastLocators = locators;
+            this.lastLocatorTime = now;
+
             if (LocatorX.tabs.current === 'home') {
                 // Update home table
                 const tbody = document.querySelector('.home-container .locator-table tbody');
@@ -357,13 +371,26 @@ const LocatorX = {
                 if (!pomTable) return;
                 
                 const tbody = pomTable.querySelector('tbody');
+
+                // Check for duplicates
+                const checkedTypes = this.getCheckedTypes();
+                const existingRowsData = Array.from(tbody.rows).map(row => {
+                    const rowData = {};
+                    checkedTypes.forEach((type, index) => {
+                        rowData[type] = row.cells[index + 1].textContent;
+                    });
+                    return rowData;
+                });
+
+                if (LocatorX.core.checkDuplicatePOM(existingRowsData, locators, checkedTypes)) return;
+
                 const newRowIndex = tbody.children.length + 1;
                 
                 const row = document.createElement('tr');
                 row.innerHTML = `<td>${newRowIndex}</td>`;
                 
                 // Add locator data for each enabled column
-                const checkedTypes = this.getCheckedTypes();
+                // const checkedTypes = this.getCheckedTypes();
                 checkedTypes.forEach(type => {
                     const matchingLocator = locators.find(loc => loc.type === type);
                     const locatorValue = matchingLocator ? matchingLocator.locator : '-';
@@ -895,6 +922,8 @@ const LocatorX = {
 
     // Initialize all modules
     init() {
+        this.core = new LocatorXCore();
+        this.core.initialize();
         document.addEventListener('DOMContentLoaded', () => {
             this.tabs.init();
             this.theme.init();
@@ -1174,6 +1203,14 @@ const LocatorX = {
                     // Save with auto-generated name
                     const savedName = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
                     const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
+                    
+                    const isDuplicate = saved.some(item => item.locator === locator && item.type === type);
+                    
+                    if (isDuplicate) {
+                        LocatorX.notifications.warning('Locator already saved');
+                        return;
+                    }
+
                     saved.push({ name: savedName, type, locator, date: new Date().toISOString() });
                     localStorage.setItem('locator-x-saved', JSON.stringify(saved));
                     LocatorX.savedLocators.updateDropdown();

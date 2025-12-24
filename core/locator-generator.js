@@ -5,7 +5,10 @@ class LocatorGenerator {
             // Basic locators
             id: (element) => element.id ? `#${element.id}` : null,
             name: (element) => element.name ? `[name="${element.name}"]` : null,
-            className: (element) => element.className ? `.${element.className.split(' ').join('.')}` : null,
+            className: (element) => {
+                const cleaned = this.cleanClassName(element.className);
+                return cleaned ? `.${cleaned.split(' ').join('.')}` : null;
+            },
             tagname: (element) => element.tagName.toLowerCase(),
             css: (element) => this.generateCSSSelector(element),
             linkText: (element) => element.tagName === 'A' ? element.textContent.trim() : null,
@@ -21,6 +24,14 @@ class LocatorGenerator {
             attributeXpath: (element) => this.generateAttributeXPath(element),
             cssXpath: (element) => this.generateCSSXPath(element)
         };
+    }
+
+    cleanClassName(className) {
+        if (!className) return '';
+        if (typeof className !== 'string') return '';
+        return className.split(' ')
+            .filter(cls => cls !== 'locator-x-highlight' && cls.trim() !== '')
+            .join(' ');
     }
 
     generateLocators(element, enabledTypes = []) {
@@ -83,7 +94,10 @@ class LocatorGenerator {
 
     generateCSSSelector(element) {
         if (element.id) return `#${element.id}`;
-        if (element.className) return `.${element.className.split(' ').join('.')}`;
+        if (element.className) {
+            const cleaned = this.cleanClassName(element.className);
+            if (cleaned) return `.${cleaned.split(' ').join('.')}`;
+        }
         
         let path = [];
         let current = element;
@@ -120,7 +134,10 @@ class LocatorGenerator {
 
     generateRelativeXPath(element) {
         if (element.id) return `//*[@id="${element.id}"]`;
-        if (element.className) return `//*[@class="${element.className}"]`;
+        if (element.className) {
+            const cleaned = this.cleanClassName(element.className);
+            if (cleaned) return `//*[@class="${cleaned}"]`;
+        }
         return `//${element.tagName.toLowerCase()}`;
     }
 
@@ -130,7 +147,10 @@ class LocatorGenerator {
             return `//*[contains(text(),"${text}")]`;
         }
         if (element.className) {
-            return `//*[contains(@class,"${element.className.split(' ')[0]}")]`;
+            const cleaned = this.cleanClassName(element.className);
+            if (cleaned) {
+                return `//*[contains(@class,"${cleaned.split(' ')[0]}")]`;
+            }
         }
         return null;
     }

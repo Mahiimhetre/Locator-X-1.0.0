@@ -155,6 +155,22 @@ class LocatorXCore {
         }
     }
 
+    checkDuplicateSaved(locator, type) {
+        const saved = this.storage.getSavedLocators();
+        return saved.some(item => item.locator === locator && item.type === type);
+    }
+
+    checkDuplicatePOM(existingRows, newLocators, checkedTypes) {
+        return existingRows.some(row => {
+            return checkedTypes.every(type => {
+                const rowValue = row[type];
+                const matchingLocator = newLocators.find(loc => loc.type === type);
+                const newValue = matchingLocator ? matchingLocator.locator : '-';
+                return rowValue === newValue;
+            });
+        });
+    }
+
     // Export/Import
     exportData() {
         return {
