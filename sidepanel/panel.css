@@ -326,9 +326,49 @@ body {
   position: relative;
 }
 
+.element-type-badge {
+  padding: 2px 8px;
+  background-color: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 12px;
+  margin-right: -4px;
+  /* Slight overlap or tight spacing */
+  white-space: nowrap;
+  display: block;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.element-type-badge.hidden {
+  display: none;
+  opacity: 0;
+}
+
+.element-type-badge[data-type="Iframe"] {
+  background-color: #9b59b6;
+}
+
+.element-type-badge[data-type="Shadow Host"] {
+  background-color: #e67e22;
+}
+
+.element-type-badge[data-type="Shadow DOM"] {
+  background-color: #d35400;
+}
+
+.element-type-badge[data-type="SVG"] {
+  background-color: #16a085;
+}
+
+.element-type-badge[data-type="Canvas"] {
+  background-color: #e74c3c;
+}
+
 .search-input {
   flex: 1;
-  padding: 10px 16px;
+  padding: 6px 12px;
   border: 1px solid var(--border-light);
   border-radius: 50px;
   background: var(--secondary-bg);
@@ -447,26 +487,6 @@ body {
   font-size: 16px;
 }
 
-.execute-btn {
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 50%;
-  background: var(--accent);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  transition: all 0.2s ease;
-}
-
-.execute-btn:hover {
-  background: var(--accent-hover);
-  transform: scale(1.05);
-}
-
 /* Save Container */
 .save-container {
   display: flex;
@@ -576,6 +596,148 @@ body {
   text-align: center;
   cursor: pointer;
   color: var(--accent);
+}
+
+/* Saved Beacons Premium UI */
+.saved-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+  background: var(--secondary-bg);
+  cursor: pointer;
+}
+
+.saved-item:last-child {
+  border-bottom: none;
+}
+
+.saved-item:hover {
+  background: var(--surface-2);
+}
+
+.saved-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.saved-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  /* Text overflow fix */
+}
+
+.saved-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.saved-type-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--border-light);
+  color: var(--secondary-text);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.saved-type-badge.xpath {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.saved-type-badge.css {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.saved-type-badge.id {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.saved-type-badge.class {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.saved-type-badge.manual {
+  background: #eceff1;
+  color: #546e7a;
+}
+
+.saved-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.saved-item:hover .saved-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 12px;
+  color: var(--secondary-text);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--primary-text);
+}
+
+.action-btn.saved-delete:hover {
+  color: var(--status-red-text);
+  background: var(--status-red);
+}
+
+.saved-locator-code {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 10px;
+  color: var(--accent);
+  background: rgba(52, 152, 219, 0.08);
+  padding: 4px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid rgba(52, 152, 219, 0.15);
+}
+
+.badge-count {
+  font-size: 9px;
+  background: var(--accent);
+  color: white;
+  padding: 1px 5px;
+  border-radius: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* Empty state icon fix */
+.bi-bookmark-dash {
+  display: block;
+  text-align: center;
 }
 
 .locator-table td:last-child:hover {
@@ -996,6 +1158,21 @@ select:focus {
   gap: 4px;
 }
 
+.reset-settings-btn {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--secondary-text);
+  transition: all 0.2s ease;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.reset-settings-btn:hover {
+  color: var(--accent);
+  background-color: var(--surface-2);
+  transform: rotate(-90deg);
+}
+
 /* History */
 .dropdown-content {
   padding: 8px;
@@ -1139,93 +1316,7 @@ select:focus {
   z-index: 1000;
 }
 
-/* Saved Items Styles */
-.saved-item {
-  padding: 8px;
-  margin: 2px 0;
-  background: var(--secondary-bg);
-  border: 1px solid var(--border-light);
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
 
-.saved-item:hover {
-  border-color: var(--accent);
-  box-shadow: 0 2px 4px var(--shadow-light);
-  transform: translateY(-1px);
-}
-
-.saved-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.saved-name {
-  font-size: 11px;
-  color: var(--primary-text);
-  font-weight: 600;
-  flex: 1;
-  margin-right: 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.saved-type {
-  font-size: 8px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-  color: white;
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-right: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.saved-locator {
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  color: var(--secondary-text);
-  background: var(--surface-2);
-  padding: 4px 6px;
-  border-radius: 4px;
-  word-break: break-all;
-  border-left: 3px solid var(--accent);
-  margin: 4px 0;
-  line-height: 1.2;
-}
-
-.saved-copy,
-.saved-delete {
-  cursor: pointer;
-  font-size: 12px;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  margin-left: 2px;
-}
-
-.saved-copy {
-  color: var(--accent);
-}
-
-.saved-copy:hover {
-  background: var(--accent-muted);
-  color: var(--accent-hover);
-}
-
-.saved-delete {
-  color: var(--status-red-text);
-}
-
-.saved-delete:hover {
-  background: var(--status-red);
-  color: #dc3545;
-}
 
 /* Footer */
 .footer {
@@ -1394,7 +1485,7 @@ select:focus {
   border-radius: 50px;
   margin-bottom: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  height: 36px;
+  height: 28px;
   /* Fixed height for consistency */
 }
 

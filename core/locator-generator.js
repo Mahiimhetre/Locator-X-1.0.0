@@ -27,11 +27,21 @@ class LocatorGenerator {
     }
 
     cleanClassName(className) {
-        if (!className) return '';
-        if (typeof className !== 'string') return '';
+        if (!className || typeof className !== 'string') return '';
         return className.split(' ')
             .filter(cls => cls !== 'locator-x-highlight' && cls.trim() !== '')
-            .join(' ');
+            .map(cls => this.escapeSelector(cls))
+            .join('.');
+    }
+
+    escapeSelector(str) {
+        if (!str) return '';
+        // CSS.escape polyfill-ish or standard
+        if (typeof CSS !== 'undefined' && CSS.escape) {
+            return CSS.escape(str);
+        }
+        // Basic fallback
+        return str.replace(/([!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~])/g, '\\$1');
     }
 
     generateLocators(element, enabledTypes = []) {
@@ -93,25 +103,93 @@ class LocatorGenerator {
     }
 
     generateCSSSelector(element) {
-        if (element.id) return `#${element.id}`;
-        if (element.className) {
-            const cleaned = this.cleanClassName(element.className);
-            if (cleaned) return `.${cleaned.split(' ').join('.')}`;
+        // 1. ID
+        if (element.id) {
+            const escapedId = this.escapeSelector(element.id);
+            if (this.isUnique(`#${escapedId}`)) return `#${escapedId}`;
         }
 
+        // 2. Attributes (data-testid, etc)
+        const attributes = ['data-testid', 'data-test', 'data-cy', 'aria-label', 'name', 'placeholder'];
+        for (const attr of attributes) {
+            const value = element.getAttribute(attr);
+            if (value) {
+                const selector = `[${attr}="${CSS.escape(value)}"]`;
+                if (this.isUnique(selector)) return selector;
+                if (element.tagName === 'INPUT' && attr === 'name') { // tag + name often unique enough
+                    const tagSelector = `${element.tagName.toLowerCase()}[${attr}="${CSS.escape(value)}"]`;
+                    if (this.isUnique(tagSelector)) return tagSelector;
+                }
+            }
+        }
+
+        // 3. Class (if unique)
+        if (element.className) {
+            const cleaned = this.cleanClassName(element.className);
+            if (cleaned) {
+                const selector = `.${cleaned}`;
+                if (this.isUnique(selector)) return selector;
+                // Try tag + class
+                const tagSelector = `${element.tagName.toLowerCase()}.${cleaned}`;
+                if (this.isUnique(tagSelector)) return tagSelector;
+            }
+        }
+
+        // 4. Path generation (Smart Ancestor)
         let path = [];
         let current = element;
         while (current && current.nodeType === Node.ELEMENT_NODE) {
-            let selector = current.nodeName.toLowerCase();
+            let selector = current.tagName.toLowerCase();
+
+            // Append ID if present (even if not unique globally, helps locally)
             if (current.id) {
-                selector += `#${current.id}`;
+                selector += `#${this.escapeSelector(current.id)}`;
                 path.unshift(selector);
+                // If this specific ancestor path is unique, stop
+                if (this.isUnique(path.join(' > '))) break;
+                if (current.id && this.isUnique(`#${this.escapeSelector(current.id)}`)) break; // Should have been caught earlier but good safety
+            } else {
+                // Sibling index
+                let index = 1;
+                let sibling = current.previousElementSibling;
+                let sameTagSiblings = false;
+                while (sibling) {
+                    if (sibling.tagName === current.tagName) {
+                        index++;
+                        sameTagSiblings = true;
+                    }
+                    sibling = sibling.previousElementSibling;
+                }
+
+                // Add class if helpful
+                if (current.className) {
+                    const cleaned = this.cleanClassName(current.className);
+                    if (cleaned) selector += `.${cleaned}`;
+                }
+
+                if (sameTagSiblings || index > 1) {
+                    selector += `:nth-of-type(${index})`;
+                }
+
+                path.unshift(selector);
+                if (this.isUnique(path.join(' > '))) break;
+            }
+
+            current = current.parentNode;
+            if (current && current.tagName === 'BODY') {
+                path.unshift('body');
                 break;
             }
-            path.unshift(selector);
-            current = current.parentNode;
         }
         return path.join(' > ');
+    }
+
+    isUnique(selector) {
+        try {
+            return document.querySelectorAll(selector).length === 1;
+        } catch (e) {
+            return false;
+        }
     }
 
     generateAbsoluteXPath(element) {
@@ -133,12 +211,29 @@ class LocatorGenerator {
     }
 
     generateRelativeXPath(element) {
+        // 1. ID
         if (element.id) return `//*[@id="${element.id}"]`;
-        if (element.className) {
-            const cleaned = this.cleanClassName(element.className);
-            if (cleaned) return `//*[@class="${cleaned}"]`;
+
+        // 2. Unique Attributes
+        const attributes = ['data-testid', 'data-test', 'aria-label', 'placeholder', 'title', 'alt'];
+        for (const attr of attributes) {
+            const value = element.getAttribute(attr);
+            if (value) return `//*[@${attr}="${value}"]`;
         }
-        return `//${element.tagName.toLowerCase()}`;
+
+        // 3. Text content (for buttons, links, labels)
+        const tag = element.tagName.toLowerCase();
+        if (['a', 'button', 'label', 'h1', 'h2', 'h3', 'span', 'div'].includes(tag)) {
+            const text = element.textContent?.trim();
+            if (text && text.length > 2 && text.length < 50) {
+                // Check if text is unique enough (simple check)
+                return `//${tag}[normalize-space()="${text}"]`;
+            }
+        }
+
+        // 4. Fallback to Tag + Index
+        // Note: Full robust XPath generation is complex; this is a simplified improvement
+        return `//${tag}`;
     }
 
     generateContainsXPath(element) {

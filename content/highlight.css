@@ -1,6 +1,7 @@
 /* Non-intrusive floating overlay */
 .locator-x-overlay {
-    position: fixed !important;
+    position: absolute !important;
+    /* Changed from fixed to absolute for better scroll stickiness */
     top: 0 !important;
     left: 0 !important;
     pointer-events: none !important;
@@ -10,7 +11,8 @@
     background: rgba(0, 212, 255, 0.1) !important;
     box-shadow: 0 0 8px rgba(0, 212, 255, 0.5) !important;
     border-radius: 4px !important;
-    transition: all 0.1s ease-out !important;
+    transition: width 0.1s ease-out, height 0.1s ease-out !important;
+    /* Only animate size, position is absolute/fixed */
     display: none;
     box-sizing: border-box !important;
     will-change: transform, width, height;
@@ -24,10 +26,17 @@
     background: #2c3e50 !important;
     color: white !important;
     padding: 3px 6px !important;
-    font: 10px monospace !important;
+    font: 12px monospace !important;
     border-radius: 3px !important;
     white-space: nowrap !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    z-index: 2147483648 !important;
+    /* Above overlay */
+}
+
+/* Hide label if empty */
+.locator-x-overlay[data-label=""]::before {
+    display: none !important;
 }
 
 /* Custom Context Menu Styles */
@@ -89,10 +98,7 @@
     border-color: #00d4ff !important;
 }
 
-/* Keep for retro-compatibility or fallback if needed */
-.locator-x-highlight {
-    outline: 2px dashed #00d4ff !important;
-    outline-offset: -2px !important;
-    background: rgba(0, 212, 255, 0.15) !important;
-    transition: all 0.2s ease !important;
+/* Fallback/Internal use only - deprecated for public exposure */
+.locator-x-hidden {
+    display: none !important;
 }
