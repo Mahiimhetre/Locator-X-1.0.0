@@ -348,8 +348,8 @@ body {
 .search-dropdown {
   position: absolute;
   top: 100%;
-  left: 0;
-  width: calc(100% - 36px);
+  left: 50%;
+  width: 98%;
   background: var(--secondary-bg);
   border: 1px solid var(--border-light);
   border-top: none;
@@ -360,22 +360,22 @@ body {
   max-height: 250px;
   overflow-y: auto;
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateX(-50%) translateY(-8px);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-top: -8px;
-  padding-top: 8px;
+  margin-top: -1px;
+  padding-top: 0px;
 }
 
 .search-dropdown.visible {
   display: block;
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
+  padding: 4px 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   border-left: 3px solid transparent;
