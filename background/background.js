@@ -1,5 +1,8 @@
+importScripts('../shared/features.js');
+
 // Create context menus on installation
 chrome.runtime.onInstalled.addListener(() => {
+    // ... (existing creation logic is fine)
     chrome.contextMenus.create({
         id: "locator-x-parent",
         title: "Locator-X",
@@ -37,12 +40,8 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-    // If user clicks a "value" item, we copy its title to clipboard
+    // ... (existing click handler)
     if (info.menuItemId.endsWith('-value')) {
-        // The title would have been set to the actual locator value
-        // Note: info.menuItemTitle is not available in onClicked, so we need a different approach
-        // or just communicate back to content script to copy.
-        // Actually, let's just use the current type-based message and the content script will copy the specific type.
         const type = info.menuItemId.replace('-value', '');
         chrome.tabs.sendMessage(tab.id, {
             action: 'contextMenuLocator',
@@ -53,15 +52,17 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'updateContextMenuValues') {
-        const categories = [
-            'copy-id', 'copy-name', 'copy-class', 'copy-rel-xpath',
-            'copy-css', 'copy-js-path', 'copy-abs-xpath'
-        ];
-
-        // Access plan from storage
+        // Access plan from storage - Secure Source of Truth
         chrome.storage.local.get(['locator-x-plan'], (result) => {
             const plan = result['locator-x-plan'] || 'free';
-            const isPro = plan !== 'free'; // Simple check for now (pro/team are 'not free')
+
+            // Initialize Feature Engine with secure plan
+            const features = new LocatorXFeatures(plan);
+
+            const categories = [
+                'copy-id', 'copy-name', 'copy-class', 'copy-rel-xpath',
+                'copy-css', 'copy-js-path', 'copy-abs-xpath'
+            ];
 
             categories.forEach(catId => {
                 const shortType = catId.replace('copy-', '');
@@ -70,23 +71,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     'name': 'name',
                     'class': 'className',
                     'rel-xpath': 'xpath',
+                    // Map generic types to feature keys if needed, 
+                    // or just rely on 'isPro' equivalent if we want simple checks.
+                    // For granular control:
                     'css': 'css',
                     'js-path': 'jsPath',
                     'abs-xpath': 'absoluteXPath'
                 };
 
-                const value = message.values[typeMap[shortType]];
+                // Determine feature key for this type
+                // Mapping context menu types to feature keys in features.js
+                // 'locator.id', 'locator.xpath', etc.
+                let featureKey = null;
+                if (shortType === 'id') featureKey = 'locator.id';
+                else if (shortType === 'name') featureKey = 'locator.name';
+                else if (shortType === 'class') featureKey = 'locator.css'; // Class treated as basic CSS
+                else if (shortType === 'css') featureKey = 'locator.css';
+                else if (shortType === 'rel-xpath') featureKey = 'locator.xpath.relative'; // Assuming new key or 'locator.xpath'
+                else if (shortType === 'abs-xpath') featureKey = 'locator.xpath';
+                else if (shortType === 'js-path') featureKey = 'locator.js'; // Might not exist, default to basic or pro? 
 
-                // If Pro/Team AND value exists, show the value item
-                if (isPro && value) {
+                // If we don't have exact granular keys for all, we can fallback to generic
+                // But let's assume 'locator.xpath' covers XPaths.
+
+                const value = message.values[typeMap[shortType]];
+                const isEnabled = featureKey ? features.isEnabled(featureKey) : true;
+
+                // Additional check: Explicitly locking absolute xpath for free users if features.js says so
+                // In features.js: 'locator.xpath' is Pro. 'locator.id' is Free.
+
+                if (isEnabled && value) {
                     chrome.contextMenus.update(`${catId}-value`, {
                         title: value,
                         visible: true
                     });
                 } else {
-                    // Start Hidden for Free users OR if no value
-                    // BUT, actually if it's Free user, we might want to NOT show the "value" item at all.
-                    // The "value" item is a child Item.
                     chrome.contextMenus.update(`${catId}-value`, {
                         visible: false
                     });
@@ -106,9 +125,66 @@ chrome.action.onClicked.addListener((tab) => {
     chrome.sidePanel.open({ tabId: tab.id });
 });
 
+
+// Handle External Messages from Website (Auth & Plan Sync)
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+    // Verify source if needed (sender.url) - matches externally_connectable
+
+    if (message.action === 'LOGIN_SUCCESS') {
+        const { token, user } = message.payload;
+
+        if (token && user) {
+            // Securely store token and user data
+            chrome.storage.local.set({
+                authToken: token,
+                user: user,
+                'locator-x-plan': user.plan || 'free'
+            }, () => {
+                sendResponse({ success: true });
+                // Broadcast change to all views (Sidepanel, DevTools, Popup)
+                chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: user });
+            });
+        } else {
+            sendResponse({ success: false, error: 'Invalid payload' });
+        }
+    } else if (message.action === 'SYNC_PLAN') {
+        const { plan } = message.payload;
+        if (plan) {
+            chrome.storage.local.set({ 'locator-x-plan': plan }, () => {
+                sendResponse({ success: true, plan: plan });
+                // We might want to broadcast plan changes too, but usually AUTH_STATE_CHANGED covers it if user re-fetches
+            });
+        }
+    } else if (message.action === 'LOGOUT') {
+        chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan'], () => {
+            sendResponse({ success: true });
+            chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: null });
+        });
+    }
+    return true; // Keep channel open for async response
+});
+
+// Also listen for runtime messages (from content script) for the same actions
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'LOGIN_SUCCESS') {
+        const { token, user } = message.payload;
+        if (token && user) {
+            chrome.storage.local.set({
+                authToken: token,
+                user: user,
+                'locator-x-plan': user.plan || 'free'
+            }, () => {
+                // Notify views?
+            });
+        }
+    } else if (message.action === 'LOGOUT') {
+        chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan']);
+    }
+});
+
 // Handle sidepanel cleanup on close
 chrome.runtime.onConnect.addListener((port) => {
-    if (port.name === 'sidepanel') {
+    if (port.name === 'locatorx-panel') {
         port.onDisconnect.addListener(() => {
             // Panel closed -> stop scanning in current active tab
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

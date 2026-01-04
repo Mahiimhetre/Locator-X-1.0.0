@@ -63,4 +63,20 @@ The extension shall use the Chrome Side Panel API for its primary UI.
     *   `core/`: Shared logic (`locator-generator.js`) for pure algorithm implementations.
 *   **Storage**: `chrome.storage.local` for persisting settings, POM data, and user preferences.
 
-**exporting**:  this is very big plan i need more time till then i'll tell you which things i remember: 1. it should be support export out format(json,xml,and some languages like java,python,js and ts), 2. it should 2 options export as pom like i know java so jaa support normal element finding and opm element finding logics for other langugae i dont know you have to reerch for it. 3. it should support one file export or multi file export, 3. the fil should be editable before exporting, 4. for free user it should be limited to just export in json and xml what you thing still i wanted to discus 
+**exporting**:  this is very big plan i need more time till then i'll tell you which things i remember: 
+1. it should be support export out format(json,xml,and some languages like java,python,js and ts), 
+2. it should 2 options export as pom like i know java so jaa support normal element finding and opm element finding logics for other langugae i dont know you have to reerch for it. 
+3. it should support one file export or multi file export, 3. the fil should be editable before exporting, 
+4. for free user it should be limited to just export in json and xml, what you thing still i wanted to discus.
+ my this schenarios for selenium and java because i know selenium with java working :
+    1. it should have 2 option normal or pom.
+    2. it should support actions and operations like click(), getText(), sendKeys(), and other words for normal and save the name as webelement locatorname = code syntax+locatorType+locatorValue;
+    3. for pom there boilerplate code for pomelement driver initialization and after that it should be syntax of pom of selenium java for pom element finding.  
+boilerplate: 
+        public PageName(WebDriver driver) {
+            this.driver = driver;
+            PageFactory.initElements(driver, this);
+        }
+
+        @FindBy(<LocatorType>="locatorValue")
+        WebElement locatorName;

@@ -1,0 +1,15 @@
+{
+  "name": "locator-x-1.0.0",
+  "version": "1.0.0",
+  "description": "A powerful browser extension for generating and managing web element locators for test automation.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}

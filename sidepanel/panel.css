@@ -22,6 +22,10 @@
   --accent-contrast: #fff;
 }
 
+.hidden {
+  display: none !important;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   font-size: 11px;
@@ -68,12 +72,20 @@ body {
   position: relative;
 }
 
+.header-actions {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+}
+
 .header-icon-button {
   border: none;
   cursor: pointer;
   background: none;
-  position: absolute;
-  top: 5px;
   font-size: 0.9rem;
   color: var(--secondary-text);
   transition: color 0.2s ease;
@@ -82,16 +94,72 @@ body {
 }
 
 .inspect-button {
+  position: absolute;
   left: 5px;
+  top: 5px;
 }
 
-.theme-button {
-  right: 25px;
-  transition: transform 0.3s ease;
+/* Auth & User Profile */
+.auth-container {
+  display: flex;
+  align-items: center;
 }
 
-.login-btn {
-  right: 5px;
+.user-profile {
+  display: flex;
+  align-items: center;
+  background: var(--secondary-bg);
+  padding: 3px;
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 1px 3px var(--shadow-light);
+  gap: 8px;
+  position: relative;
+}
+
+.user-profile.hidden {
+  display: none;
+}
+
+.user-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-light);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1;
+}
+
+.user-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+.user-plan-badge {
+  font-size: 8px;
+  color: var(--secondary-text);
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.logout-btn {
+  font-size: 12px;
+  color: var(--secondary-text);
+  cursor: pointer;
+  margin-left: 2px;
+  transition: color 0.2s;
+  padding: 2px;
+}
+
+.logout-btn:hover {
+  color: var(--status-red-text);
 }
 
 .header-icon-button:hover {
@@ -389,7 +457,7 @@ body {
   position: absolute;
   top: 100%;
   left: 50%;
-  width: 98%;
+  width: 92%;
   background: var(--secondary-bg);
   border: 1px solid var(--border-light);
   border-top: none;
@@ -1582,4 +1650,12 @@ select:focus {
 /* Adjust table container to fit with nav */
 .pom-content .table-container {
   height: calc(100% - 70px);
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.spin-anim {
+    animation: spin 1s infinite linear;
+    display: inline-block;
 }

@@ -18,7 +18,6 @@ const LocatorX = {
             const select = document.getElementById('pomPageSelect');
             const addBtn = document.getElementById('addPageBtn');
             const editBtn = document.getElementById('editPageBtn');
-            const exportBtn = document.getElementById('exportPageBtn');
             const deleteBtn = document.getElementById('deletePageBtn');
 
             if (select) {
@@ -27,34 +26,8 @@ const LocatorX = {
 
             if (addBtn) addBtn.addEventListener('click', () => this.createPage());
             if (editBtn) editBtn.addEventListener('click', () => this.renamePage());
-            if (exportBtn) exportBtn.addEventListener('click', () => this.exportPage());
             if (deleteBtn) deleteBtn.addEventListener('click', () => this.deletePage());
         },
-
-        exportPage() {
-            if (!this.currentPageId) {
-                LocatorX.notifications.warning('Please select a page to export');
-                return;
-            }
-
-            const page = this.getCurrentPage();
-            if (!page) return;
-
-            const data = {
-                pageName: page.name,
-                locators: page.locators,
-                exportedAt: new Date().toISOString()
-            };
-
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", `${page.name.replace(/\s+/g, '_')}_pom.json`);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        },
-
         loadPages() {
             const pages = LocatorX.core.getPOMPages();
             const select = document.getElementById('pomPageSelect');
@@ -230,7 +203,11 @@ const LocatorX = {
             }
             */
 
-            page.locators.forEach((elementLocators, index) => { // elementLocators is Array of locators
+            page.locators.forEach((item, index) => {
+                // Handle legacy data (item is array) vs new data (item is {locators, fingerprint})
+                const elementLocators = Array.isArray(item) ? item : item.locators;
+                const hasFingerprint = !Array.isArray(item) && item.fingerprint;
+
                 const row = document.createElement('tr');
                 row.innerHTML = `<td>${index + 1}</td>`;
 
@@ -241,8 +218,86 @@ const LocatorX = {
                     row.innerHTML += `<td class="editable">${val}</td>`;
                 });
 
-                row.innerHTML += `<td><i class="bi-clipboard" title="Copy"></i><i class="bi-trash" title="Delete"></i></td>`;
+                const healBtn = hasFingerprint
+                    ? `<i class="bi-bandaid heal-btn" title="Heal Locator" style="color: var(--status-green); cursor: pointer; margin-right: 6px;"></i>`
+                    : `<i class="bi-bandaid" title="Missing Fingerprint" style="color: var(--border-light); cursor: not-allowed; margin-right: 6px;"></i>`;
+
+                row.innerHTML += `<td>
+                    ${healBtn}
+                    <i class="bi-clipboard" title="Copy"></i>
+                    <i class="bi-trash" title="Delete"></i>
+                </td>`;
+
+                // Bind Heal Event
+                if (hasFingerprint) {
+                    const btn = row.querySelector('.heal-btn');
+                    if (btn) {
+                        btn.addEventListener('click', () => {
+                            this.healLocator(item, row);
+                        });
+                    }
+                }
+
                 tbody.appendChild(row);
+            });
+        },
+
+        async healLocator(item, row) {
+            const btn = row.querySelector('.bi-bandaid');
+            if (btn) {
+                btn.className = 'bi-arrow-repeat spin-anim'; // Spin icon
+            }
+
+            LocatorX.notifications.info('Attempting to heal locator...');
+
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const tab = tabs[0];
+                if (tab && tab.id) {
+                    chrome.tabs.sendMessage(tab.id, {
+                        action: 'healLocator',
+                        fingerprint: item.fingerprint
+                    }, (response) => {
+                        // Restore icon
+                        if (btn) btn.className = 'bi-bandaid heal-btn';
+
+                        if (chrome.runtime.lastError || !response || !response.success) {
+                            LocatorX.notifications.error('Healing failed: ' + (response?.error || 'Unknown error'));
+                            return;
+                        }
+
+                        // Success!
+                        const match = response.match; // { score, text, tagName }
+                        const newLocators = response.locators;
+                        const duration = response.duration;
+
+                        LocatorX.notifications.success(`Healed in ${duration}ms (Score: ${Math.round(match.score)})`);
+
+                        // Ask user to update
+                        LocatorX.modal.confirm(
+                            'Heal Successful',
+                            `Found match (Score: ${Math.round(match.score)})<br>
+                             Tag: <b>${match.tagName}</b><br>
+                             Text: "${match.text}"<br><br>
+                             reasons: ${match.reasons.join(', ')}<br><br>
+                             <b>Update stored locators?</b>`,
+                            { icon: 'bi-bandaid-fill' }
+                        ).then(confirmed => {
+                            if (confirmed) {
+                                // Update item in storage
+                                item.locators = newLocators; // Update locators
+                                // Fingerprint usually stays same or update it too? 
+                                // Ideally update fingerprint to the NEW element's state so future healing is accurate to the NEW state.
+                                // But response doesn't give full fingerprint back currently, only partial info + locators.
+                                // Let's keep old fingerprint or better yet, ask scanner to return new fingerprint.
+                                // For now, just update locators.
+
+                                const page = this.getCurrentPage();
+                                LocatorX.core.savePOMPage(page);
+                                this.renderTable(page.id);
+                            }
+                        });
+                    });
+                }
             });
         },
 
@@ -360,7 +415,8 @@ const LocatorX = {
             { btn: 'navMultiSelect', dropdown: 'multiSelectDropdown' },
             { btn: 'navAbout', dropdown: 'aboutDropdown' },
             { btn: 'navHistory', dropdown: 'customDropdown' },
-            { btn: 'navSettings', dropdown: 'settingsDropdown' }
+            { btn: 'navSettings', dropdown: 'settingsDropdown' },
+            { btn: 'userDropdownTrigger', dropdown: 'userDropdown' }
         ],
 
         init() {
@@ -375,7 +431,12 @@ const LocatorX = {
             });
 
             document.addEventListener('click', e => {
-                if (e.target && e.target.closest && !e.target.closest('.nav-item')) this.closeAll();
+                // Modified to include user-profile in the exception list
+                if (e.target && e.target.closest &&
+                    !e.target.closest('.nav-item') &&
+                    !e.target.closest('.user-profile')) {
+                    this.closeAll();
+                }
             });
         },
 
@@ -411,6 +472,7 @@ const LocatorX = {
         lastLocatorTime: 0,
         lastElementInfo: null,
         lastElementType: null,
+        lastFingerprint: null,
 
         init() {
             this.setupSelectAll();
@@ -513,7 +575,7 @@ const LocatorX = {
                 selectAll.addEventListener('change', () => {
                     checkboxes.forEach(cb => cb.checked = selectAll.checked);
                     nestedCheckboxes.forEach(cb => {
-                        cb.checked = selectAll.checked && cb.id === 'xpathLocator';
+                        cb.checked = selectAll.checked;
                     });
                     this.updateNestedIcon();
 
@@ -635,8 +697,11 @@ const LocatorX = {
             const tbody = document.querySelector('.home-container .locator-table tbody');
             if (!tbody) return;
 
+            const checkedTypes = this.getCheckedTypes();
+            const filteredLocators = locators.filter(l => checkedTypes.includes(l.type));
+
             tbody.innerHTML = '';
-            locators.forEach(locator => {
+            filteredLocators.forEach(locator => {
                 const matchClass = locator.matches === 0 ? 'match-none' :
                     locator.matches === 1 ? 'match-single' : 'match-multiple';
 
@@ -654,7 +719,7 @@ const LocatorX = {
             });
         },
 
-        displayGeneratedLocators(locators, elementInfo = null, elementType = null) {
+        displayGeneratedLocators(locators, elementInfo = null, elementType = null, fingerprint = null) {
             // Check for duplicate (same locators within 500ms)
             const now = Date.now();
             if (this.lastLocators &&
@@ -666,12 +731,13 @@ const LocatorX = {
             this.lastLocatorTime = now;
             this.lastElementInfo = elementInfo;
             this.lastElementType = elementType;
+            this.lastFingerprint = fingerprint;
 
             if (LocatorX.tabs.current === 'home') {
                 this.renderHomeTable(locators);
                 this.updateElementInfo(elementInfo, elementType);
             } else if (LocatorX.tabs.current === 'pom') {
-                this.handlePOMDisplay(locators);
+                this.handlePOMDisplay(locators, fingerprint);
             }
         },
 
@@ -693,7 +759,7 @@ const LocatorX = {
             }
         },
 
-        handlePOMDisplay(locators) {
+        handlePOMDisplay(locators, fingerprint) {
             // Check if page selected
             let currentPage = LocatorX.pom.getCurrentPage();
 
@@ -718,33 +784,36 @@ const LocatorX = {
                             currentPage = newPage;
 
                             // Now add the locators
-                            this.addLocatorsToPage(currentPage, locators);
+                            this.addLocatorsToPage(currentPage, locators, fingerprint);
                         }
                     });
                 return;
             }
 
-            this.addLocatorsToPage(currentPage, locators);
+            this.addLocatorsToPage(currentPage, locators, fingerprint);
             this.updatePOMTable();
         },
 
 
 
-        addLocatorsToPage(page, locators) {
+        addLocatorsToPage(page, locators, fingerprint) {
             const tbody = document.querySelector('.pom-content .pom-table tbody');
             if (!tbody) return;
 
             // Check for duplicates (existing logic)
-            /* The existing logic reads from DOM which is fine for visual duplicates, 
-               but we should check the data model */
-            const isDuplicate = page.locators.some(l => JSON.stringify(l) === JSON.stringify(locators));
+            // Handle both legacy (array) and new (object) structure
+            const isDuplicate = page.locators.some(l => {
+                const existingLocators = Array.isArray(l) ? l : l.locators;
+                return JSON.stringify(existingLocators) === JSON.stringify(locators);
+            });
+
             if (isDuplicate) {
                 LocatorX.notifications.warning(`Already added to "${page.name}"`);
                 return;
             }
 
-            // Add to storage
-            page.locators.push(locators);
+            // Add to storage with fingerprint
+            page.locators.push({ locators, fingerprint });
             LocatorX.core.savePOMPage(page);
 
             // Re-render
@@ -1212,7 +1281,7 @@ const LocatorX = {
             // Listen for messages from content script
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 if (message.action === 'locatorsGenerated') {
-                    LocatorX.filters.displayGeneratedLocators(message.locators, message.elementInfo, message.elementType);
+                    LocatorX.filters.displayGeneratedLocators(message.locators, message.elementInfo, message.elementType, message.fingerprint);
                     // Auto-deactivate picking in Home mode after successful capture
                     if (LocatorX.tabs.current === 'home') {
                         this.deactivate();
@@ -1270,27 +1339,126 @@ const LocatorX = {
             const inspectBtn = document.getElementById('inspectBtn');
             if (!inspectBtn) return;
 
+            // Reset base classes to ensure clean state
+            inspectBtn.className = 'inspect-button header-icon-button';
+            inspectBtn.style.animation = 'none';
+            inspectBtn.style.color = '';
+
             if (!SiteSupport.isSupported) {
-                inspectBtn.className = 'bi-arrow-up-left-circle inspect-button header-icon-button disabled';
-                inspectBtn.style.animation = 'none';
-                inspectBtn.style.color = '';
+                inspectBtn.classList.add('bi-arrow-up-left-circle', 'disabled');
+                inspectBtn.style.color = 'var(--border-dark)';
                 return;
             }
 
             if (this.isActive) {
-                inspectBtn.className = 'bi-arrow-up-left-circle-fill inspect-button header-icon-button';
+                inspectBtn.classList.add('bi-arrow-up-left-circle-fill');
+
+                // Active Pulse Animation based on mode
                 if (this.currentMode === 'home') {
+                    // Green Pulse for Home (Standard)
                     inspectBtn.style.animation = 'pulse-green 2s infinite';
                     inspectBtn.style.color = '#28a745';
                 } else {
+                    // Red Pulse for POM (Recording)
                     inspectBtn.style.animation = 'pulse-red 2s infinite';
                     inspectBtn.style.color = '#dc3545';
                 }
             } else {
-                inspectBtn.className = 'bi-arrow-up-left-circle inspect-button header-icon-button';
-                inspectBtn.style.animation = 'none';
-                inspectBtn.style.color = '';
+                // Inactive State - Clean
+                inspectBtn.classList.add('bi-arrow-up-left-circle');
+                inspectBtn.style.color = 'var(--secondary-text)';
             }
+        }
+    },
+
+    // Authentication Management
+    auth: {
+        init() {
+            this.loginBtn = document.getElementById('loginBtn');
+            this.logoutBtn = document.getElementById('logoutBtn');
+            this.userProfile = document.getElementById('userProfile');
+            this.userAvatar = document.getElementById('userAvatar');
+            this.userName = document.getElementById('userName');
+            this.userPlan = document.getElementById('userPlan');
+
+            if (this.loginBtn) {
+                this.loginBtn.addEventListener('click', () => this.login());
+            }
+            if (this.logoutBtn) {
+                this.logoutBtn.addEventListener('click', () => this.logout());
+            }
+
+            // Listen for storage changes (external login or manual logout)
+            chrome.storage.onChanged.addListener((changes, area) => {
+                if (area === 'local' && (changes.authToken || changes.user)) {
+                    this.checkStatus();
+                }
+            });
+
+            // Listen for broadcast messages from background
+            chrome.runtime.onMessage.addListener((message) => {
+                if (message.action === 'AUTH_STATE_CHANGED') {
+                    this.checkStatus();
+                }
+            });
+
+            this.checkStatus();
+        },
+
+        async checkStatus() {
+            const data = await chrome.storage.local.get(['authToken', 'user']);
+            if (data.authToken && data.user) {
+                this.showLoggedIn(data.user);
+            } else {
+                this.showLoggedOut();
+            }
+        },
+
+        showLoggedIn(user) {
+            if (this.loginBtn) this.loginBtn.classList.add('hidden');
+            if (this.userProfile) {
+                this.userProfile.classList.remove('hidden');
+                if (this.userAvatar) {
+                    this.userAvatar.src = user.avatar || '../assets/default.png'; // Fallback to default icon
+                    // Handle broken image
+                    this.userAvatar.onerror = () => { this.userAvatar.src = '../assets/default.png'; };
+                }
+                if (this.userName) this.userName.textContent = user.name || 'User';
+                if (this.userPlan) this.userPlan.textContent = (user.plan || 'Free').toUpperCase();
+            }
+
+
+
+            // CRITICAL: Update Feature Gates based on user plan
+            if (LocatorX.features) {
+                LocatorX.features.updatePlan(user.plan || 'free');
+            }
+        },
+
+        showLoggedOut() {
+            if (this.loginBtn) this.loginBtn.classList.remove('hidden');
+            if (this.userProfile) this.userProfile.classList.add('hidden');
+
+
+
+            // CRITICAL: Revert to Free plan features
+            if (LocatorX.features) {
+                LocatorX.features.updatePlan('free');
+            }
+        },
+
+        login() {
+            // Updated to point to the correct website port
+            window.open('http://localhost:3000/auth/login', '_blank');
+        },
+
+        logout() {
+            chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan'], () => {
+                this.checkStatus();
+                LocatorX.notifications.success('Logged out successfully');
+                // Broadcast logout to ensure other parts update
+                chrome.runtime.sendMessage({ action: 'LOGOUT' });
+            });
         }
     },
 
@@ -1299,24 +1467,26 @@ const LocatorX = {
         this.core = new LocatorXCore();
         await this.core.initialize();
 
+        // Securely fetch initial plan
+        const { 'locator-x-plan': plan } = await chrome.storage.local.get(['locator-x-plan']);
+
         this.modal = new LocatorXModal();
-        this.features = new LocatorXFeatures();
+        this.features = new LocatorXFeatures(plan || 'free'); // Initialize with secure plan
 
         this.tabs.init();
         this.theme.init();
         this.dropdowns.init();
         this.features.init(); // Initialize features early to apply gates
         this.filters.init();
-        this.filters.init();
         this.dependencies.init();
         this.settings.init();
-        this.search.init();
         this.search.init();
         this.pom.init();
         this.table.init();
         this.savedLocators.init();
         this.notifications.init();
         this.inspect.init();
+        this.auth.init();
 
         // Check site support
         if (typeof SiteSupport !== 'undefined') {
@@ -1412,6 +1582,7 @@ const LocatorX = {
                                         <span class="saved-type-badge ${typeClass}">${item.type}</span>
                                     </div>
                                     <div class="saved-actions">
+                                        ${item.fingerprint ? '<button class="action-btn saved-heal" title="Heal"><i class="bi-bandaid" style="color:var(--status-green);"></i></button>' : ''}
                                         <button class="action-btn saved-copy" title="Copy Locator"><i class="bi-clipboard"></i></button>
                                         <button class="action-btn saved-delete" title="Delete"><i class="bi-trash"></i></button>
                                     </div>
@@ -1449,7 +1620,61 @@ const LocatorX = {
                     return;
                 }
 
-                if (e.target.classList.contains('saved-copy')) {
+                if (e.target.closest('.saved-heal')) {
+                    const itemDiv = e.target.closest('.saved-item');
+                    const index = parseInt(itemDiv.dataset.index);
+                    const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
+                    const item = saved[index];
+
+                    if (item && item.fingerprint) {
+                        const btn = e.target.closest('.saved-heal').querySelector('i');
+                        btn.className = 'bi-arrow-repeat spin-anim';
+
+                        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                            const tab = tabs[0];
+                            if (tab && tab.id) {
+                                chrome.tabs.sendMessage(tab.id, {
+                                    action: 'healLocator',
+                                    fingerprint: item.fingerprint
+                                }, (response) => {
+                                    btn.className = 'bi-bandaid';
+                                    if (chrome.runtime.lastError || !response || !response.success) {
+                                        LocatorX.notifications.error('Heal failed');
+                                        return;
+                                    }
+
+                                    // Suggest update
+                                    // For saved locators, we might just update the locator string
+                                    // But which strategy? The response returns a list.
+                                    // We should ideally pick the same strategy as before if available, or the best one.
+
+                                    const match = response.match;
+                                    const best = response.locators.find(l =>
+                                        l.type.toLowerCase().includes(item.type.toLowerCase())
+                                    ) || response.locators[0]; // Fallback to first
+
+                                    LocatorX.modal.confirm(
+                                        'Heal Successful',
+                                        `Found match (Score: ${Math.round(match.score)})<br>
+                                         New Locator: <b>${best.locator}</b><br>
+                                         Update this saved locator?`,
+                                        { icon: 'bi-bandaid-fill' }
+                                    ).then(confirmed => {
+                                        if (confirmed) {
+                                            item.locator = best.locator;
+                                            localStorage.setItem('locator-x-saved', JSON.stringify(saved));
+                                            this.updateDropdown();
+                                            LocatorX.notifications.success('Locator updated');
+                                        }
+                                    });
+                                });
+                            }
+                        });
+                    }
+                    return;
+                }
+
+                if (e.target.classList.contains('saved-copy') || e.target.closest('.saved-copy')) {
                     const item = e.target.closest('.saved-item');
                     const locator = item.querySelector('.saved-locator-code').textContent; // Fix class selector
                     navigator.clipboard.writeText(locator);
@@ -1556,6 +1781,7 @@ const LocatorX = {
                             name,
                             type,
                             locator,
+                            fingerprint: LocatorX.filters.lastFingerprint,
                             date: new Date().toISOString()
                         });
                         localStorage.setItem('locator-x-saved', JSON.stringify(saved));
@@ -1603,7 +1829,13 @@ const LocatorX = {
                         type = this.detectLocatorType(locator);
                     }
 
-                    saved.push({ name: savedName, type, locator, date: new Date().toISOString() });
+                    saved.push({
+                        name: savedName,
+                        type,
+                        locator,
+                        fingerprint: LocatorX.filters.lastFingerprint,
+                        date: new Date().toISOString()
+                    });
                     localStorage.setItem('locator-x-saved', JSON.stringify(saved));
                     LocatorX.savedLocators.updateDropdown();
                     LocatorX.notifications.success(`Locator saved as "${savedName}"`);

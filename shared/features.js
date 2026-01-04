@@ -1,8 +1,9 @@
 class LocatorXFeatures {
-    constructor() {
-        this.currentPlan = 'free';
+    constructor(currentPlan = 'free') {
+        this.currentPlan = currentPlan;
 
         // Comprehensive Feature Registry
+        // HARDCODED - Secure source of truth for feature definitions
         this.config = {
             free: {
                 features: [
@@ -29,6 +30,7 @@ class LocatorXFeatures {
                     'locator.xpath.relative',
                     'locator.playwright',
                     'module.pom',
+                    'ui.export',
                     'ui.theme.dark',
                     'ui.settings.framework',
                     'ui.settings.reset'
@@ -47,27 +49,7 @@ class LocatorXFeatures {
     }
 
     init() {
-        // For now, load from local storage or default to free
-        // In future, this will sync with auth.js
-        this.currentPlan = localStorage.getItem('locator-x-plan') || 'free';
-        console.log(`LocatorX: Initialized with plan '${this.currentPlan}'`);
-
-        // Expose for debugging
-        window.setPlan = (plan) => {
-            if (this.config[plan]) {
-                this.currentPlan = plan;
-                localStorage.setItem('locator-x-plan', plan);
-                this.applyFeatureGates();
-                // Notifications might not be available in all contexts, so check
-                if (window.LocatorX && window.LocatorX.notifications) {
-                    LocatorX.notifications.success(`Switched to ${plan.toUpperCase()} plan`);
-                } else {
-                    console.log(`Switched to ${plan}`);
-                }
-                setTimeout(() => location.reload(), 500);
-            }
-        };
-
+        // Init logic for UI only - mostly just applying gates based on the plan passed to constructor
         this.applyFeatureGates();
     }
 
@@ -90,7 +72,7 @@ class LocatorXFeatures {
     check(featureKey, showNotification = true) {
         if (this.isEnabled(featureKey)) return true;
 
-        if (showNotification && window.LocatorX && window.LocatorX.notifications) {
+        if (showNotification && typeof window !== 'undefined' && window.LocatorX && window.LocatorX.notifications) {
             LocatorX.notifications.info(
                 `Upgrade to Pro to access this feature!`,
                 'Feature Locked'
@@ -100,6 +82,8 @@ class LocatorXFeatures {
     }
 
     applyFeatureGates() {
+        if (typeof document === 'undefined') return; // Skip if running in background/worker
+
         // 1. Data-feature attributes in HTML
         document.querySelectorAll('[data-feature]').forEach(el => {
             const feature = el.getAttribute('data-feature');
@@ -129,20 +113,29 @@ class LocatorXFeatures {
     }
 
     updateThemeAccess() {
+        if (typeof document === 'undefined') return;
         const themeBtn = document.getElementById('themeBtn');
         if (themeBtn) {
             if (!this.isEnabled('ui.theme.dark')) {
                 themeBtn.style.display = 'none';
             } else {
-                themeBtn.style.display = 'flex'; // Or whatever flex/block it was
+                themeBtn.style.display = 'flex';
             }
         }
     }
+
+    updatePlan(newPlan) {
+        this.currentPlan = newPlan;
+        this.applyFeatureGates();
+    }
 }
 
-// Export
+// Universal Export (Browser, Node, Service Worker)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = LocatorXFeatures;
-} else {
+} else if (typeof window !== 'undefined') {
     window.LocatorXFeatures = LocatorXFeatures;
+} else if (typeof self !== 'undefined') {
+    // Service Worker support
+    self.LocatorXFeatures = LocatorXFeatures;
 }

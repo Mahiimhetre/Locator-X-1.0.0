@@ -40,6 +40,9 @@ class DOMScanner {
                 this.highlightMatches(message.selector);
             } else if (message.action === 'clearMatchHighlights') {
                 this.clearMatchHighlights();
+            } else if (message.action === 'healLocator') {
+                const result = this.healLocator(message.fingerprint);
+                sendResponse(result);
             }
         });
 
@@ -81,6 +84,7 @@ class DOMScanner {
         this.handleMouseMove = this.throttle(this.handleMouseMove.bind(this), 50);
         this.handleMouseClick = this.handleMouseClick.bind(this);
         this.handleKeyPress = this.handleKeyPress.bind(this);
+        this.handleRightClick = this.handleRightClick.bind(this);
     }
 
     throttle(func, limit) {
@@ -102,6 +106,7 @@ class DOMScanner {
         document.addEventListener('mousemove', this.handleMouseMove, true);
         document.addEventListener('click', this.handleMouseClick, true);
         document.addEventListener('keydown', this.handleKeyPress, true);
+        document.addEventListener('contextmenu', this.handleRightClick, true);
         // We use requestAnimationFrame instead of scroll/resize events for better stickiness
         this.startOverlayLoop();
 
@@ -120,6 +125,7 @@ class DOMScanner {
         document.removeEventListener('mousemove', this.handleMouseMove, true);
         document.removeEventListener('click', this.handleMouseClick, true);
         document.removeEventListener('keydown', this.handleKeyPress, true);
+        document.removeEventListener('contextmenu', this.handleRightClick, true);
 
         this.stopOverlayLoop();
 
@@ -167,14 +173,16 @@ class DOMScanner {
                     const enabledTypes = result.enabledFilters || [];
                     console.log('[Locator-X] Generating locators with types:', enabledTypes);
                     const locators = this.generateLocators(element, enabledTypes);
+                    const fingerprint = this.generator.generateFingerprint(element);
                     const info = this.getElementInfo(element);
                     const type = this.getElementType(element);
 
-                    console.log('[Locator-X] Sending message:', { locators, info, type });
+                    console.log('[Locator-X] Sending message:', { locators, info, type, fingerprint });
 
                     chrome.runtime.sendMessage({
                         action: 'locatorsGenerated',
                         locators: locators,
+                        fingerprint: fingerprint,
                         elementInfo: info,
                         elementType: type
                     });
@@ -185,6 +193,14 @@ class DOMScanner {
         } catch (e) {
             console.error('[Locator-X] Error in handleMouseClick:', e);
         }
+    }
+
+    handleRightClick(event) {
+        if (!this.isActive) return;
+        event.preventDefault(); // Stop standard context menu
+        event.stopPropagation();
+        chrome.runtime.sendMessage({ action: 'deactivateInspect' });
+        this.stopScanning(true); // Force clear highlight
     }
 
 
@@ -533,6 +549,40 @@ class DOMScanner {
             }
         }
     }
+
+    healLocator(fingerprint) {
+        if (!window.HealingEngine) return { error: 'Healing Engine not loaded' };
+
+        const engine = new HealingEngine();
+        const start = performance.now();
+        const match = engine.findBestMatch(fingerprint);
+        const duration = performance.now() - start;
+
+        if (match && match.element) {
+            // Generate new locators for this element
+            // We use the same generator logic
+            if (!this.generator) this.generator = new LocatorGenerator();
+
+            // We can return a specific robust locator (e.g. CSS or XPath) or a list
+            // Let's return the standard list so user can choose
+            const locators = this.generator.generateLocators(match.element, ['id', 'name', 'css', 'xpath']);
+
+            return {
+                success: true,
+                match: {
+                    score: match.score,
+                    reasons: match.reasons,
+                    tagName: match.element.tagName.toLowerCase(),
+                    text: (match.element.textContent || '').substring(0, 30).trim()
+                },
+                locators: locators,
+                duration: Math.round(duration)
+            };
+        }
+
+        return { success: false, error: 'No matching element found' };
+    }
+
 }
 
 // Initialize scanner
