@@ -6,6 +6,8 @@ class DOMScanner {
         this.highlightedElement = null;
         this.lastRightClickedElement = null;
         this.overlay = this.createOverlay();
+        this.matchOverlays = []; // Pool for multi-match highlights
+        this.matchedElements = []; // The elements currently matched
         this.animationFrameId = null;
         this.setupEventListeners();
         this.updateOverlayLoop = this.updateOverlayLoop.bind(this);
@@ -29,7 +31,7 @@ class DOMScanner {
                 this.stopScanning(message.force);
                 sendResponse({ success: true });
             } else if (message.action === 'evaluateSelector') {
-                const results = this.evaluateSelector(message.selector);
+                const results = this.evaluateSelector(message.selector, message.type);
                 sendResponse(results);
             } else if (message.action === 'getPageStructure') {
                 const structure = this.getPageStructure();
@@ -241,7 +243,27 @@ class DOMScanner {
 
     updateOverlayLoop() {
         this.repositionOverlay();
+        this.repositionMatchOverlays();
         this.animationFrameId = requestAnimationFrame(this.updateOverlayLoop);
+    }
+
+    repositionMatchOverlays() {
+        const scrollX = window.scrollX || window.pageXOffset;
+        const scrollY = window.scrollY || window.pageYOffset;
+
+        // Only show up to 20 matches for performance
+        this.matchOverlays.forEach((overlay, i) => {
+            const el = this.matchedElements[i + 1]; // First match uses primary overlay
+            if (el) {
+                const rect = el.getBoundingClientRect();
+                overlay.style.display = 'block';
+                overlay.style.transform = `translate3d(${rect.left + scrollX}px, ${rect.top + scrollY}px, 0)`;
+                overlay.style.width = `${rect.width}px`;
+                overlay.style.height = `${rect.height}px`;
+            } else {
+                overlay.style.display = 'none';
+            }
+        });
     }
 
     repositionOverlay() {
@@ -284,50 +306,80 @@ class DOMScanner {
     }
 
     highlightMatches(selector) {
-        // Clear previous highlights
         this.clearMatchHighlights();
-
         if (!selector) return;
 
         try {
             let matches = [];
-            const isXpath = selector.startsWith('/') || selector.startsWith('(');
 
-            if (isXpath) {
-                const result = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-                for (let i = 0; i < Math.min(result.snapshotLength, 50); i++) {
-                    matches.push(result.snapshotItem(i));
-                }
-            } else {
-                matches = Array.from(document.querySelectorAll(selector)).slice(0, 50);
+            // 1. Try CSS
+            try {
+                matches = Array.from(document.querySelectorAll(selector)).slice(0, 21);
+            } catch (e) { }
+
+            // 2. Try XPath if CSS failed or if it looks like XPath
+            const looksLikeXpath = selector.startsWith('/') ||
+                selector.startsWith('(') ||
+                selector.startsWith('.//') ||
+                selector.includes('//') ||
+                selector.includes('text()') ||
+                selector.includes('@');
+
+            if (matches.length === 0 || looksLikeXpath) {
+                try {
+                    const result = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                    const xpathNodes = [];
+                    for (let i = 0; i < Math.min(result.snapshotLength, 21); i++) {
+                        xpathNodes.push(result.snapshotItem(i));
+                    }
+
+                    // If XPath found something and CSS didn't, or if we want to prioritize XPath for these markers
+                    if (xpathNodes.length > 0) {
+                        // Merge or replace? For search bar, usually replace if it's clearly an XPath
+                        matches = Array.from(new Set([...matches, ...xpathNodes])).slice(0, 21);
+                    }
+                } catch (e) { }
             }
 
-            // Using overlay for the first match instead of adding classes
+            this.matchedElements = matches;
+
+            // Focus the first match
             if (matches.length > 0) {
                 const firstMatch = matches[0];
-
-                // Scroll into view first
                 if (firstMatch.scrollIntoView) {
-                    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
                 }
-
-                // Highlight with sticky overlay
                 this.highlightElement(firstMatch);
+
+                // Setup secondary overlays if needed
+                if (matches.length > 1) {
+                    this.ensureMatchOverlays(matches.length - 1);
+                }
             } else {
                 this.clearHighlight();
             }
-
         } catch (e) {
-            console.warn('Error highlighting matches:', e);
+            // Silence common syntax errors during typing
+            if (e.name === 'SyntaxError' || e instanceof DOMException) {
+                return;
+            }
+            console.warn(`Error highlighting matches for "${selector}":`, e);
+        }
+    }
+
+    ensureMatchOverlays(count) {
+        while (this.matchOverlays.length < count && this.matchOverlays.length < 20) {
+            const div = document.createElement('div');
+            div.className = 'locator-x-match-overlay';
+            document.documentElement.appendChild(div);
+            this.matchOverlays.push(div);
         }
     }
 
     clearMatchHighlights() {
-        // Just clear the overlay highlight mechanism
+        this.matchedElements = [];
         this.clearHighlight();
-        // Also clean up any legacy classes just in case
-        const highlighted = document.querySelectorAll('.locator-x-highlight');
-        highlighted.forEach(el => el.classList.remove('locator-x-highlight'));
+        this.matchOverlays.forEach(o => o.style.display = 'none');
     }
 
     getOverlayLabel(element) {
@@ -344,23 +396,43 @@ class DOMScanner {
         return this.generator.generateLocators(element, enabledTypes);
     }
 
-    evaluateSelector(selector) {
+    evaluateSelector(selector, type = null) {
         if (!selector) return { count: 0 };
         try {
-            let matches = [];
-            let count = 0;
-
-            const isXpath = selector.startsWith('/') || selector.startsWith('(');
-            if (isXpath) {
-                const result = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-                count = result.snapshotLength;
-            } else {
-                const nodes = document.querySelectorAll(selector);
-                count = nodes.length;
+            if (!this.generator) {
+                this.generator = new LocatorGenerator();
             }
+
+            // Map UI display name back to strategy key if possible
+            const displayToStrategy = {
+                'ID': 'id',
+                'Name': 'name',
+                'ClassName': 'className',
+                'TagName': 'tagname',
+                'CSS': 'css',
+                'LinkText': 'linkText',
+                'Partial LinkText': 'partialLinkText',
+                'Absolute XPath': 'absoluteXPath',
+                'XPath': 'xpath',
+                'Contains XPath': 'containsXpath',
+                'Indexed XPath': 'indexedXpath',
+                'Link Text XPath': 'linkTextXpath',
+                'Partial Link XPath': 'partialLinkTextXpath',
+                'Attribute XPath': 'attributeXpath',
+                'CSS XPath': 'cssXpath',
+                'JS Path': 'jsPath'
+            };
+
+            const strategy = displayToStrategy[type] || null;
+            const count = this.generator.countMatches(selector, strategy);
 
             return { count };
         } catch (e) {
+            // Silence DOMExceptions for evaluateSelector as well
+            if (e.name === 'SyntaxError' || e instanceof DOMException) {
+                return { count: 0 };
+            }
+            console.warn(`Error evaluating selector "${selector}":`, e);
             return { count: 0, error: e.message };
         }
     }

@@ -4,7 +4,7 @@ class LocatorGenerator {
         this.strategies = {
             // Basic locators
             id: (element) => element.id ? `#${element.id}` : null,
-            name: (element) => element.name ? `[name="${element.name}"]` : null,
+            name: (element) => element.name ? `[name='${element.name}']` : null,
             className: (element) => {
                 const cleaned = this.cleanClassName(element.className);
                 return cleaned ? `.${cleaned.split(' ').join('.')}` : null;
@@ -12,6 +12,7 @@ class LocatorGenerator {
             tagname: (element) => element.tagName.toLowerCase(),
             css: (element) => this.generateCSSSelector(element),
             linkText: (element) => element.tagName === 'A' ? element.textContent.trim() : null,
+            partialLinkText: (element) => element.tagName === 'A' ? element.textContent.trim().substring(0, 10) : null,
             absoluteXPath: (element) => this.generateAbsoluteXPath(element),
             jsPath: (element) => `document.querySelector('${this.generateCSSSelector(element)}')`,
 
@@ -114,10 +115,11 @@ class LocatorGenerator {
         for (const attr of attributes) {
             const value = element.getAttribute(attr);
             if (value) {
-                const selector = `[${attr}="${CSS.escape(value)}"]`;
+                const quote = value.includes("'") ? '"' : "'";
+                const selector = `[${attr}=${quote}${CSS.escape(value)}${quote}]`;
                 if (this.isUnique(selector)) return selector;
                 if (element.tagName === 'INPUT' && attr === 'name') { // tag + name often unique enough
-                    const tagSelector = `${element.tagName.toLowerCase()}[${attr}="${CSS.escape(value)}"]`;
+                    const tagSelector = `${element.tagName.toLowerCase()}[${attr}=${quote}${CSS.escape(value)}${quote}]`;
                     if (this.isUnique(tagSelector)) return tagSelector;
                 }
             }
@@ -212,13 +214,19 @@ class LocatorGenerator {
 
     generateRelativeXPath(element) {
         // 1. ID
-        if (element.id) return `//*[@id="${element.id}"]`;
+        if (element.id) {
+            const quote = element.id.includes("'") ? '"' : "'";
+            return `//*[@id=${quote}${element.id}${quote}]`;
+        }
 
         // 2. Unique Attributes
         const attributes = ['data-testid', 'data-test', 'aria-label', 'placeholder', 'title', 'alt'];
         for (const attr of attributes) {
             const value = element.getAttribute(attr);
-            if (value) return `//*[@${attr}="${value}"]`;
+            if (value) {
+                const quote = value.includes("'") ? '"' : "'";
+                return `//*[@${attr}=${quote}${value}${quote}]`;
+            }
         }
 
         // 3. Text content (for buttons, links, labels)
@@ -226,8 +234,8 @@ class LocatorGenerator {
         if (['a', 'button', 'label', 'h1', 'h2', 'h3', 'span', 'div'].includes(tag)) {
             const text = element.textContent?.trim();
             if (text && text.length > 2 && text.length < 50) {
-                // Check if text is unique enough (simple check)
-                return `//${tag}[normalize-space()="${text}"]`;
+                const quote = text.includes("'") ? '"' : "'";
+                return `//${tag}[normalize-space()=${quote}${text}${quote}]`;
             }
         }
 
@@ -239,12 +247,15 @@ class LocatorGenerator {
     generateContainsXPath(element) {
         const text = element.textContent?.trim();
         if (text && text.length < 50) {
-            return `//*[contains(text(),"${text}")]`;
+            const escapedText = text.includes("'") ? `"${text}"` : `'${text}'`;
+            return `//*[contains(text(),${escapedText})]`;
         }
         if (element.className) {
             const cleaned = this.cleanClassName(element.className);
             if (cleaned) {
-                return `//*[contains(@class,"${cleaned.split(' ')[0]}")]`;
+                const classPart = cleaned.split(' ')[0];
+                const escapedClassPart = classPart.includes("'") ? `"${classPart}"` : `'${classPart}'`;
+                return `//*[contains(@class,${escapedClassPart})]`;
             }
         }
         return null;
@@ -257,21 +268,26 @@ class LocatorGenerator {
             if (sibling.tagName === element.tagName) index++;
             sibling = sibling.previousElementSibling;
         }
-        return `//${element.tagName.toLowerCase()}[${index}]`;
+        // Wrapping in parentheses ensures the index applies to the entire set of matches
+        return `(${this.generateRelativeXPath(element)})[${index}]`;
     }
 
     generateLinkTextXPath(element) {
         if (element.tagName === 'A') {
             const text = element.textContent.trim();
-            return text ? `//a[text()="${text}"]` : null;
+            if (!text) return null;
+            const quote = text.includes("'") ? '"' : "'";
+            return `//a[text()=${quote}${text}${quote}]`;
         }
         return null;
     }
 
     generatePartialLinkTextXPath(element) {
         if (element.tagName === 'A') {
-            const text = element.textContent.trim();
-            return text ? `//a[contains(text(),"${text}")]` : null;
+            const text = element.textContent.trim().substring(0, 10);
+            if (!text) return null;
+            const quote = text.includes("'") ? '"' : "'";
+            return `//a[contains(text(),${quote}${text}${quote})]`;
         }
         return null;
     }
@@ -281,7 +297,8 @@ class LocatorGenerator {
         for (const attr of attrs) {
             const value = element.getAttribute(attr);
             if (value) {
-                return `//*[@${attr}="${value}"]`;
+                const quote = value.includes("'") ? '"' : "'";
+                return `//*[@${attr}=${quote}${value}${quote}]`;
             }
         }
         return null;
@@ -293,11 +310,63 @@ class LocatorGenerator {
     }
 
     countMatches(selector, strategy) {
+        if (!selector) return 0;
+
         try {
-            if (strategy?.includes('xpath') || strategy === 'absoluteXPath') {
-                return document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength;
+            const lowerStrategy = (strategy || '').toLowerCase();
+
+            // 1. Explicit Strategy Mode (Used by Table Rows)
+            if (strategy) {
+                if (lowerStrategy.includes('xpath') || lowerStrategy === 'absolutexpath') {
+                    return document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength;
+                }
+                if (lowerStrategy === 'linktext') {
+                    const xpath = selector.includes("'") ? `//a[text()="${selector}"]` : `//a[text()='${selector}']`;
+                    return document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength;
+                }
+                if (lowerStrategy === 'partiallinktext') {
+                    const xpath = selector.includes("'") ? `//a[contains(text(),"${selector}")]` : `//a[contains(text(),'${selector}')]`;
+                    return document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength;
+                }
+                if (lowerStrategy === 'jspath') {
+                    try {
+                        const res = eval(selector);
+                        return res ? (res.length || 1) : 0;
+                    } catch (e) { return 0; }
+                }
+                return document.querySelectorAll(selector).length;
             }
-            return document.querySelectorAll(selector).length;
+
+            // 2. SMART DISCOVERY MODE (Used by Search Bar)
+            // Try as CSS first (most common for simple strings)
+            let cssCount = 0;
+            try {
+                cssCount = document.querySelectorAll(selector).length;
+            } catch (e) {
+                cssCount = 0; // Syntax error for XPath in querySelector
+            }
+
+            // Try as XPath if CSS failed or if it looks like XPath
+            const looksLikeXpath = selector.startsWith('/') ||
+                selector.startsWith('(') ||
+                selector.startsWith('.//') ||
+                selector.includes('//') ||
+                selector.includes('text()') ||
+                selector.includes('@');
+
+            if (cssCount === 0 || looksLikeXpath) {
+                try {
+                    const xpathResult = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                    const xpathCount = xpathResult.snapshotLength;
+
+                    // If both matched something, return the higher count (or combine if needed, but usually it's one or the other)
+                    return Math.max(cssCount, xpathCount);
+                } catch (e) {
+                    return cssCount; // Fallback to whatever CSS found
+                }
+            }
+
+            return cssCount;
         } catch (e) {
             return 0;
         }

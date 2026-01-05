@@ -530,6 +530,42 @@ body {
   line-height: normal;
 }
 
+.search-match-badge {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--accent);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+  pointer-events: none;
+  z-index: 5;
+  transition: all 0.2s ease;
+}
+
+
+.search-match-badge.match-none {
+  background: #e74c3c !important;
+  /* Solid Red */
+  color: white !important;
+}
+
+.search-match-badge.match-single {
+  background: #27ae60 !important;
+  /* Solid Green */
+  color: white !important;
+}
+
+.search-match-badge.match-multiple {
+  background: var(--accent) !important;
+  /* Solid Blue */
+  color: white !important;
+}
+
 .category-tag {
   color: var(--secondary-text);
   font-size: 11px;
@@ -1651,11 +1687,18 @@ select:focus {
 .pom-content .table-container {
   height: calc(100% - 70px);
 }
+
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
+
 .spin-anim {
-    animation: spin 1s infinite linear;
-    display: inline-block;
+  animation: spin 1s infinite linear;
+  display: inline-block;
 }

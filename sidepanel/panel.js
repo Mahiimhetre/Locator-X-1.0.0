@@ -1065,6 +1065,12 @@ const LocatorX = {
             if (value.length === 0) {
                 dropdown.classList.remove('visible');
                 dropdown.style.display = 'none';
+                const badge = document.getElementById('searchMatchBadge');
+                if (badge) {
+                    badge.textContent = '0';
+                    badge.classList.remove('match-single', 'match-multiple');
+                    badge.classList.add('match-none');
+                }
                 return;
             }
 
@@ -1112,6 +1118,7 @@ const LocatorX = {
         },
 
         async performEvaluation(query, suggestions, dropdown) {
+            const badge = document.getElementById('searchMatchBadge');
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 const tab = tabs[0];
                 if (tab && tab.id) {
@@ -1120,6 +1127,15 @@ const LocatorX = {
 
                         if (response && typeof response.count !== 'undefined') {
                             this.renderDropdown(suggestions, query, dropdown, response.count);
+
+                            // Update the new search match badge
+                            if (badge) {
+                                badge.textContent = response.count;
+                                badge.classList.remove('hidden', 'match-none', 'match-single', 'match-multiple');
+                                if (response.count === 0) badge.classList.add('match-none');
+                                else if (response.count === 1) badge.classList.add('match-single');
+                                else badge.classList.add('match-multiple');
+                            }
 
                             // Trigger highlighting if matches found
                             if (response.count > 0) {
@@ -1941,8 +1957,13 @@ const LocatorX = {
                 cell.textContent = newValue;
                 cell.classList.remove('editing');
 
-                if (onSave && newValue !== currentValue) {
-                    onSave(newValue);
+                if (newValue !== currentValue) {
+                    if (onSave) {
+                        onSave(newValue);
+                    } else if (cell.closest('.locator-table')) {
+                        // Trigger match count update for this row
+                        this.updateMatchCount(cell);
+                    }
                 }
             };
 
@@ -1952,6 +1973,51 @@ const LocatorX = {
                 if (e.key === 'Escape') {
                     cell.textContent = currentValue;
                     cell.classList.remove('editing');
+                }
+            });
+        },
+
+        updateMatchCount(cell) {
+            const row = cell.closest('tr');
+            if (!row) return;
+
+            const badge = row.querySelector('.match-count');
+            const typeCell = row.cells[1]; // Typically the second column
+            const locator = cell.textContent.trim();
+
+            if (!badge || !locator) return;
+
+            const type = typeCell ? typeCell.textContent.trim() : null;
+
+            badge.textContent = '...';
+            badge.className = 'match-count'; // Reset
+
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const tab = tabs[0];
+                if (tab && tab.id) {
+                    chrome.tabs.sendMessage(tab.id, {
+                        action: 'evaluateSelector',
+                        selector: locator,
+                        type: type
+                    }, (response) => {
+                        if (chrome.runtime.lastError || !response || typeof response.count === 'undefined') {
+                            badge.textContent = '0';
+                            badge.classList.add('match-none');
+                            return;
+                        }
+
+                        const count = response.count;
+                        badge.textContent = count;
+                        badge.classList.add(count === 0 ? 'match-none' : (count === 1 ? 'match-single' : 'match-multiple'));
+
+                        // Also highlight matches while editing
+                        if (count > 0) {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'highlightMatches',
+                                selector: locator
+                            }).catch(() => { });
+                        }
+                    });
                 }
             });
         }

@@ -1,12 +1,10 @@
 /* Non-intrusive floating overlay */
 .locator-x-overlay {
     position: absolute !important;
-    /* Changed from fixed to absolute for better scroll stickiness */
     top: 0 !important;
     left: 0 !important;
     pointer-events: none !important;
     z-index: 2147483647 !important;
-    /* Max value */
     border: 2px dashed #00d4ff !important;
     background: rgba(0, 212, 255, 0.1) !important;
     box-shadow: 0 0 8px rgba(0, 212, 255, 0.5) !important;
@@ -101,4 +99,20 @@
 /* Fallback/Internal use only - deprecated for public exposure */
 .locator-x-hidden {
     display: none !important;
+}
+
+/* Multiple Matches Floating Overlay */
+.locator-x-match-overlay {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    pointer-events: none !important;
+    z-index: 2147483646 !important;
+    /* Just below primary overlay */
+    border: 1px dashed rgba(243, 156, 18, 0.8) !important;
+    background: rgba(243, 156, 18, 0.1) !important;
+    border-radius: 2px !important;
+    pointer-events: none !important;
+    display: none;
+    will-change: transform;
 }
