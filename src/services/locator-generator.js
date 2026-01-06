@@ -83,24 +83,7 @@ class LocatorGenerator {
     }
 
     getDisplayName(strategy) {
-        const names = {
-            'id': 'ID',
-            'name': 'Name',
-            'className': 'ClassName',
-            'tagname': 'TagName',
-            'css': 'CSS',
-            'linkText': 'LinkText',
-            'partialLinkText': 'Partial LinkText',
-            'absoluteXPath': 'Absolute XPath',
-            'xpath': 'XPath',
-            'containsXpath': 'Contains XPath',
-            'indexedXpath': 'Indexed XPath',
-            'linkTextXpath': 'Link Text XPath',
-            'partialLinkTextXpath': 'Partial Link XPath',
-            'attributeXpath': 'Attribute XPath',
-            'cssXpath': 'CSS XPath'
-        };
-        return names[strategy] || strategy;
+        return LocatorXConfig.STRATEGY_NAMES[strategy] || strategy;
     }
 
     generateCSSSelector(element) {
@@ -111,7 +94,7 @@ class LocatorGenerator {
         }
 
         // 2. Attributes (data-testid, etc)
-        const attributes = ['data-testid', 'data-test', 'data-cy', 'aria-label', 'name', 'placeholder'];
+        const attributes = LocatorXConfig.IMPORTANT_ATTRIBUTES;
         for (const attr of attributes) {
             const value = element.getAttribute(attr);
             if (value) {
@@ -177,7 +160,7 @@ class LocatorGenerator {
                 if (this.isUnique(path.join(' > '))) break;
             }
 
-            current = current.parentNode;
+            current = current.parentNode || (current.getRootNode && current.getRootNode().host);
             if (current && current.tagName === 'BODY') {
                 path.unshift('body');
                 break;
@@ -188,7 +171,7 @@ class LocatorGenerator {
 
     isUnique(selector) {
         try {
-            return document.querySelectorAll(selector).length === 1;
+            return this.countMatches(selector) === 1;
         } catch (e) {
             return false;
         }
@@ -220,7 +203,7 @@ class LocatorGenerator {
         }
 
         // 2. Unique Attributes
-        const attributes = ['data-testid', 'data-test', 'aria-label', 'placeholder', 'title', 'alt'];
+        const attributes = LocatorXConfig.IMPORTANT_ATTRIBUTES;
         for (const attr of attributes) {
             const value = element.getAttribute(attr);
             if (value) {
@@ -231,9 +214,9 @@ class LocatorGenerator {
 
         // 3. Text content (for buttons, links, labels)
         const tag = element.tagName.toLowerCase();
-        if (['a', 'button', 'label', 'h1', 'h2', 'h3', 'span', 'div'].includes(tag)) {
+        if (LocatorXConfig.TAG_GROUPS.TEXT_CONTAINERS.includes(tag)) {
             const text = element.textContent?.trim();
-            if (text && text.length > 2 && text.length < 50) {
+            if (text && text.length > LocatorXConfig.LIMITS.TEXT_MATCH_MIN && text.length < LocatorXConfig.LIMITS.TEXT_MATCH_MAX) {
                 const quote = text.includes("'") ? '"' : "'";
                 return `//${tag}[normalize-space()=${quote}${text}${quote}]`;
             }
@@ -293,7 +276,7 @@ class LocatorGenerator {
     }
 
     generateAttributeXPath(element) {
-        const attrs = ['data-testid', 'data-test', 'aria-label', 'title', 'alt', 'placeholder'];
+        const attrs = LocatorXConfig.IMPORTANT_ATTRIBUTES;
         for (const attr of attrs) {
             const value = element.getAttribute(attr);
             if (value) {
@@ -341,7 +324,7 @@ class LocatorGenerator {
             // Try as CSS first (most common for simple strings)
             let cssCount = 0;
             try {
-                cssCount = document.querySelectorAll(selector).length;
+                cssCount = this.querySelectorAllDeep(selector).length;
             } catch (e) {
                 cssCount = 0; // Syntax error for XPath in querySelector
             }
@@ -372,24 +355,7 @@ class LocatorGenerator {
         }
     }
 
-    getDisplayName(strategy) {
-        const names = {
-            id: 'ID',
-            name: 'Name',
-            className: 'Class Name',
-            css: 'CSS Selector',
-            xpath: 'Relative XPath',
-            containsXpath: 'Contains XPath',
-            indexedXpath: 'Indexed XPath',
-            linkTextXpath: 'Link Text XPath',
-            partialLinkTextXpath: 'Partial Link XPath',
-            attributeXpath: 'Attribute XPath',
-            cssXpath: 'CSS XPath',
-            absoluteXPath: 'Absolute XPath',
-            jsPath: 'JS Path'
-        };
-        return names[strategy] || strategy;
-    }
+
     generateFingerprint(element) {
         return {
             tag: element.tagName.toLowerCase(),
@@ -419,6 +385,22 @@ class LocatorGenerator {
             if (val) attrs[attr] = val;
         });
         return attrs;
+    }
+
+    // Helper to find all elements across Shadow boundaries
+    querySelectorAllDeep(selector, root = document, results = []) {
+        try {
+            const matches = root.querySelectorAll(selector);
+            matches.forEach(m => results.push(m));
+        } catch (e) { }
+
+        const allElements = root.querySelectorAll('*');
+        for (const el of allElements) {
+            if (el.shadowRoot) {
+                this.querySelectorAllDeep(selector, el.shadowRoot, results);
+            }
+        }
+        return results;
     }
 }
 

@@ -142,10 +142,12 @@ class DOMScanner {
     handleMouseMove(event) {
         if (!this.isActive || this.isLocked) return;
 
-        const element = event.target;
+        // Use composedPath to find the real element inside Shadow DOM
+        const element = event.composedPath ? event.composedPath()[0] : event.target;
+
         if (element === this.highlightedElement ||
             element === this.overlay ||
-            element.closest('#locatorXOverlay')) return;
+            element.closest && element.closest('#locatorXOverlay')) return;
 
         this.highlightElement(element);
     }
@@ -156,7 +158,6 @@ class DOMScanner {
 
             event.preventDefault();
             event.stopPropagation();
-            console.log('[Locator-X] Click detected on:', event.target);
 
             // Lock briefly to prevent double-clicks/jitter
             this.isLocked = true;
@@ -164,33 +165,53 @@ class DOMScanner {
                 if (this.isActive) this.isLocked = false;
             }, 500);
 
-            const element = event.target === this.overlay ? this.highlightedElement : event.target;
-            if (!element) {
-                console.warn('[Locator-X] No element found to inspect');
-                return;
+            // Use composedPath to find the real element inside Shadow DOM
+            const target = event.composedPath ? event.composedPath()[0] : event.target;
+            const element = target === this.overlay ? this.highlightedElement : target;
+
+            if (!element) return;
+
+            const isInIframe = this.detectIframe();
+            const isCrossOrigin = this.isCrossOriginIframe();
+            let iframeXPath = null;
+
+            if (isInIframe && !isCrossOrigin) {
+                iframeXPath = this.getIframeXPath();
             }
 
             chrome.storage.local.get(['enabledFilters'], (result) => {
-                try {
-                    const enabledTypes = result.enabledFilters || [];
-                    console.log('[Locator-X] Generating locators with types:', enabledTypes);
-                    const locators = this.generateLocators(element, enabledTypes);
-                    const fingerprint = this.generator.generateFingerprint(element);
-                    const info = this.getElementInfo(element);
-                    const type = this.getElementType(element);
+                const enabledTypes = result.enabledFilters || [];
+                let locators = this.generateLocators(element, enabledTypes);
 
-                    console.log('[Locator-X] Sending message:', { locators, info, type, fingerprint });
-
-                    chrome.runtime.sendMessage({
-                        action: 'locatorsGenerated',
-                        locators: locators,
-                        fingerprint: fingerprint,
-                        elementInfo: info,
-                        elementType: type
+                // If in same-origin iframe, combine XPaths
+                if (isInIframe && !isCrossOrigin && iframeXPath) {
+                    locators = locators.map(loc => {
+                        if (loc.type.includes('XPath')) {
+                            return {
+                                ...loc,
+                                locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
+                            };
+                        }
+                        return loc;
                     });
-                } catch (err) {
-                    console.error('[Locator-X] Error inside storage callback:', err);
                 }
+
+                const fingerprint = this.generator.generateFingerprint(element);
+                const info = this.getElementInfo(element);
+                const type = this.getElementType(element);
+
+                chrome.runtime.sendMessage({
+                    action: 'locatorsGenerated',
+                    locators: locators,
+                    fingerprint: fingerprint,
+                    elementInfo: info,
+                    elementType: type,
+                    metadata: {
+                        isInIframe,
+                        isCrossOrigin,
+                        iframeXPath
+                    }
+                });
             });
         } catch (e) {
             console.error('[Locator-X] Error in handleMouseClick:', e);
@@ -256,10 +277,15 @@ class DOMScanner {
             const el = this.matchedElements[i + 1]; // First match uses primary overlay
             if (el) {
                 const rect = el.getBoundingClientRect();
-                overlay.style.display = 'block';
-                overlay.style.transform = `translate3d(${rect.left + scrollX}px, ${rect.top + scrollY}px, 0)`;
-                overlay.style.width = `${rect.width}px`;
-                overlay.style.height = `${rect.height}px`;
+                // Check if element is visible
+                if (rect.width > 0 && rect.height > 0) {
+                    overlay.style.display = 'block';
+                    overlay.style.transform = `translate3d(${rect.left + scrollX}px, ${rect.top + scrollY}px, 0)`;
+                    overlay.style.width = `${rect.width}px`;
+                    overlay.style.height = `${rect.height}px`;
+                } else {
+                    overlay.style.display = 'none';
+                }
             } else {
                 overlay.style.display = 'none';
             }
@@ -314,7 +340,7 @@ class DOMScanner {
 
             // 1. Try CSS
             try {
-                matches = Array.from(document.querySelectorAll(selector)).slice(0, 21);
+                matches = this.querySelectorAllDeep(selector).slice(0, 21);
             } catch (e) { }
 
             // 2. Try XPath if CSS failed or if it looks like XPath
@@ -345,6 +371,7 @@ class DOMScanner {
 
             // Focus the first match
             if (matches.length > 0) {
+                console.log(`[Locator-X] Highlighting ${matches.length} matches`);
                 const firstMatch = matches[0];
                 if (firstMatch.scrollIntoView) {
                     firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
@@ -355,6 +382,9 @@ class DOMScanner {
                 if (matches.length > 1) {
                     this.ensureMatchOverlays(matches.length - 1);
                 }
+
+                // Force loop ensure
+                this.startOverlayLoop();
             } else {
                 this.clearHighlight();
             }
@@ -426,7 +456,81 @@ class DOMScanner {
             const strategy = displayToStrategy[type] || null;
             const count = this.generator.countMatches(selector, strategy);
 
-            return { count };
+            // If exactly one match, provide info for the badge/detail
+            let elementInfo = null;
+            let elementType = null;
+            let locators = null;
+            let fingerprint = null;
+
+            const isInIframe = this.detectIframe();
+            const isCrossOrigin = this.isCrossOriginIframe();
+            let iframeXPath = null;
+
+            if (isInIframe && !isCrossOrigin) {
+                iframeXPath = this.getIframeXPath();
+            }
+
+            if (count === 1) {
+                try {
+                    let element = null;
+                    if (strategy === 'xpath' || selector.startsWith('/') || selector.startsWith('(')) {
+                        element = document.evaluate(selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+                    } else {
+                        element = this.querySelectorDeep(selector);
+                    }
+                    if (element) {
+                        elementInfo = this.getElementInfo(element);
+                        elementType = this.getElementType(element);
+                        fingerprint = this.generator.generateFingerprint(element);
+
+                        // Also generate all locators using currently enabled filters
+                        chrome.storage.local.get(['enabledFilters'], (result) => {
+                            const enabledTypes = result.enabledFilters || [];
+                            locators = this.generateLocators(element, enabledTypes);
+
+                            if (isInIframe && !isCrossOrigin && iframeXPath) {
+                                locators = locators.map(loc => {
+                                    if (loc.type.includes('XPath')) {
+                                        return {
+                                            ...loc,
+                                            locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
+                                        };
+                                    }
+                                    return loc;
+                                });
+                            }
+                        });
+
+                        if (!locators) {
+                            locators = this.generateLocators(element, []); // Fallback to all
+                            if (isInIframe && !isCrossOrigin && iframeXPath) {
+                                locators = locators.map(loc => {
+                                    if (loc.type.includes('XPath')) {
+                                        return {
+                                            ...loc,
+                                            locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
+                                        };
+                                    }
+                                    return loc;
+                                });
+                            }
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            return {
+                count,
+                elementInfo,
+                elementType,
+                locators,
+                fingerprint,
+                metadata: {
+                    isInIframe,
+                    isCrossOrigin,
+                    iframeXPath
+                }
+            };
         } catch (e) {
             // Silence DOMExceptions for evaluateSelector as well
             if (e.name === 'SyntaxError' || e instanceof DOMException) {
@@ -581,6 +685,87 @@ class DOMScanner {
         }
 
         return label;
+    }
+
+    // --- Iframe Awareness Methods ---
+
+    detectIframe() {
+        return window.self !== window.top;
+    }
+
+    isCrossOriginIframe() {
+        if (!this.detectIframe()) return false;
+        try {
+            // Check if we can access top document
+            return !window.top.document;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    getIframeXPath() {
+        if (!this.detectIframe() || this.isCrossOriginIframe()) return null;
+        try {
+            const frame = window.frameElement;
+            if (frame) {
+                if (!this.generator) this.generator = new LocatorGenerator();
+                return this.generator.generateRelativeXPath(frame);
+            }
+        } catch (e) { }
+        return "//iframe";
+    }
+
+    // Helper to find elements across Shadow boundaries and same-origin frames
+    querySelectorDeep(selector, root = document) {
+        let element = root.querySelector(selector);
+        if (element) return element;
+
+        // Search in all shadow roots
+        const allElements = root.querySelectorAll('*');
+        for (const el of allElements) {
+            // Shadow DOM
+            if (el.shadowRoot) {
+                element = this.querySelectorDeep(selector, el.shadowRoot);
+                if (element) return element;
+            }
+            // Same-origin Iframes
+            if (el.tagName === 'IFRAME' || el.tagName === 'FRAME') {
+                try {
+                    const doc = el.contentDocument;
+                    if (doc) {
+                        element = this.querySelectorDeep(selector, doc);
+                        if (element) return element;
+                    }
+                } catch (e) { }
+            }
+        }
+        return null;
+    }
+
+    // Helper to find all elements across Shadow boundaries and same-origin frames
+    querySelectorAllDeep(selector, root = document, results = []) {
+        try {
+            const matches = root.querySelectorAll(selector);
+            matches.forEach(m => results.push(m));
+        } catch (e) { }
+
+        const allElements = root.querySelectorAll('*');
+        for (const el of allElements) {
+            // Shadow DOM
+            if (el.shadowRoot) {
+                this.querySelectorAllDeep(selector, el.shadowRoot, results);
+            }
+            // Same-origin Iframes
+            if (el.tagName === 'IFRAME' || el.tagName === 'FRAME') {
+                try {
+                    const doc = el.contentDocument;
+                    if (doc) {
+                        this.querySelectorAllDeep(selector, doc, results);
+                    }
+                } catch (e) { }
+            }
+        }
+        return results;
     }
 
     handleContextMenuLocator(menuId) {

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="panel.css">
+    <link rel="stylesheet" href="../shared/modal.css">
+    <link rel="stylesheet" href="../shared/theme.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <title>LocatorX 1.0.0</title>
+</head>
+
+<body>
+
+    <div class="container">
+        <header class="header">
+            <i class="bi-arrow-up-left-circle inspect-button header-icon-button" id="inspectBtn"
+                title="Inspect Elements"></i>
+            <div class="header-actions">
+                <i class="bi-circle-half theme-button header-icon-button" id="themeBtn" title="Change theme"
+                    data-feature="ui.theme.dark"></i>
+                <div class="auth-container">
+                    <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
+                    <div id="userProfile" class="user-profile hidden">
+                        <!-- Trigger -->
+                        <div id="userDropdownTrigger" style="display:flex; align-items:center; cursor:pointer;">
+                            <img id="userAvatar" src="" alt="User" class="user-avatar">
+                            <div id="userInitials" class="user-avatar-initials hidden"></div>
+                        </div>
+
+                        <!-- Dropdown -->
+                        <div id="userDropdown" class="navdropdown" style="min-width: 180px; padding: 0;">
+                            <div class="dropdown-header"
+                                style="margin:0; padding: 12px; border-bottom: 1px solid var(--border-light);">
+                                <div style="display:flex; flex-direction:column; gap:4px;">
+                                    <strong id="userName" class="user-name" style="font-size:12px;"></strong>
+                                    <span id="userPlan" class="user-plan-badge"></span>
+                                </div>
+                            </div>
+                            <div class="dropdown-content" style="padding: 4px;">
+                                <div class="dropdown-item" id="logoutBtn">
+                                    <i class="bi-box-arrow-right item-icon"></i>
+                                    <span class="item-text">Logout</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="header-content">
+                <div class="title-block">
+                    <img src="../../../assets/icons/default48.png" alt="LocatorX" class="title-icon" id="headerLogo">
+                    <div class="title-content">
+                        <h1 class="title">
+                            <span class="locator-text">Locator</span><span class="x-text">X</span>
+                        </h1>
+                        <div class="subtitle">Locator Generator & Manager</div>
+                    </div>
+                    <div id="siteSupportStatus" class="status-dot" title="Checking site support..."></div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="navbar">
+            <div class="nav-content">
+                <ul class="nav-options">
+                    <li class="nav-option" id="navHome">
+                        <div class="nav-home">
+                            <i class="bi-house"></i>
+                            <span>Home</span>
+                        </div>
+                    </li>
+                    <li class="nav-option" id="navPOM" data-feature="module.pom">
+                        <div class="nav-pom">
+                            <i class="bi-diagram-3"></i>
+                            <span>POM</span>
+                        </div>
+                    </li>
+                </ul>
+                <ul class="nav-items">
+                    <li class="nav-item" id="navMultiSelect">
+                        <i class="bi-file-earmark-break"></i>
+                        <div id="multiSelectDropdown" class="navdropdown">
+                            <div class="dropdown-header">
+                                <strong>Scan Multiple Locators</strong>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item" id="navAbout">
+                        <i class="bi-bookmark"></i>
+                        <div id="aboutDropdown" class="navdropdown">
+                            <div class="dropdown-header">
+                                <strong>Saved Locators</strong>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item" id="navHistory">
+                        <i class="bi-clock-history"></i>
+                        <div id="customDropdown" class="navdropdown">
+                            <div class="dropdown-header">
+                                <strong>History</strong>
+                            </div>
+                            <div class="dropdown-content">
+                                <div class="empty-state">
+                                    <i class="bi-clock-history"
+                                        style="font-size: 24px; color: var(--border-dark); margin-bottom: 8px;"></i>
+                                    <p style="color: var(--secondary-text); margin: 0;">No recent activity</p>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item" id="navSettings">
+                        <i class="bi-gear"></i>
+                        <div id="settingsDropdown" class="navdropdown">
+                            <div class="dropdown-header">
+                                <strong>Settings</strong>
+                                <i class="bi-arrow-counterclockwise reset-settings-btn" id="resetSettingsBtn"
+                                    title="Reset to Defaults" data-feature="ui.settings.reset"></i>
+                            </div>
+                            <div class="dependencies-section">
+                                <div class="dependencies-header">Dependencies</div>
+                                <div class="dependency-items">
+                                    <div class="dependency-item">
+                                        <span class="dependency-label">Framework:</span>
+                                        <select id="frameworkSelect" title="Select Framework"
+                                            data-feature="ui.settings.framework">
+                                            <option value="unknown">unknown</option>
+                                            <option value="selenium" selected>selenium</option>
+                                            <option value="playwright">playwright</option>
+                                            <option value="cypress">cypress</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <div class="section-header">
+                                    <div class="scope-info">
+                                        <span>Target:</span>
+                                        <span class="scope-badge" id="currentScope">
+                                            <i id="scopeIcon" class="bi-house"></i>
+                                            <span id="scopeText">Home</span>
+                                        </span>
+                                    </div>
+                                    <i id="switchScopeBtn" class="bi-arrow-left-right scope-switch"
+                                        title="Change Scope Target"></i>
+                                </div>
+                            </div>
+                            <div class="select-all-section">
+                                <label class="select-all">
+                                    <input type="checkbox" id="locTypeAll">
+                                    <span>Select All Locators</span>
+                                </label>
+                            </div>
+                            <div class="locator-options">
+                                <label><input type="checkbox" class="loc-type" id="idLocator" value="id" checked>
+                                    ID</label>
+                                <label><input type="checkbox" class="loc-type" id="nameLocator" value="name" checked>
+                                    Name</label>
+                                <label><input type="checkbox" class="loc-type" id="tagnameLocator" value="tagname"
+                                        checked> Tagname</label>
+                                <label><input type="checkbox" class="loc-type" id="classNameLocator" value="className"
+                                        checked> ClassName</label>
+                                <label><input type="checkbox" class="loc-type" id="cssLocator" value="css" checked>
+                                    CSS</label>
+                                <label><input type="checkbox" class="loc-type" id="linkTextLocator" value="linkText"
+                                        checked> LinkText</label>
+                                <label><input type="checkbox" class="loc-type" id="pLinkTextLocator" value="pLinkText"
+                                        checked> Partial LinkText</label>
+                                <label class="relative-xpath-container" data-feature="locator.xpath.relative">
+                                    <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked>
+                                    <span>Relative XPath</span>
+                                    <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
+                                    <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
+                                        <fieldset class="nested-options">
+                                            <legend>Strategies <i class="bi-check2-square nested-select-all"
+                                                    id="nestedSelectAll" title="Select/Deselect All"></i></legend>
+                                            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator"
+                                                    value="xpath" checked>Default XPath</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="containsXpathLocator" value="contains" checked>Contains</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="indexedXpathLocator" value="indexed" checked>Indexed
+                                                XPath</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="LinkTextXpathLocator" value="linktext" checked>Link Text</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="PLinkTextXpathLocator" value="partiallinktext" checked>Partial
+                                                Link Text</label>
+                                            <label><input type="checkbox" class="nested-loc-type"
+                                                    id="attributeXpathLocator" value="attribute"
+                                                    checked>Attribute</label>
+                                            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator"
+                                                    value="css" checked>CSS</label>
+                                        </fieldset>
+                                    </div>
+                                </label>
+                                <label data-feature="locator.xpath"><input type="checkbox" class="loc-type"
+                                        id="absoluteLocator" value="absolute" checked> Absolute XPath</label>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <div class="notification-container" id="notificationContainer"></div>
+            <div class="home-container active">
+                <div class="search-container">
+                    <div id="elementTypeBadge" class="element-type-badge hidden"></div>
+                    <input type="text" class="search-input" id="searchInput" placeholder="Enter selector or element..."
+                        autocomplete="off">
+                    <span id="searchMatchBadge" class="search-match-badge">0</span>
+                    <div id="searchDropdown" class="search-dropdown"></div>
+                </div>
+                <div class="save-container">
+                    <input type="text" class="save-input" placeholder="Enter name to save...">
+                    <button class="save-btn" title="Save">
+                        Save
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="locator-table">
+                        <thead>
+                            <tr>
+                                <th>Match</th>
+                                <th>Type</th>
+                                <th>Locator</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+
+                        </tbody>
+                    </table>
+                </div>
+                <div class="element-detail-container">
+                    <span id="homeElementDetail" class="element-detail-text"></span>
+                </div>
+            </div>
+            <div class="pom-content">
+                <div class="pom-navigation">
+                    <div class="pom-selector-group">
+                        <i class="bi-file-earmark-richtext pom-icon"></i>
+                        <select id="pomPageSelect" class="pom-page-select" title="Select Page">
+                            <option value="" disabled selected>Select Page</option>
+                        </select>
+                    </div>
+                    <div class="pom-actions">
+                        <i class="bi-plus-circle-dotted action-btn" id="addPageBtn" title="New Page"></i>
+                        <i class="bi-pencil action-btn" id="editPageBtn" title="Rename Page"></i>
+                        <i class="bi-trash action-btn" id="deletePageBtn" title="Delete Page"></i>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="locator-table pom-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>ClassName</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+
+
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <span class="footer-text">© 2024 Locator-X</span>
+                <div class="footer-links">
+                    <span class="version-badge">v1.0.0</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+    <script src="../shared/site-support.js"></script>
+    <script src="../../config/constants.js"></script>
+    <script src="../../services/storage-manager.js"></script>
+    <script src="../../services/filter-manager.js"></script>
+    <script src="../../services/healing-engine.js"></script>
+    <script src="../../services/locator-generator.js"></script>
+    <script src="../../services/suggestion.js"></script>
+    <script src="../../services/locator-x-core.js"></script>
+    <script src="../shared/modal.js"></script>
+    <script src="../../config/plans.js"></script>
+    <script src="../../services/plan-service.js"></script>
+    <script src="../shared/panel-controller.js"></script>
+</body>
+
+</html>

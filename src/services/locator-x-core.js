@@ -190,19 +190,19 @@ class LocatorXCore {
             saved: this.getSavedLocators(),
             settings: this.storage.getSettings(),
             history: this.getHistory(),
-            version: '1.0.0'
+            version: LocatorXConfig.VERSION
         };
     }
 
     importData(data) {
         if (data.saved) {
-            localStorage.setItem('locator-x-saved', JSON.stringify(data.saved));
+            localStorage.setItem(LocatorXConfig.STORAGE_KEYS.SAVED, JSON.stringify(data.saved));
         }
         if (data.settings) {
-            localStorage.setItem('locator-x-settings', JSON.stringify(data.settings));
+            localStorage.setItem(LocatorXConfig.STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings));
         }
         if (data.history) {
-            localStorage.setItem('locator-x-history', JSON.stringify(data.history));
+            localStorage.setItem(LocatorXConfig.STORAGE_KEYS.HISTORY, JSON.stringify(data.history));
         }
     }
 }

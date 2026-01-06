@@ -212,11 +212,76 @@ const LocatorX = {
                 row.innerHTML = `<td>${index + 1}</td>`;
 
                 const checkedTypes = LocatorX.filters.getCheckedTypes();
+                const groupedTypes = ['Relative XPath', 'Contains XPath', 'Indexed XPath', 'Link Text XPath', 'Partial Link XPath', 'Attribute XPath', 'CSS XPath'];
+
+                // Split types into standards and grouped
+                const renderColumns = [];
+                let hasGroupedColumn = false;
+
                 checkedTypes.forEach(type => {
+                    if (groupedTypes.includes(type)) {
+                        hasGroupedColumn = true;
+                    } else {
+                        renderColumns.push(type);
+                    }
+                });
+
+                // Render Standard Columns
+                renderColumns.forEach(type => {
                     const matching = elementLocators.find(l => l.type === type);
                     const val = matching ? matching.locator : '-';
                     row.innerHTML += `<td class="editable">${val}</td>`;
                 });
+
+                // Render Grouped Column (Relative XPath) if needed
+                // Render Grouped Column (Relative XPath) if needed
+                if (hasGroupedColumn) {
+                    // Get ALL enabled grouped types (not just generated ones)
+                    const enabledGrouped = checkedTypes.filter(t => groupedTypes.includes(t));
+
+                    if (enabledGrouped.length > 0) {
+                        // Find which locators actually exist
+                        const validGrouped = elementLocators.filter(l => groupedTypes.includes(l.type));
+
+                        // Select Preferred: 
+                        // 1. 'Relative XPath' if valid
+                        // 2. First valid
+                        // 3. Fallback to 'Relative XPath' or first enabled
+                        let preferredType = '';
+                        const relativeFn = validGrouped.find(l => l.type === 'Relative XPath');
+
+                        if (relativeFn) {
+                            preferredType = 'Relative XPath';
+                        } else if (validGrouped.length > 0) {
+                            preferredType = validGrouped[0].type;
+                        } else {
+                            preferredType = enabledGrouped.includes('Relative XPath') ? 'Relative XPath' : enabledGrouped[0];
+                        }
+
+                        const preferredLocatorFn = elementLocators.find(l => l.type === preferredType);
+                        const preferredValue = preferredLocatorFn ? preferredLocatorFn.locator : '-';
+
+                        // create dropdown options
+                        const options = enabledGrouped.map(type => {
+                            const loc = elementLocators.find(l => l.type === type);
+                            const val = loc ? loc.locator : '-';
+                            const isDisabled = !loc;
+                            return `<option value="${type}" data-locator="${val}" ${type === preferredType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}>${type}</option>`;
+                        }).join('');
+
+                        row.innerHTML += `
+                            <td class="strategy-cell">
+                                <div class="pom-strategy-container">
+                                     <select class="strategy-dropdown pom-strategy-select">
+                                        ${options}
+                                     </select>
+                                     <div class="strategy-value editable">${preferredValue}</div>
+                                </div>
+                            </td>`;
+                    } else {
+                        row.innerHTML += `<td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>`;
+                    }
+                }
 
                 const healBtn = hasFingerprint
                     ? `<i class="bi-bandaid heal-btn" title="Heal Locator" style="color: var(--status-green); cursor: pointer; margin-right: 6px;"></i>`
@@ -227,6 +292,21 @@ const LocatorX = {
                     <i class="bi-clipboard" title="Copy"></i>
                     <i class="bi-trash" title="Delete"></i>
                 </td>`;
+
+                // Bind Events
+                if (hasGroupedColumn) {
+                    const select = row.querySelector('.pom-strategy-select');
+                    if (select) {
+                        select.addEventListener('change', (e) => {
+                            const newType = e.target.value;
+                            const newValue = elementLocators.find(l => l.type === newType);
+                            if (newValue) {
+                                const valDiv = row.querySelector('.strategy-value');
+                                if (valDiv) valDiv.textContent = newValue.locator;
+                            }
+                        });
+                    }
+                }
 
                 // Bind Heal Event
                 if (hasFingerprint) {
@@ -698,14 +778,42 @@ const LocatorX = {
             if (!tbody) return;
 
             const checkedTypes = this.getCheckedTypes();
-            const filteredLocators = locators.filter(l => checkedTypes.includes(l.type));
+            const groupedTypes = [
+                'Relative XPath', 'Contains XPath', 'Indexed XPath',
+                'Link Text XPath', 'Partial Link XPath',
+                'Attribute XPath', 'CSS XPath'
+            ];
+
+            const standardTypes = checkedTypes.filter(t => !groupedTypes.includes(t));
+            const activeGroupedTypes = checkedTypes.filter(t => groupedTypes.includes(t));
 
             tbody.innerHTML = '';
-            filteredLocators.forEach(locator => {
+
+            // 1. Render Standard Types (ID, Name, CSS, etc.)
+            standardTypes.forEach(type => {
+                const locator = locators.find(l => l.type === type);
+                this.renderRow(tbody, type, locator);
+            });
+
+            // 2. Render Grouped Types (Strategies Dropdown)
+            if (activeGroupedTypes.length > 0) {
+                // Determine which strategy to show initially
+                // Default to 'Relative XPath' if present, otherwise first available
+                let currentType = activeGroupedTypes.includes('Relative XPath')
+                    ? 'Relative XPath'
+                    : activeGroupedTypes[0];
+
+                const locator = locators.find(l => l.type === currentType);
+                this.renderGroupRow(tbody, activeGroupedTypes, currentType, locators);
+            }
+        },
+
+        renderRow(tbody, type, locator) {
+            const row = document.createElement('tr');
+            if (locator) {
                 const matchClass = locator.matches === 0 ? 'match-none' :
                     locator.matches === 1 ? 'match-single' : 'match-multiple';
 
-                const row = document.createElement('tr');
                 row.innerHTML = `
                     <td><span class="match-count ${matchClass}">${locator.matches}</span></td>
                     <td>${locator.type}</td>
@@ -715,11 +823,96 @@ const LocatorX = {
                         <i class="bi-bookmark-plus" title="Save"></i>
                     </td>
                 `;
-                tbody.appendChild(row);
-            });
+            } else {
+                row.innerHTML = `
+                    <td><span class="match-count match-none">-</span></td>
+                    <td>${type}</td>
+                    <td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>
+                    <td>
+                        <i class="bi-clipboard disabled" title="Copy"></i>
+                        <i class="bi-bookmark-plus disabled" title="Save"></i>
+                    </td>
+                `;
+            }
+            tbody.appendChild(row);
         },
 
-        displayGeneratedLocators(locators, elementInfo = null, elementType = null, fingerprint = null) {
+        renderGroupRow(tbody, availableTypes, currentType, allLocators) {
+            const locator = allLocators.find(l => l.type === currentType);
+            const row = document.createElement('tr');
+            row.className = 'strategy-row';
+
+            // Match Count
+            const matchCount = locator ? locator.matches : '-';
+            const matchClass = !locator ? 'match-none' :
+                (locator.matches === 0 ? 'match-none' :
+                    locator.matches === 1 ? 'match-single' : 'match-multiple');
+
+            // Dropdown Options
+            const options = availableTypes.map(type => {
+                const typeLocator = allLocators.find(l => l.type === type);
+                const isDisabled = !typeLocator;
+                return `<option value="${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}>${type}${isDisabled ? '' : ''}</option>`;
+            }).join('');
+
+            const locatorValue = locator ? locator.locator : '-';
+            const locatorStyle = locator ? '' : 'style="color: var(--secondary-text); opacity: 0.5;"';
+            const actionClass = locator ? '' : 'disabled';
+
+            row.innerHTML = `
+                <td><span class="match-count ${matchClass}" id="strategyMatchCount">${matchCount}</span></td>
+                <td class="strategy-cell">
+                    <select class="strategy-dropdown" id="strategySelect">
+                        ${options}
+                    </select>
+                </td>
+                <td class="editable" id="strategyLocator" ${locatorStyle}>${locatorValue}</td>
+                <td>
+                    <i class="bi-clipboard ${actionClass}" title="Copy"></i>
+                    <i class="bi-bookmark-plus ${actionClass}" title="Save"></i>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+
+            // Add Event Listener for Dropdown
+            const select = row.querySelector('#strategySelect');
+            if (select) {
+                select.addEventListener('change', (e) => {
+                    const newType = e.target.value;
+                    const newLocator = allLocators.find(l => l.type === newType);
+                    this.updateGroupRow(row, newType, newLocator);
+                });
+            }
+        },
+
+        updateGroupRow(row, type, locator) {
+            const matchBadge = row.querySelector('#strategyMatchCount');
+            const locatorCell = row.querySelector('#strategyLocator');
+            const actions = row.querySelectorAll('.bi-clipboard, .bi-bookmark-plus');
+
+            if (locator) {
+                matchBadge.textContent = locator.matches;
+                matchBadge.className = `match-count ${locator.matches === 0 ? 'match-none' : locator.matches === 1 ? 'match-single' : 'match-multiple'}`;
+
+                locatorCell.textContent = locator.locator;
+                locatorCell.style.color = '';
+                locatorCell.style.opacity = '1';
+
+                actions.forEach(btn => btn.classList.remove('disabled'));
+            } else {
+                matchBadge.textContent = '-';
+                matchBadge.className = 'match-count match-none';
+
+                locatorCell.textContent = '-';
+                locatorCell.style.color = 'var(--secondary-text)';
+                locatorCell.style.opacity = '0.5';
+
+                actions.forEach(btn => btn.classList.add('disabled'));
+            }
+        },
+
+        displayGeneratedLocators(locators, elementInfo = null, elementType = null, fingerprint = null, metadata = null) {
             // Check for duplicate (same locators within 500ms)
             const now = Date.now();
             if (this.lastLocators &&
@@ -732,26 +925,38 @@ const LocatorX = {
             this.lastElementInfo = elementInfo;
             this.lastElementType = elementType;
             this.lastFingerprint = fingerprint;
+            this.lastMetadata = metadata;
 
             if (LocatorX.tabs.current === 'home') {
                 this.renderHomeTable(locators);
-                this.updateElementInfo(elementInfo, elementType);
+                this.updateElementInfo(elementInfo, elementType, metadata);
             } else if (LocatorX.tabs.current === 'pom') {
                 this.handlePOMDisplay(locators, fingerprint);
             }
         },
 
-        updateElementInfo(info, type) {
+        updateElementInfo(info, type, metadata = null) {
             // Update detail text if available
-            const detailText = document.getElementById('elementDetailText');
-            if (detailText) detailText.textContent = info || 'No element selected';
+            const detailText = document.getElementById('homeElementDetail');
+            if (detailText) {
+                if (metadata && metadata.isCrossOrigin) {
+                    detailText.innerHTML = `<span style="color: #e74c3c; font-weight: bold;">[Security Warning]</span> Element is inside a cross-origin iframe. Browser security blocks access. <br/> <small style="opacity: 0.7;">Only the iframe selector itself can be captured.</small>`;
+                } else {
+                    detailText.textContent = info || 'No element selected';
+                }
+            }
 
             // Update Element Type Badge
             const badge = document.getElementById('elementTypeBadge');
             if (badge) {
-                if (type && type !== 'Normal') {
-                    badge.textContent = type;
-                    badge.setAttribute('data-type', type);
+                let displayType = type;
+                if (metadata && metadata.isInIframe) {
+                    displayType = metadata.isCrossOrigin ? 'Iframe (Cross-Origin)' : 'Iframe (Captured)';
+                }
+
+                if (displayType && displayType !== 'Normal') {
+                    badge.textContent = displayType;
+                    badge.setAttribute('data-type', displayType);
                     badge.classList.remove('hidden');
                 } else {
                     badge.classList.add('hidden');
@@ -842,10 +1047,28 @@ const LocatorX = {
             const headermain = pomTable.querySelector('thead tr');
             if (headermain) {
                 const checkedTypes = this.getCheckedTypes();
-                headermain.innerHTML = '<th>#</th>';
+                const standardTypes = [];
+                let hasRelativeXPath = false;
+
+                const groupedTypes = ['Relative XPath', 'Contains XPath', 'Indexed XPath', 'Link Text XPath', 'Partial Link XPath', 'Attribute XPath', 'CSS XPath'];
+
                 checkedTypes.forEach(type => {
+                    if (groupedTypes.includes(type)) {
+                        hasRelativeXPath = true;
+                    } else {
+                        standardTypes.push(type);
+                    }
+                });
+
+                headermain.innerHTML = '<th>#</th>';
+                standardTypes.forEach(type => {
                     headermain.innerHTML += `<th>${type}</th>`;
                 });
+
+                if (hasRelativeXPath) {
+                    headermain.innerHTML += '<th>Relative XPath</th>';
+                }
+
                 headermain.innerHTML += '<th>Actions</th>';
             }
         },
@@ -858,8 +1081,8 @@ const LocatorX = {
                 'tagnameLocator': 'TagName',
                 'classNameLocator': 'ClassName',
                 'cssLocator': 'CSS',
-                'linkTextLocator': 'LinkText',
-                'pLinkTextLocator': 'Partial LinkText',
+                'linkTextLocator': 'Link Text',
+                'pLinkTextLocator': 'Partial Link Text',
                 'absoluteLocator': 'Absolute XPath'
             };
 
@@ -873,7 +1096,7 @@ const LocatorX = {
             const relativeXPath = document.getElementById('relativeXPath');
             if (relativeXPath && relativeXPath.checked) {
                 const nestedTypes = {
-                    'xpathLocator': 'XPath',
+                    'xpathLocator': 'Relative XPath',
                     'containsXpathLocator': 'Contains XPath',
                     'indexedXpathLocator': 'Indexed XPath',
                     'LinkTextXpathLocator': 'Link Text XPath',
@@ -1122,29 +1345,99 @@ const LocatorX = {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 const tab = tabs[0];
                 if (tab && tab.id) {
-                    chrome.tabs.sendMessage(tab.id, { action: 'evaluateSelector', selector: query }, (response) => {
-                        if (chrome.runtime.lastError) return;
+                    chrome.webNavigation.getAllFrames({ tabId: tab.id }, (frames) => {
+                        let totalCount = 0;
+                        let foundResult = false;
 
-                        if (response && typeof response.count !== 'undefined') {
-                            this.renderDropdown(suggestions, query, dropdown, response.count);
+                        // Use a counter to track when all frames have responded
+                        let respondedFrames = 0;
 
-                            // Update the new search match badge
-                            if (badge) {
-                                badge.textContent = response.count;
-                                badge.classList.remove('hidden', 'match-none', 'match-single', 'match-multiple');
-                                if (response.count === 0) badge.classList.add('match-none');
-                                else if (response.count === 1) badge.classList.add('match-single');
-                                else badge.classList.add('match-multiple');
-                            }
+                        frames.forEach(frame => {
+                            chrome.tabs.sendMessage(tab.id, { action: 'evaluateSelector', selector: query }, { frameId: frame.frameId }, (response) => {
+                                respondedFrames++;
+                                if (chrome.runtime.lastError) {
+                                    if (respondedFrames === frames.length) this.finalizeEvaluation(totalCount, suggestions, query, dropdown, badge);
+                                    return;
+                                }
 
-                            // Trigger highlighting if matches found
-                            if (response.count > 0) {
-                                chrome.tabs.sendMessage(tab.id, {
-                                    action: 'highlightMatches',
-                                    selector: query
-                                }).catch(() => { });
-                            }
-                        }
+                                if (response && typeof response.count !== 'undefined') {
+                                    totalCount += response.count;
+
+                                    // If this frame found the element(s), and we haven't shown info yet, show it
+                                    if (response.count === 1 && !foundResult) {
+                                        foundResult = true;
+                                        this.updateElementInfo(response.elementInfo, response.elementType);
+                                        if (response.locators) {
+                                            LocatorX.filters.displayGeneratedLocators(
+                                                response.locators,
+                                                response.elementInfo,
+                                                response.elementType,
+                                                response.fingerprint,
+                                                response.metadata
+                                            );
+                                        }
+                                    }
+                                }
+
+                                if (respondedFrames === frames.length) {
+                                    this.finalizeEvaluation(totalCount, suggestions, query, dropdown, badge, foundResult);
+                                }
+                            });
+                        });
+                    });
+                }
+            });
+        },
+
+        finalizeEvaluation(totalCount, suggestions, query, dropdown, badge, foundResult) {
+            this.renderDropdown(suggestions, query, dropdown, totalCount);
+
+            if (!foundResult && totalCount !== 1) {
+                this.updateElementInfo(null, null);
+                LocatorX.filters.displayGeneratedLocators([], null, null, null);
+            }
+
+            // Update the new search match badge
+            if (badge) {
+                badge.textContent = totalCount;
+                badge.classList.remove('hidden', 'match-none', 'match-single', 'match-multiple');
+                if (totalCount === 0) badge.classList.add('match-none');
+                else if (totalCount === 1) badge.classList.add('match-single');
+                else badge.classList.add('match-multiple');
+            }
+
+            // Trigger highlighting if matches found (in all frames)
+            if (totalCount > 0) {
+                this.highlightMatchesInAllFrames(query);
+            }
+        },
+
+        highlightMatchesInAllFrames(query) {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const tab = tabs[0];
+                if (tab && tab.id) {
+                    chrome.webNavigation.getAllFrames({ tabId: tab.id }, (frames) => {
+                        frames.forEach(frame => {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'highlightMatches',
+                                selector: query
+                            }, { frameId: frame.frameId }).catch(() => { });
+                        });
+                    });
+                }
+            });
+        },
+
+        clearMatchHighlightsInAllFrames() {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const tab = tabs[0];
+                if (tab && tab.id) {
+                    chrome.webNavigation.getAllFrames({ tabId: tab.id }, (frames) => {
+                        frames.forEach(frame => {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'clearMatchHighlights'
+                            }, { frameId: frame.frameId }).catch(() => { });
+                        });
                     });
                 }
             });
@@ -1160,8 +1453,7 @@ const LocatorX = {
                 const countText = typeof activeMatchCount === 'number' ? `${activeMatchCount}` : 'Scanning...';
                 liveItem.innerHTML = `
                     <div class="match-count-badge">${countText}</div>
-                    <span class="item-text">Run: <strong>${query}</strong></span>
-                    <i class="bi-play-circle item-icon" style="margin-left: 8px;"></i>
+                    <span class="item-text"><strong>${query}</strong></span>
                 `;
                 liveItem.addEventListener('click', () => {
                     this.performEvaluation(query, matches, dropdown);
@@ -1210,26 +1502,11 @@ const LocatorX = {
 
                 // Add hover highlighting
                 div.addEventListener('mouseenter', () => {
-                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                        const tab = tabs[0];
-                        if (tab && tab.id) {
-                            chrome.tabs.sendMessage(tab.id, {
-                                action: 'highlightMatches',
-                                selector: match.type
-                            }).catch(() => { });
-                        }
-                    });
+                    this.highlightMatchesInAllFrames(match.type);
                 });
 
                 div.addEventListener('mouseleave', () => {
-                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                        const tab = tabs[0];
-                        if (tab && tab.id) {
-                            chrome.tabs.sendMessage(tab.id, {
-                                action: 'clearMatchHighlights'
-                            }).catch(() => { });
-                        }
-                    });
+                    this.clearMatchHighlightsInAllFrames();
                 });
 
                 dropdown.appendChild(div);
@@ -1297,7 +1574,13 @@ const LocatorX = {
             // Listen for messages from content script
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 if (message.action === 'locatorsGenerated') {
-                    LocatorX.filters.displayGeneratedLocators(message.locators, message.elementInfo, message.elementType, message.fingerprint);
+                    LocatorX.filters.displayGeneratedLocators(
+                        message.locators,
+                        message.elementInfo,
+                        message.elementType,
+                        message.fingerprint,
+                        message.metadata
+                    );
                     // Auto-deactivate picking in Home mode after successful capture
                     if (LocatorX.tabs.current === 'home') {
                         this.deactivate();
@@ -1327,28 +1610,23 @@ const LocatorX = {
 
             this.updateUI();
 
-            // Send message to content script
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                const tab = tabs[0];
-                if (tab && tab.id) {
-                    chrome.tabs.sendMessage(tab.id, { action: 'startScanning' }).catch(() => {
-                        console.log('Extensions connection error suppressed');
-                    });
-                }
-            });
+            // Broadcast to ALL frames
+            this.broadcastActionToTab({ action: 'startScanning' });
         },
 
         deactivate() {
             this.isActive = false;
             this.updateUI();
 
-            // Send message to content script
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                const tab = tabs[0];
-                if (tab && tab.id) {
-                    chrome.tabs.sendMessage(tab.id, { action: 'stopScanning' }).catch(() => { });
-                }
-            });
+            // Broadcast to ALL frames
+            this.broadcastActionToTab({ action: 'stopScanning' });
+        },
+
+        broadcastActionToTab(payload) {
+            chrome.runtime.sendMessage({
+                action: 'broadcastToTab',
+                payload: payload
+            }).catch(() => { });
         },
 
         updateUI() {
@@ -1394,8 +1672,12 @@ const LocatorX = {
             this.logoutBtn = document.getElementById('logoutBtn');
             this.userProfile = document.getElementById('userProfile');
             this.userAvatar = document.getElementById('userAvatar');
+            this.userInitials = document.getElementById('userInitials');
             this.userName = document.getElementById('userName');
             this.userPlan = document.getElementById('userPlan');
+            this.headerLogo = document.getElementById('headerLogo');
+            this.lastUserState = null;
+            this.updateTimeout = null;
 
             if (this.loginBtn) {
                 this.loginBtn.addEventListener('click', () => this.login());
@@ -1421,7 +1703,13 @@ const LocatorX = {
             this.checkStatus();
         },
 
-        async checkStatus() {
+        checkStatus() {
+            // Debounce updates to handle rapid storage changes
+            if (this.updateTimeout) clearTimeout(this.updateTimeout);
+            this.updateTimeout = setTimeout(() => this._performCheck(), 50);
+        },
+
+        async _performCheck() {
             const data = await chrome.storage.local.get(['authToken', 'user']);
             if (data.authToken && data.user) {
                 this.showLoggedIn(data.user);
@@ -1431,35 +1719,92 @@ const LocatorX = {
         },
 
         showLoggedIn(user) {
+            // State Comparison: Skip if no actual change detected
+            const userState = JSON.stringify({
+                avatar: user.avatar,
+                name: user.name,
+                plan: user.plan
+            });
+
+            if (this.lastUserState === userState) return;
+            this.lastUserState = userState;
+
             if (this.loginBtn) this.loginBtn.classList.add('hidden');
             if (this.userProfile) {
                 this.userProfile.classList.remove('hidden');
-                if (this.userAvatar) {
-                    this.userAvatar.src = user.avatar || '../assets/default.png'; // Fallback to default icon
-                    // Handle broken image
-                    this.userAvatar.onerror = () => { this.userAvatar.src = '../assets/default.png'; };
+
+                // Update Header Logo based on plan
+                if (this.headerLogo) {
+                    const plan = (user.plan || 'free').toLowerCase();
+                    const logoPath = `../../../assets/icons/${plan}48.png`;
+                    if (this.headerLogo.getAttribute('src') !== logoPath) {
+                        this.headerLogo.src = logoPath;
+                    }
                 }
-                if (this.userName) this.userName.textContent = user.name || 'User';
-                if (this.userPlan) this.userPlan.textContent = (user.plan || 'Free').toUpperCase();
+
+                if (this.userAvatar) {
+                    if (user.avatar) {
+                        this.userAvatar.classList.remove('hidden');
+                        if (this.userInitials) this.userInitials.classList.add('hidden');
+
+                        // Only update .src if it's different to prevent flicker
+                        if (this.userAvatar.getAttribute('src') !== user.avatar) {
+                            this.userAvatar.src = user.avatar;
+                        }
+                        // Handle broken image -> Switch to initials
+                        this.userAvatar.onerror = () => {
+                            this.userAvatar.classList.add('hidden');
+                            this._showInitials(user.name);
+                        };
+                    } else {
+                        this.userAvatar.classList.add('hidden');
+                        this._showInitials(user.name);
+                    }
+                }
+                if (this.userName && this.userName.textContent !== (user.name || 'User')) {
+                    this.userName.textContent = user.name || 'User';
+                }
+                const planText = (user.plan || 'Free').toUpperCase();
+                if (this.userPlan && this.userPlan.textContent !== planText) {
+                    this.userPlan.textContent = planText;
+                }
             }
 
 
 
             // CRITICAL: Update Feature Gates based on user plan
-            if (LocatorX.features) {
-                LocatorX.features.updatePlan(user.plan || 'free');
+            if (typeof planService !== 'undefined') {
+                planService.applyUIGates();
             }
         },
 
+        _showInitials(name) {
+            if (!this.userInitials) return;
+            this.userInitials.classList.remove('hidden');
+            const initial = name ? name.charAt(0).toUpperCase() : '?';
+            this.userInitials.textContent = initial;
+
+            // Deterministic background color
+            const colors = ['#8e44ad', '#2980b9', '#27ae60', '#d35400', '#c0392b', '#16a085'];
+            const charCodeSum = (name || 'User').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+            this.userInitials.style.backgroundColor = colors[charCodeSum % colors.length];
+        },
+
         showLoggedOut() {
+            if (this.lastUserState === 'loggedOut') return;
+            this.lastUserState = 'loggedOut';
+
+            // Reset Header Logo to default
+            if (this.headerLogo) {
+                this.headerLogo.src = '../../../assets/icons/default48.png';
+            }
+
             if (this.loginBtn) this.loginBtn.classList.remove('hidden');
             if (this.userProfile) this.userProfile.classList.add('hidden');
 
-
-
             // CRITICAL: Revert to Free plan features
-            if (LocatorX.features) {
-                LocatorX.features.updatePlan('free');
+            if (typeof planService !== 'undefined') {
+                planService.applyUIGates();
             }
         },
 
@@ -1483,16 +1828,17 @@ const LocatorX = {
         this.core = new LocatorXCore();
         await this.core.initialize();
 
-        // Securely fetch initial plan
-        const { 'locator-x-plan': plan } = await chrome.storage.local.get(['locator-x-plan']);
-
-        this.modal = new LocatorXModal();
-        this.features = new LocatorXFeatures(plan || 'free'); // Initialize with secure plan
+        if (typeof planService !== 'undefined') {
+            await planService.init();
+        }
 
         this.tabs.init();
         this.theme.init();
         this.dropdowns.init();
-        this.features.init(); // Initialize features early to apply gates
+
+        if (typeof planService !== 'undefined') {
+            planService.applyUIGates(); // Initialize features early to apply gates
+        }
         this.filters.init();
         this.dependencies.init();
         this.settings.init();
@@ -1612,8 +1958,8 @@ const LocatorX = {
                 dropdown.innerHTML = content;
 
                 // Re-apply feature gates to the new dynamic content
-                if (LocatorX.features) {
-                    LocatorX.features.applyFeatureGates();
+                if (typeof planService !== 'undefined') {
+                    planService.applyUIGates();
                 }
             }
 

@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="panel.css">
+    <link rel="stylesheet" href="devtools.css">
     <link rel="stylesheet" href="../shared/modal.css">
-    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="../shared/theme.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <title>LocatorX 1.0.0</title>
 </head>
@@ -18,13 +18,15 @@
             <i class="bi-arrow-up-left-circle inspect-button header-icon-button" id="inspectBtn"
                 title="Inspect Elements"></i>
             <div class="header-actions">
-                <i class="bi-circle-half theme-button header-icon-button" id="themeBtn" title="Change theme"></i>
+                <i class="bi-circle-half theme-button header-icon-button" id="themeBtn" title="Change theme"
+                    data-feature="ui.theme.dark"></i>
                 <div class="auth-container">
                     <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
                     <div id="userProfile" class="user-profile hidden">
                         <!-- Trigger -->
                         <div id="userDropdownTrigger" style="display:flex; align-items:center; cursor:pointer;">
                             <img id="userAvatar" src="" alt="User" class="user-avatar">
+                            <div id="userInitials" class="user-avatar-initials hidden"></div>
                         </div>
 
                         <!-- Dropdown -->
@@ -48,9 +50,11 @@
             </div>
             <div class="header-content">
                 <div class="title-block">
-                    <img src="../assets/default.png" alt="Locator-X" class="title-icon">
+                    <img src="../../../assets/icons/default48.png" alt="LocatorX" class="title-icon" id="headerLogo">
                     <div class="title-content">
-                        <h1 class="title">LocatorX</h1>
+                        <h1 class="title">
+                            <span class="locator-text">Locator</span><span class="x-text">X</span>
+                        </h1>
                         <div class="subtitle">Locator Generator & Manager</div>
                     </div>
                     <div id="siteSupportStatus" class="status-dot" title="Checking site support..."></div>
@@ -67,7 +71,7 @@
                             <span>Home</span>
                         </div>
                     </li>
-                    <li class="nav-option" id="navPOM">
+                    <li class="nav-option" id="navPOM" data-feature="module.pom">
                         <div class="nav-pom">
                             <i class="bi-diagram-3"></i>
                             <span>POM</span>
@@ -112,14 +116,15 @@
                             <div class="dropdown-header">
                                 <strong>Settings</strong>
                                 <i class="bi-arrow-counterclockwise reset-settings-btn" id="resetSettingsBtn"
-                                    title="Reset to Defaults"></i>
+                                    title="Reset to Defaults" data-feature="ui.settings.reset"></i>
                             </div>
                             <div class="dependencies-section">
                                 <div class="dependencies-header">Dependencies</div>
                                 <div class="dependency-items">
                                     <div class="dependency-item">
                                         <span class="dependency-label">Framework:</span>
-                                        <select id="frameworkSelect" title="Select Framework">
+                                        <select id="frameworkSelect" title="Select Framework"
+                                            data-feature="ui.settings.framework">
                                             <option value="unknown">unknown</option>
                                             <option value="selenium" selected>selenium</option>
                                             <option value="playwright">playwright</option>
@@ -163,7 +168,7 @@
                                         checked> LinkText</label>
                                 <label><input type="checkbox" class="loc-type" id="pLinkTextLocator" value="pLinkText"
                                         checked> Partial LinkText</label>
-                                <label class="relative-xpath-container">
+                                <label class="relative-xpath-container" data-feature="locator.xpath.relative">
                                     <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked>
                                     <span>Relative XPath</span>
                                     <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
@@ -191,8 +196,8 @@
                                         </fieldset>
                                     </div>
                                 </label>
-                                <label><input type="checkbox" class="loc-type" id="absoluteLocator" value="absolute"
-                                        checked> Absolute XPath</label>
+                                <label data-feature="locator.xpath"><input type="checkbox" class="loc-type"
+                                        id="absoluteLocator" value="absolute" checked> Absolute XPath</label>
                             </div>
                         </div>
                     </li>
@@ -280,16 +285,19 @@
             </div>
         </footer>
     </div>
+    <script src="devtools.js"></script>
     <script src="../shared/site-support.js"></script>
-    <script src="../core/storage-manager.js"></script>
-    <script src="../core/filter-manager.js"></script>
-    <script src="../core/healing-engine.js"></script>
-    <script src="../core/locator-generator.js"></script>
-    <script src="../core/suggestion.js"></script>
-    <script src="../core/locator-x-core.js"></script>
+    <script src="../../config/constants.js"></script>
+    <script src="../../services/storage-manager.js"></script>
+    <script src="../../services/filter-manager.js"></script>
+    <script src="../../services/healing-engine.js"></script>
+    <script src="../../services/locator-generator.js"></script>
+    <script src="../../services/suggestion.js"></script>
+    <script src="../../services/locator-x-core.js"></script>
     <script src="../shared/modal.js"></script>
-    <script src="../shared/features.js"></script>
-    <script src="panel.js"></script>
+    <script src="../../config/plans.js"></script>
+    <script src="../../services/plan-service.js"></script>
+    <script src="../shared/panel-controller.js"></script>
 </body>
 
 </html>

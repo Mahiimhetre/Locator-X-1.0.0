@@ -1,18 +1,18 @@
 // Core Storage Manager - Backend Logic
 class StorageManager {
-    constructor(storagePrefix = 'locator-x') {
+    constructor(storagePrefix = LocatorXConfig.STORAGE_KEYS.PREFIX) {
         this.prefix = storagePrefix;
     }
 
     // Saved Locators Management
     getSavedLocators() {
-        return JSON.parse(localStorage.getItem(`${this.prefix}-saved`) || '[]');
+        return JSON.parse(localStorage.getItem(LocatorXConfig.STORAGE_KEYS.SAVED) || '[]');
     }
 
     saveLocator(locator) {
         const saved = this.getSavedLocators();
         const existing = saved.find(item => item.locator === locator.locator);
-        
+
         if (existing) {
             Object.assign(existing, locator);
         } else {
@@ -22,27 +22,27 @@ class StorageManager {
                 date: new Date().toISOString()
             });
         }
-        
-        localStorage.setItem(`${this.prefix}-saved`, JSON.stringify(saved));
+
+        localStorage.setItem(LocatorXConfig.STORAGE_KEYS.SAVED, JSON.stringify(saved));
         return existing ? 'updated' : 'created';
     }
 
     deleteLocator(id) {
         const saved = this.getSavedLocators();
         const filtered = saved.filter(item => item.id !== id);
-        localStorage.setItem(`${this.prefix}-saved`, JSON.stringify(filtered));
+        localStorage.setItem(LocatorXConfig.STORAGE_KEYS.SAVED, JSON.stringify(filtered));
         return saved.length !== filtered.length;
     }
 
     // POM Pages Management
     getPOMPages() {
-        return JSON.parse(localStorage.getItem(`${this.prefix}-pom-pages`) || '[]');
+        return JSON.parse(localStorage.getItem(LocatorXConfig.STORAGE_KEYS.POM_PAGES) || '[]');
     }
 
     savePOMPage(page) {
         const pages = this.getPOMPages();
         const existingIndex = pages.findIndex(p => p.id === page.id);
-        
+
         if (existingIndex !== -1) {
             pages[existingIndex] = { ...pages[existingIndex], ...page, updatedAt: new Date().toISOString() };
         } else {
@@ -53,27 +53,27 @@ class StorageManager {
                 updatedAt: new Date().toISOString()
             });
         }
-        
-        localStorage.setItem(`${this.prefix}-pom-pages`, JSON.stringify(pages));
+
+        localStorage.setItem(LocatorXConfig.STORAGE_KEYS.POM_PAGES, JSON.stringify(pages));
         return existingIndex !== -1 ? 'updated' : 'created';
     }
 
     deletePOMPage(pageId) {
         const pages = this.getPOMPages();
         const filtered = pages.filter(p => p.id !== pageId);
-        localStorage.setItem(`${this.prefix}-pom-pages`, JSON.stringify(filtered));
+        localStorage.setItem(LocatorXConfig.STORAGE_KEYS.POM_PAGES, JSON.stringify(filtered));
         return pages.length !== filtered.length;
     }
 
     // Settings Management
     getSettings() {
-        return JSON.parse(localStorage.getItem(`${this.prefix}-settings`) || '{}');
+        return JSON.parse(localStorage.getItem(LocatorXConfig.STORAGE_KEYS.SETTINGS) || '{}');
     }
 
     saveSetting(key, value) {
         const settings = this.getSettings();
         settings[key] = value;
-        localStorage.setItem(`${this.prefix}-settings`, JSON.stringify(settings));
+        localStorage.setItem(LocatorXConfig.STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     }
 
     getSetting(key, defaultValue = null) {
@@ -83,16 +83,16 @@ class StorageManager {
 
     // Filter State Management
     getFilterState(tab) {
-        return JSON.parse(localStorage.getItem(`${this.prefix}-filters-${tab}`) || '{}');
+        return JSON.parse(localStorage.getItem(LocatorXConfig.STORAGE_KEYS.FILTERS(tab)) || '{}');
     }
 
     saveFilterState(tab, filters) {
-        localStorage.setItem(`${this.prefix}-filters-${tab}`, JSON.stringify(filters));
+        localStorage.setItem(LocatorXConfig.STORAGE_KEYS.FILTERS(tab), JSON.stringify(filters));
     }
 
     // History Management
     getHistory() {
-        return JSON.parse(localStorage.getItem(`${this.prefix}-history`) || '[]');
+        return JSON.parse(localStorage.getItem(LocatorXConfig.STORAGE_KEYS.HISTORY) || '[]');
     }
 
     addToHistory(item) {
@@ -102,26 +102,27 @@ class StorageManager {
             id: Date.now(),
             timestamp: new Date().toISOString()
         });
-        
+
         // Keep only last 50 items
-        if (history.length > 50) {
-            history.splice(50);
+        const max = LocatorXConfig.LIMITS.HISTORY_MAX || 50;
+        if (history.length > max) {
+            history.splice(max);
         }
-        
-        localStorage.setItem(`${this.prefix}-history`, JSON.stringify(history));
+
+        localStorage.setItem(LocatorXConfig.STORAGE_KEYS.HISTORY, JSON.stringify(history));
     }
 
     clearHistory() {
-        localStorage.removeItem(`${this.prefix}-history`);
+        localStorage.removeItem(LocatorXConfig.STORAGE_KEYS.HISTORY);
     }
 
     // Theme Management
     getTheme() {
-        return localStorage.getItem(`${this.prefix}-theme`) || 'light';
+        return localStorage.getItem(LocatorXConfig.STORAGE_KEYS.THEME) || 'light';
     }
 
     saveTheme(theme) {
-        localStorage.setItem(`${this.prefix}-theme`, theme);
+        localStorage.setItem(LocatorXConfig.STORAGE_KEYS.THEME, theme);
     }
 }
 

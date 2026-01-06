@@ -1,4 +1,5 @@
-importScripts('../shared/features.js');
+importScripts('../config/plans.js');
+importScripts('../services/plan-service.js');
 
 // Create context menus on installation
 chrome.runtime.onInstalled.addListener(() => {
@@ -53,12 +54,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'updateContextMenuValues') {
         // Access plan from storage - Secure Source of Truth
-        chrome.storage.local.get(['locator-x-plan'], (result) => {
-            const plan = result['locator-x-plan'] || 'free';
-
-            // Initialize Feature Engine with secure plan
-            const features = new LocatorXFeatures(plan);
-
+        planService.init().then(() => {
             const categories = [
                 'copy-id', 'copy-name', 'copy-class', 'copy-rel-xpath',
                 'copy-css', 'copy-js-path', 'copy-abs-xpath'
@@ -71,34 +67,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     'name': 'name',
                     'class': 'className',
                     'rel-xpath': 'xpath',
-                    // Map generic types to feature keys if needed, 
-                    // or just rely on 'isPro' equivalent if we want simple checks.
-                    // For granular control:
                     'css': 'css',
                     'js-path': 'jsPath',
                     'abs-xpath': 'absoluteXPath'
                 };
 
                 // Determine feature key for this type
-                // Mapping context menu types to feature keys in features.js
-                // 'locator.id', 'locator.xpath', etc.
                 let featureKey = null;
                 if (shortType === 'id') featureKey = 'locator.id';
                 else if (shortType === 'name') featureKey = 'locator.name';
-                else if (shortType === 'class') featureKey = 'locator.css'; // Class treated as basic CSS
+                else if (shortType === 'class') featureKey = 'locator.css';
                 else if (shortType === 'css') featureKey = 'locator.css';
-                else if (shortType === 'rel-xpath') featureKey = 'locator.xpath.relative'; // Assuming new key or 'locator.xpath'
+                else if (shortType === 'rel-xpath') featureKey = 'locator.xpath.relative';
                 else if (shortType === 'abs-xpath') featureKey = 'locator.xpath';
-                else if (shortType === 'js-path') featureKey = 'locator.js'; // Might not exist, default to basic or pro? 
-
-                // If we don't have exact granular keys for all, we can fallback to generic
-                // But let's assume 'locator.xpath' covers XPaths.
+                else if (shortType === 'js-path') featureKey = 'locator.playwright'; // Updated to match plans.js
 
                 const value = message.values[typeMap[shortType]];
-                const isEnabled = featureKey ? features.isEnabled(featureKey) : true;
-
-                // Additional check: Explicitly locking absolute xpath for free users if features.js says so
-                // In features.js: 'locator.xpath' is Pro. 'locator.id' is Free.
+                const isEnabled = featureKey ? planService.isEnabled(featureKey) : true;
 
                 if (isEnabled && value) {
                     chrome.contextMenus.update(`${catId}-value`, {
@@ -115,6 +100,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     } else if (message.action === 'locatorsGenerated' || message.action === 'deactivateInspect') {
         chrome.runtime.sendMessage(message).catch(() => { });
+    } else if (message.action === 'broadcastToTab') {
+        // Broadcast a message to ALL frames of the active tab
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tab = tabs[0];
+            if (tab && tab.id) {
+                chrome.webNavigation.getAllFrames({ tabId: tab.id }, (frames) => {
+                    frames.forEach(frame => {
+                        chrome.tabs.sendMessage(tab.id, message.payload, { frameId: frame.frameId }).catch(() => { });
+                    });
+                });
+            }
+        });
     } else if (message.action === 'notification') {
         // Notification logic
     }

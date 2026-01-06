@@ -12,7 +12,8 @@
     "activeTab",
     "storage",
     "sidePanel",
-    "contextMenus"
+    "contextMenus",
+    "webNavigation"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -25,7 +26,7 @@
     ]
   },
   "background": {
-    "service_worker": "background/background.js"
+    "service_worker": "src/background/background.js"
   },
   "content_scripts": [
     {
@@ -33,14 +34,16 @@
         "<all_urls>"
       ],
       "js": [
-        "core/locator-generator.js",
-        "core/healing-engine.js",
-        "content/domScanner.js"
+        "src/config/constants.js",
+        "src/services/locator-generator.js",
+        "src/services/healing-engine.js",
+        "src/content/domScanner.js"
       ],
       "css": [
-        "content/highlight.css"
+        "src/content/highlight.css"
       ],
-      "run_at": "document_end"
+      "run_at": "document_start",
+      "all_frames": true
     },
     {
       "matches": [
@@ -49,13 +52,13 @@
         "http://localhost:5173/*"
       ],
       "js": [
-        "content/auth-sync.js"
+        "src/content/auth-sync.js"
       ],
       "run_at": "document_end"
     }
   ],
   "side_panel": {
-    "default_path": "sidepanel/panel.html"
+    "default_path": "src/ui/sidepanel/panel.html"
   },
   "action": {
     "default_title": "Locator-X",
@@ -68,16 +71,19 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "core/locator-generator.js",
-        "core/storage-manager.js",
-        "core/filter-manager.js",
-        "core/locator-x-core.js",
-        "content/highlight.css"
+        "src/config/constants.js",
+        "src/config/plans.js",
+        "src/services/plan-service.js",
+        "src/services/locator-generator.js",
+        "src/services/storage-manager.js",
+        "src/services/filter-manager.js",
+        "src/services/locator-x-core.js",
+        "src/content/highlight.css"
       ],
       "matches": [
         "<all_urls>"
       ]
     }
   ],
-  "devtools_page": "devtools/devtools.html"
+  "devtools_page": "src/ui/devtools/devtools.html"
 }
