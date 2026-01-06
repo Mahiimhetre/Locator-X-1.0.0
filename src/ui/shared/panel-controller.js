@@ -1825,6 +1825,7 @@ const LocatorX = {
 
     // Initialize all modules
     async init() {
+        this.modal = new LocatorXModal();
         this.core = new LocatorXCore();
         await this.core.initialize();
 
@@ -2114,9 +2115,9 @@ const LocatorX = {
                             LocatorX.notifications.success(`Locator renamed to "${name}"`);
                         } else {
                             // Ask for rename confirmation
-                            const rename = await LocatorX.notifications.confirm(
-                                `Locator already exists as "${existing.name}". Do you want to rename it?`,
-                                'Rename Locator'
+                            const rename = await LocatorX.modal.confirm(
+                                'Rename Locator',
+                                `Locator already exists as "${existing.name}". Do you want to rename it?`
                             );
                             if (rename) {
                                 if (!name) {

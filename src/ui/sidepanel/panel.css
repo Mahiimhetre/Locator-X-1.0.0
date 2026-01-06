@@ -130,8 +130,8 @@ body {
 }
 
 .user-avatar-initials {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--accent);
   color: white;
@@ -1299,7 +1299,7 @@ select:focus {
 .reset-settings-btn:hover {
   color: var(--accent);
   background-color: var(--surface-2);
-  transform: rotate(-90deg);
+  transform: rotate(90deg);
 }
 
 /* History */
