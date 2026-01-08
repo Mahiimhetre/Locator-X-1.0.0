@@ -26,6 +26,75 @@
   display: none !important;
 }
 
+/* DevTools Conflict Warning Overlay */
+.devtools-warning-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-bg);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.warning-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 280px;
+}
+
+.warning-icon {
+  font-size: 48px;
+  color: #e74c3c;
+  animation: pulse-red-icon 2s infinite ease-in-out;
+}
+
+.warning-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-text);
+  margin: 0;
+}
+
+.warning-message {
+  font-size: 13px;
+  color: var(--secondary-text);
+  line-height: 1.5;
+  margin: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-red-icon {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
 body {
   font-family: 'Inter', sans-serif;
   font-size: 11px;

@@ -26,6 +26,8 @@ chrome.devtools.panels.elements.createSidebarPane(
 
         sidebar.onShown.addListener(() => {
             chrome.storage.local.set({ devtoolsActive: true });
+            // Establish a port to notify background script we are alive
+            chrome.runtime.connect({ name: 'locatorx-devtools' });
         });
 
         sidebar.onHidden.addListener(() => {

@@ -37,6 +37,9 @@ chrome.runtime.onInstalled.addListener(() => {
             visible: false // Only show when a value is found
         });
     });
+
+    // Reset DevTools status on install/startup
+    chrome.storage.local.set({ devtoolsActive: false });
 });
 
 // Handle context menu clicks
@@ -190,6 +193,13 @@ chrome.runtime.onConnect.addListener((port) => {
                     chrome.tabs.sendMessage(tab.id, { action: 'stopScanning' }).catch(() => { });
                 }
             });
+        });
+    }
+
+    if (port.name === 'locatorx-devtools') {
+        port.onDisconnect.addListener(() => {
+            // DevTools closed or sidebar hidden
+            chrome.storage.local.set({ devtoolsActive: false });
         });
     }
 });

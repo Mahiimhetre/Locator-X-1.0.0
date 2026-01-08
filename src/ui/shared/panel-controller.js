@@ -1823,6 +1823,39 @@ const LocatorX = {
         }
     },
 
+    // DevTools Conflict Management
+    conflict: {
+        init() {
+            this.warningOverlay = document.getElementById('devtoolsWarning');
+            if (this.warningOverlay) {
+                this.checkStatus();
+                this.setupListeners();
+            }
+        },
+
+        async checkStatus() {
+            const data = await chrome.storage.local.get('devtoolsActive');
+            this.toggleWarning(!!data.devtoolsActive);
+        },
+
+        setupListeners() {
+            chrome.storage.onChanged.addListener((changes, area) => {
+                if (area === 'local' && changes.devtoolsActive) {
+                    this.toggleWarning(!!changes.devtoolsActive.newValue);
+                }
+            });
+        },
+
+        toggleWarning(show) {
+            if (!this.warningOverlay) return;
+            if (show) {
+                this.warningOverlay.classList.remove('hidden');
+            } else {
+                this.warningOverlay.classList.add('hidden');
+            }
+        }
+    },
+
     // Initialize all modules
     async init() {
         this.modal = new LocatorXModal();
@@ -1850,6 +1883,7 @@ const LocatorX = {
         this.notifications.init();
         this.inspect.init();
         this.auth.init();
+        this.conflict.init();
 
         // Check site support
         if (typeof SiteSupport !== 'undefined') {
