@@ -1016,9 +1016,17 @@ body {
   border: 1px solid var(--border-light);
   box-shadow: 0 4px 12px var(--shadow-medium);
   background: var(--secondary-bg);
-  z-index: 100;
+  z-index: 1000;
   overflow: auto;
   max-height: 400px;
+}
+
+.navdropdown.footer-dropdown {
+  top: auto;
+  right: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 8px;
 }
 
 .dropdown-header {

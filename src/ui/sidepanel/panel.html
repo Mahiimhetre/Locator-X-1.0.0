@@ -27,33 +27,6 @@
             <div class="header-actions">
                 <i class="bi-circle-half theme-button header-icon-button" id="themeBtn" title="Change theme"
                     data-feature="ui.theme.dark"></i>
-                <div class="auth-container">
-                    <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
-                    <div id="userProfile" class="user-profile hidden">
-                        <!-- Trigger -->
-                        <div id="userDropdownTrigger" style="display:flex; align-items:center; cursor:pointer;">
-                            <img id="userAvatar" src="" alt="User" class="user-avatar">
-                            <div id="userInitials" class="user-avatar-initials hidden"></div>
-                        </div>
-
-                        <!-- Dropdown -->
-                        <div id="userDropdown" class="navdropdown" style="min-width: 180px; padding: 0;">
-                            <div class="dropdown-header"
-                                style="margin:0; padding: 12px; border-bottom: 1px solid var(--border-light);">
-                                <div style="display:flex; flex-direction:column; gap:4px;">
-                                    <strong id="userName" class="user-name" style="font-size:12px;"></strong>
-                                    <span id="userPlan" class="user-plan-badge"></span>
-                                </div>
-                            </div>
-                            <div class="dropdown-content" style="padding: 4px;">
-                                <div class="dropdown-item" id="logoutBtn">
-                                    <i class="bi-box-arrow-right item-icon"></i>
-                                    <span class="item-text">Logout</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
             <div class="header-content">
                 <div class="title-block">
@@ -285,6 +258,34 @@
 
         <footer class="footer">
             <div class="footer-content">
+                <div class="auth-container">
+                    <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
+                    <div id="userProfile" class="user-profile hidden">
+                        <!-- Trigger -->
+                        <div id="userDropdownTrigger" style="display:flex; align-items:center; cursor:pointer;">
+                            <img id="userAvatar" src="" alt="User" class="user-avatar">
+                            <div id="userInitials" class="user-avatar-initials hidden"></div>
+                        </div>
+
+                        <!-- Dropdown -->
+                        <div id="userDropdown" class="navdropdown footer-dropdown"
+                            style="min-width: 180px; padding: 0;">
+                            <div class="dropdown-header"
+                                style="margin:0; padding: 12px; border-bottom: 1px solid var(--border-light);">
+                                <div style="display:flex; flex-direction:column; gap:4px;">
+                                    <strong id="userName" class="user-name" style="font-size:12px;"></strong>
+                                    <span id="userPlan" class="user-plan-badge"></span>
+                                </div>
+                            </div>
+                            <div class="dropdown-content" style="padding: 4px;">
+                                <div class="dropdown-item" id="logoutBtn">
+                                    <i class="bi-box-arrow-right item-icon"></i>
+                                    <span class="item-text">Logout</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <span class="footer-text">© 2024 Locator-X</span>
                 <div class="footer-links">
                     <span class="version-badge">v1.0.0</span>
