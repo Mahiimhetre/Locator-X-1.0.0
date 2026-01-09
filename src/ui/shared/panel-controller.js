@@ -5,6 +5,36 @@ const LocatorX = {
     core: null,
     modal: null,
 
+    utils: {
+        async copyToClipboard(text) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+                throw new Error('Clipboard API unavailable');
+            } catch (err) {
+                // Fallback: Create a hidden textarea and use execCommand('copy')
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-9999px";
+                    textArea.style.top = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    if (successful) return true;
+                } catch (fallbackErr) {
+                    console.error('Fallback copy failed:', fallbackErr);
+                }
+                return false;
+            }
+        }
+    },
+
     // POM Management
     pom: {
         currentPageId: null,
@@ -340,7 +370,12 @@ const LocatorX = {
                         // Restore icon
                         if (btn) btn.className = 'bi-bandaid heal-btn';
 
-                        if (chrome.runtime.lastError || !response || !response.success) {
+                        if (chrome.runtime.lastError) {
+                            LocatorX.notifications.error('Connection lost. Please refresh the page.');
+                            return;
+                        }
+
+                        if (!response || !response.success) {
                             LocatorX.notifications.error('Healing failed: ' + (response?.error || 'Unknown error'));
                             return;
                         }
@@ -1324,7 +1359,7 @@ const LocatorX = {
                     if (tab && tab.id) {
                         chrome.tabs.sendMessage(tab.id, { action: 'getPageStructure' }, (response) => {
                             if (chrome.runtime.lastError) {
-                                // Ignore connection errors (tab might be loading or unsupported)
+                                // Context might be invalidated or tab loading
                                 resolve();
                                 return;
                             }
@@ -1362,8 +1397,6 @@ const LocatorX = {
 
                                 if (response && typeof response.count !== 'undefined') {
                                     totalCount += response.count;
-
-                                    // If this frame found the element(s), and we haven't shown info yet, show it
                                     if (response.count === 1 && !foundResult) {
                                         foundResult = true;
                                         this.updateElementInfo(response.elementInfo, response.elementType);
@@ -2035,7 +2068,11 @@ const LocatorX = {
                                     fingerprint: item.fingerprint
                                 }, (response) => {
                                     btn.className = 'bi-bandaid';
-                                    if (chrome.runtime.lastError || !response || !response.success) {
+                                    if (chrome.runtime.lastError) {
+                                        LocatorX.notifications.error('Connection lost');
+                                        return;
+                                    }
+                                    if (!response || !response.success) {
                                         LocatorX.notifications.error('Heal failed');
                                         return;
                                     }
@@ -2073,9 +2110,11 @@ const LocatorX = {
 
                 if (e.target.classList.contains('saved-copy') || e.target.closest('.saved-copy')) {
                     const item = e.target.closest('.saved-item');
-                    const locator = item.querySelector('.saved-locator-code').textContent; // Fix class selector
-                    navigator.clipboard.writeText(locator);
-                    LocatorX.notifications.success('Copied!');
+                    const locator = item.querySelector('.saved-locator-code').textContent;
+                    LocatorX.utils.copyToClipboard(locator).then(success => {
+                        if (success) LocatorX.notifications.success('Copied!');
+                        else LocatorX.notifications.error('Failed to copy');
+                    });
                 }
 
                 if (e.target.classList.contains('saved-delete')) {
@@ -2199,8 +2238,10 @@ const LocatorX = {
                     const row = e.target.closest('tr');
                     const locatorCell = row.querySelector('.editable');
                     const locator = locatorCell.textContent;
-                    navigator.clipboard.writeText(locator);
-                    LocatorX.notifications.success('Locator copied to clipboard');
+                    LocatorX.utils.copyToClipboard(locator).then(success => {
+                        if (success) LocatorX.notifications.success('Locator copied to clipboard');
+                        else LocatorX.notifications.error('Failed to copy');
+                    });
                 }
                 if (e.target.classList.contains('bi-bookmark-plus')) {
                     const row = e.target.closest('tr');
@@ -2381,7 +2422,12 @@ const LocatorX = {
                         selector: locator,
                         type: type
                     }, (response) => {
-                        if (chrome.runtime.lastError || !response || typeof response.count === 'undefined') {
+                        if (chrome.runtime.lastError) {
+                            badge.textContent = '0';
+                            badge.classList.add('match-none');
+                            return;
+                        }
+                        if (!response || typeof response.count === 'undefined') {
                             badge.textContent = '0';
                             badge.classList.add('match-none');
                             return;
@@ -2421,4 +2467,4 @@ window.LocatorXAPI = {
 };
 
 // Establish long-lived connection to background script for cleanup detection
-chrome.runtime.connect({ name: 'sidepanel' });
+chrome.runtime.connect({ name: 'locatorx-panel' });

@@ -66,12 +66,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             categories.forEach(catId => {
                 const shortType = catId.replace('copy-', '');
                 const typeMap = {
-                    'id': 'id',
-                    'name': 'name',
-                    'class': 'className',
-                    'rel-xpath': 'xpath',
-                    'css': 'css',
-                    'js-path': 'jsPath',
+                    'id': 'id', 'name': 'name', 'class': 'className',
+                    'rel-xpath': 'xpath', 'css': 'css', 'js-path': 'jsPath',
                     'abs-xpath': 'absoluteXPath'
                 };
 
@@ -79,30 +75,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 let featureKey = null;
                 if (shortType === 'id') featureKey = 'locator.id';
                 else if (shortType === 'name') featureKey = 'locator.name';
-                else if (shortType === 'class') featureKey = 'locator.css';
-                else if (shortType === 'css') featureKey = 'locator.css';
+                else if (shortType === 'class' || shortType === 'css') featureKey = 'locator.css';
                 else if (shortType === 'rel-xpath') featureKey = 'locator.xpath.relative';
                 else if (shortType === 'abs-xpath') featureKey = 'locator.xpath';
-                else if (shortType === 'js-path') featureKey = 'locator.playwright'; // Updated to match plans.js
+                else if (shortType === 'js-path') featureKey = 'locator.playwright';
 
                 const value = message.values[typeMap[shortType]];
                 const isEnabled = featureKey ? planService.isEnabled(featureKey) : true;
 
                 if (isEnabled && value) {
-                    chrome.contextMenus.update(`${catId}-value`, {
-                        title: value,
-                        visible: true
-                    });
+                    chrome.contextMenus.update(`${catId}-value`, { title: value, visible: true });
                 } else {
-                    chrome.contextMenus.update(`${catId}-value`, {
-                        visible: false
-                    });
+                    chrome.contextMenus.update(`${catId}-value`, { visible: false });
                 }
             });
+            sendResponse({ success: true });
+        }).catch(err => {
+            console.error('Plan service init failed:', err);
+            sendResponse({ success: false, error: err.message });
         });
+        return true;
 
     } else if (message.action === 'locatorsGenerated' || message.action === 'deactivateInspect') {
         chrome.runtime.sendMessage(message).catch(() => { });
+        sendResponse({ success: true });
+
     } else if (message.action === 'broadcastToTab') {
         // Broadcast a message to ALL frames of the active tab
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -115,35 +112,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 });
             }
         });
-    } else if (message.action === 'notification') {
-        // Notification logic
+        sendResponse({ success: true });
+
+    } else if (message.action === 'LOGIN_SUCCESS') {
+        const { token, user } = message.payload;
+        if (token && user) {
+            chrome.storage.local.set({
+                authToken: token,
+                user: user,
+                'locator-x-plan': user.plan || 'free'
+            }, () => {
+                chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: user }).catch(() => { });
+                sendResponse({ success: true });
+            });
+            return true;
+        } else {
+            sendResponse({ success: false, error: 'Invalid payload' });
+        }
+
+    } else if (message.action === 'LOGOUT') {
+        chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan'], () => {
+            chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: null }).catch(() => { });
+            sendResponse({ success: true });
+        });
+        return true;
     }
-    return true;
+
+    return false; // Don't keep channel open if not handled
 });
 
+// Handle extension icon clicks to open sidepanel
 chrome.action.onClicked.addListener((tab) => {
     chrome.sidePanel.open({ tabId: tab.id });
 });
 
-
 // Handle External Messages from Website (Auth & Plan Sync)
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
-    // Verify source if needed (sender.url) - matches externally_connectable
-
     if (message.action === 'LOGIN_SUCCESS') {
         const { token, user } = message.payload;
-
         if (token && user) {
-            // Securely store token and user data
             chrome.storage.local.set({
                 authToken: token,
                 user: user,
                 'locator-x-plan': user.plan || 'free'
             }, () => {
                 sendResponse({ success: true });
-                // Broadcast change to all views (Sidepanel, DevTools, Popup)
-                chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: user });
+                chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: user }).catch(() => { });
             });
+            return true;
         } else {
             sendResponse({ success: false, error: 'Invalid payload' });
         }
@@ -152,34 +168,17 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         if (plan) {
             chrome.storage.local.set({ 'locator-x-plan': plan }, () => {
                 sendResponse({ success: true, plan: plan });
-                // We might want to broadcast plan changes too, but usually AUTH_STATE_CHANGED covers it if user re-fetches
             });
+            return true;
         }
     } else if (message.action === 'LOGOUT') {
         chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan'], () => {
             sendResponse({ success: true });
-            chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: null });
+            chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: null }).catch(() => { });
         });
+        return true;
     }
-    return true; // Keep channel open for async response
-});
-
-// Also listen for runtime messages (from content script) for the same actions
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'LOGIN_SUCCESS') {
-        const { token, user } = message.payload;
-        if (token && user) {
-            chrome.storage.local.set({
-                authToken: token,
-                user: user,
-                'locator-x-plan': user.plan || 'free'
-            }, () => {
-                // Notify views?
-            });
-        }
-    } else if (message.action === 'LOGOUT') {
-        chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan']);
-    }
+    return false;
 });
 
 // Handle sidepanel cleanup on close
