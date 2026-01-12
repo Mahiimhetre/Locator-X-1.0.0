@@ -46,6 +46,7 @@ class LocatorGenerator {
     }
 
     generateLocators(element, enabledTypes = []) {
+        console.log('[Locator-X] Starting generateLocators for element:', element);
         const locators = [];
         const typeMap = {
             'idLocator': 'id',
@@ -68,17 +69,26 @@ class LocatorGenerator {
         enabledTypes.forEach(type => {
             const strategy = typeMap[type];
             if (strategy && this.strategies[strategy]) {
-                const locator = this.strategies[strategy](element);
-                if (locator) {
-                    locators.push({
-                        type: this.getDisplayName(strategy),
-                        locator: locator,
-                        matches: this.countMatches(locator, strategy)
-                    });
+                try {
+                    console.log(`[Locator-X] Executing strategy: ${strategy}`);
+                    const locator = this.strategies[strategy](element);
+                    if (locator) {
+                        console.log(`[Locator-X] Strategy ${strategy} SUCCESS: ${locator}`);
+                        locators.push({
+                            type: this.getDisplayName(strategy),
+                            locator: locator,
+                            matches: this.countMatches(locator, strategy)
+                        });
+                    } else {
+                        console.log(`[Locator-X] Strategy ${strategy} returned NULL`);
+                    }
+                } catch (error) {
+                    console.error(`[Locator-X] Strategy ${strategy} FAILED:`, error);
                 }
             }
         });
 
+        console.log('[Locator-X] generateLocators completed. Result:', locators);
         return locators;
     }
 
@@ -87,10 +97,15 @@ class LocatorGenerator {
     }
 
     generateCSSSelector(element) {
+        console.log('[Locator-X] generateCSSSelector input:', element);
         // 1. ID
         if (element.id) {
             const escapedId = this.escapeSelector(element.id);
-            if (this.isUnique(`#${escapedId}`)) return `#${escapedId}`;
+            if (this.isUnique(`#${escapedId}`)) {
+                const res = `#${escapedId}`;
+                console.log('[Locator-X] generateCSSSelector result (ID):', res);
+                return res;
+            }
         }
 
         // 2. Attributes (data-testid, etc)
@@ -100,10 +115,16 @@ class LocatorGenerator {
             if (value) {
                 const quote = value.includes("'") ? '"' : "'";
                 const selector = `[${attr}=${quote}${CSS.escape(value)}${quote}]`;
-                if (this.isUnique(selector)) return selector;
-                if (element.tagName === 'INPUT' && attr === 'name') { // tag + name often unique enough
+                if (this.isUnique(selector)) {
+                    console.log('[Locator-X] generateCSSSelector result (Attr):', selector);
+                    return selector;
+                }
+                if (element.tagName === 'INPUT' && attr === 'name') {
                     const tagSelector = `${element.tagName.toLowerCase()}[${attr}=${quote}${CSS.escape(value)}${quote}]`;
-                    if (this.isUnique(tagSelector)) return tagSelector;
+                    if (this.isUnique(tagSelector)) {
+                        console.log('[Locator-X] generateCSSSelector result (Tag+Name):', tagSelector);
+                        return tagSelector;
+                    }
                 }
             }
         }
@@ -113,10 +134,16 @@ class LocatorGenerator {
             const cleaned = this.cleanClassName(element.className);
             if (cleaned) {
                 const selector = `.${cleaned}`;
-                if (this.isUnique(selector)) return selector;
+                if (this.isUnique(selector)) {
+                    console.log('[Locator-X] generateCSSSelector result (Class):', selector);
+                    return selector;
+                }
                 // Try tag + class
                 const tagSelector = `${element.tagName.toLowerCase()}.${cleaned}`;
-                if (this.isUnique(tagSelector)) return tagSelector;
+                if (this.isUnique(tagSelector)) {
+                    console.log('[Locator-X] generateCSSSelector result (Tag+Class):', tagSelector);
+                    return tagSelector;
+                }
             }
         }
 
@@ -132,7 +159,7 @@ class LocatorGenerator {
                 path.unshift(selector);
                 // If this specific ancestor path is unique, stop
                 if (this.isUnique(path.join(' > '))) break;
-                if (current.id && this.isUnique(`#${this.escapeSelector(current.id)}`)) break; // Should have been caught earlier but good safety
+                if (current.id && this.isUnique(`#${this.escapeSelector(current.id)}`)) break;
             } else {
                 // Sibling index
                 let index = 1;
@@ -166,7 +193,9 @@ class LocatorGenerator {
                 break;
             }
         }
-        return path.join(' > ');
+        const finalPath = path.join(' > ');
+        console.log('[Locator-X] generateCSSSelector result (Path):', finalPath);
+        return finalPath;
     }
 
     isUnique(selector) {
@@ -178,6 +207,7 @@ class LocatorGenerator {
     }
 
     generateAbsoluteXPath(element) {
+        console.log('[Locator-X] generateAbsoluteXPath input:', element);
         let path = '';
         let current = element;
         while (current && current.nodeType === Node.ELEMENT_NODE) {
@@ -192,14 +222,18 @@ class LocatorGenerator {
             path = `/${current.nodeName.toLowerCase()}[${index}]${path}`;
             current = current.parentNode;
         }
+        console.log('[Locator-X] generateAbsoluteXPath result:', path);
         return path;
     }
 
     generateRelativeXPath(element) {
+        console.log('[Locator-X] generateRelativeXPath input:', element);
         // 1. ID
         if (element.id) {
             const quote = element.id.includes("'") ? '"' : "'";
-            return `//*[@id=${quote}${element.id}${quote}]`;
+            const res = `//*[@id=${quote}${element.id}${quote}]`;
+            console.log('[Locator-X] generateRelativeXPath result (ID):', res);
+            return res;
         }
 
         // 2. Unique Attributes
@@ -208,7 +242,9 @@ class LocatorGenerator {
             const value = element.getAttribute(attr);
             if (value) {
                 const quote = value.includes("'") ? '"' : "'";
-                return `//*[@${attr}=${quote}${value}${quote}]`;
+                const res = `//*[@${attr}=${quote}${value}${quote}]`;
+                console.log('[Locator-X] generateRelativeXPath result (Attr):', res);
+                return res;
             }
         }
 
@@ -218,78 +254,130 @@ class LocatorGenerator {
             const text = element.textContent?.trim();
             if (text && text.length > LocatorXConfig.LIMITS.TEXT_MATCH_MIN && text.length < LocatorXConfig.LIMITS.TEXT_MATCH_MAX) {
                 const quote = text.includes("'") ? '"' : "'";
-                return `//${tag}[normalize-space()=${quote}${text}${quote}]`;
+                const res = `//${tag}[normalize-space()=${quote}${text}${quote}]`;
+                console.log('[Locator-X] generateRelativeXPath result (Text):', res);
+                return res;
             }
         }
 
         // 4. Fallback to Tag + Index
-        // Note: Full robust XPath generation is complex; this is a simplified improvement
-        return `//${tag}`;
+        const res = `//${tag}`;
+        console.log('[Locator-X] generateRelativeXPath result (Fallback):', res);
+        return res;
     }
 
     generateContainsXPath(element) {
+        console.log('[Locator-X] generateContainsXPath input:', element);
         const text = element.textContent?.trim();
         if (text && text.length < 50) {
             const escapedText = text.includes("'") ? `"${text}"` : `'${text}'`;
-            return `//*[contains(text(),${escapedText})]`;
+            const res = `//*[contains(text(),${escapedText})]`;
+            console.log('[Locator-X] generateContainsXPath result (Text):', res);
+            return res;
         }
-        if (element.className) {
-            const cleaned = this.cleanClassName(element.className);
-            if (cleaned) {
-                const classPart = cleaned.split(' ')[0];
-                const escapedClassPart = classPart.includes("'") ? `"${classPart}"` : `'${classPart}'`;
-                return `//*[contains(@class,${escapedClassPart})]`;
+        // Improved: Check attributes (id, class, etc.)
+        const attrs = ['id', 'class', 'name', 'title', 'placeholder', 'role', 'aria-label'];
+        for (const attr of attrs) {
+            const val = element.getAttribute(attr);
+            if (val) {
+                if (attr === 'class') {
+                    const classPart = this.cleanClassName(val).split(' ')[0];
+                    if (classPart) {
+                        const quote = classPart.includes("'") ? '"' : "'";
+                        const res = `//*[contains(@class,${quote}${classPart}${quote})]`;
+                        console.log('[Locator-X] generateContainsXPath result (Class):', res);
+                        return res;
+                    }
+                } else {
+                    const quote = val.includes("'") ? '"' : "'";
+                    const res = `//*[contains(@${attr},${quote}${val}${quote})]`;
+                    console.log('[Locator-X] generateContainsXPath result (Attr):', res);
+                    return res;
+                }
             }
         }
+        console.log('[Locator-X] generateContainsXPath result: NULL');
         return null;
     }
 
     generateIndexedXPath(element) {
+        console.log('[Locator-X] generateIndexedXPath input:', element);
         let index = 1;
         let sibling = element.previousElementSibling;
         while (sibling) {
             if (sibling.tagName === element.tagName) index++;
             sibling = sibling.previousElementSibling;
         }
-        // Wrapping in parentheses ensures the index applies to the entire set of matches
-        return `(${this.generateRelativeXPath(element)})[${index}]`;
+        const rel = this.generateRelativeXPath(element);
+        const res = `(${rel})[${index}]`;
+        console.log('[Locator-X] generateIndexedXPath result:', res);
+        return res;
     }
 
     generateLinkTextXPath(element) {
+        console.log('[Locator-X] generateLinkTextXPath input:', element);
         if (element.tagName === 'A') {
             const text = element.textContent.trim();
-            if (!text) return null;
+            if (!text) {
+                console.log('[Locator-X] generateLinkTextXPath result: NULL (No text)');
+                return null;
+            }
             const quote = text.includes("'") ? '"' : "'";
-            return `//a[text()=${quote}${text}${quote}]`;
+            const res = `//a[text()=${quote}${text}${quote}]`;
+            console.log('[Locator-X] generateLinkTextXPath result:', res);
+            return res;
         }
+        console.log('[Locator-X] generateLinkTextXPath result: NULL (Not A tag)');
         return null;
     }
 
     generatePartialLinkTextXPath(element) {
+        console.log('[Locator-X] generatePartialLinkTextXPath input:', element);
         if (element.tagName === 'A') {
             const text = element.textContent.trim().substring(0, 10);
-            if (!text) return null;
+            if (!text) {
+                console.log('[Locator-X] generatePartialLinkTextXPath result: NULL (No text)');
+                return null;
+            }
             const quote = text.includes("'") ? '"' : "'";
-            return `//a[contains(text(),${quote}${text}${quote})]`;
+            const res = `//a[contains(text(),${quote}${text}${quote})]`;
+            console.log('[Locator-X] generatePartialLinkTextXPath result:', res);
+            return res;
         }
+        console.log('[Locator-X] generatePartialLinkTextXPath result: NULL (Not A tag)');
         return null;
     }
 
     generateAttributeXPath(element) {
+        console.log('[Locator-X] generateAttributeXPath input:', element);
+        // Explicitly check ID first
+        if (element.id) {
+            const quote = element.id.includes("'") ? '"' : "'";
+            const res = `//*[@id=${quote}${element.id}${quote}]`;
+            console.log('[Locator-X] generateAttributeXPath result (ID):', res);
+            return res;
+        }
+
         const attrs = LocatorXConfig.IMPORTANT_ATTRIBUTES;
         for (const attr of attrs) {
             const value = element.getAttribute(attr);
             if (value) {
                 const quote = value.includes("'") ? '"' : "'";
-                return `//*[@${attr}=${quote}${value}${quote}]`;
+                const res = `//*[@${attr}=${quote}${value}${quote}]`;
+                console.log('[Locator-X] generateAttributeXPath result (Attr):', res);
+                return res;
             }
         }
+        console.log('[Locator-X] generateAttributeXPath result: NULL');
         return null;
     }
 
     generateCSSXPath(element) {
+        console.log('[Locator-X] generateCSSXPath input:', element);
         const css = this.generateCSSSelector(element);
-        return css ? `//*[self::${css.replace(/[#.]/g, '')}]` : null;
+        const res = css ? `//*[self::${css.replace(/[#.]/g, '')}]` : null;
+        console.log('[Locator-X] generateCSSXPath result:', res);
+        return res;
     }
 
     countMatches(selector, strategy) {

@@ -196,42 +196,19 @@ const LocatorX = {
             const page = pages.find(p => p.id === pageId);
             if (!page || !page.locators) return;
 
-            // Reuse existing table update logic but with specific data
-            // We need to adapt the existing updatePOMTable logic to handle stored locators
-            // For now, let's just clear and show what we have
-
             const tbody = document.querySelector('.pom-table tbody');
             if (!tbody) return;
             tbody.innerHTML = '';
 
-            // This part needs to be clever. The existing logic renders rows based on *scanned* results.
-            // But here we are showing *saved* locators for the page. 
-            // Ideally, a POM page is a list of ELEMENTS, and each element has multiple strategies.
-            // OR, is it a list of chosen locators?
-            // Looking at the requirement: "create multiple pom pages... add a navbar... backend"
-            // Usually POM = Class with locators.
-
-            // The previous Logic was:
-            // updatePOMTable() -> takes generated locators and adds a row.
-
-            // If we look at existing `displayGeneratedLocators` for POM:
-            // It adds a row with columns for each enabled filter type.
-            // So one row = one element, with multiple locator columns.
-
-            // So our data structure for a page should be:
-            // page.elements = [ { id:..., locators: [ {type: 'id', locator: '...'}, ... ] } ]
-
-            // Let's adjust `addLocatorToPage` (actually we need to add an *element* with all its locators).
-            // When scanning, `displayGeneratedLocators` is called with a LIST of locators for ONE element.
-
-            // So:
-            /*
-            page: {
-                elements: [
-                    [ {type: 'id', locator:'...'}, {type: 'name', value: '...'} ] // One element's locators
-                ]
+            // Retrieve structural info from filters (or recalculate if undefined)
+            let structure = LocatorX.filters.pomStructure;
+            if (!structure) {
+                // Fallback if updatePOMTable hasn't run yet
+                LocatorX.filters.updatePOMTable();
+                structure = LocatorX.filters.pomStructure;
             }
-            */
+
+            const { standard, hasGrouped, groupedTypes } = structure;
 
             page.locators.forEach((item, index) => {
                 // Handle legacy data (item is array) vs new data (item is {locators, fingerprint})
@@ -241,58 +218,40 @@ const LocatorX = {
                 const row = document.createElement('tr');
                 row.innerHTML = `<td>${index + 1}</td>`;
 
-                const checkedTypes = LocatorX.filters.getCheckedTypes();
-                const groupedTypes = ['Relative XPath', 'Contains XPath', 'Indexed XPath', 'Link Text XPath', 'Partial Link XPath', 'Attribute XPath', 'CSS XPath'];
-
-                // Split types into standards and grouped
-                const renderColumns = [];
-                let hasGroupedColumn = false;
-
-                checkedTypes.forEach(type => {
-                    if (groupedTypes.includes(type)) {
-                        hasGroupedColumn = true;
-                    } else {
-                        renderColumns.push(type);
-                    }
-                });
-
                 // Render Standard Columns
-                renderColumns.forEach(type => {
+                standard.forEach(type => {
                     const matching = elementLocators.find(l => l.type === type);
                     const val = matching ? matching.locator : '-';
-                    row.innerHTML += `<td class="editable">${val}</td>`;
+                    // Add distinct style for empty
+                    const style = matching ? '' : 'color: var(--secondary-text); opacity: 0.5;';
+                    row.innerHTML += `<td class="editable" style="${style}">${val}</td>`;
                 });
 
                 // Render Grouped Column (Relative XPath) if needed
-                // Render Grouped Column (Relative XPath) if needed
-                if (hasGroupedColumn) {
-                    // Get ALL enabled grouped types (not just generated ones)
-                    const enabledGrouped = checkedTypes.filter(t => groupedTypes.includes(t));
-
-                    if (enabledGrouped.length > 0) {
-                        // Find which locators actually exist
+                if (hasGrouped) {
+                    // Only use enabled subtypes for the dropdown
+                    if (groupedTypes.length > 0) {
+                        // Find which locators actually exist for this element
                         const validGrouped = elementLocators.filter(l => groupedTypes.includes(l.type));
 
-                        // Select Preferred: 
-                        // 1. 'Relative XPath' if valid
-                        // 2. First valid
-                        // 3. Fallback to 'Relative XPath' or first enabled
+                        // 1. Try 'Relative XPath' if available and valid
                         let preferredType = '';
                         const relativeFn = validGrouped.find(l => l.type === 'Relative XPath');
 
                         if (relativeFn) {
-                            preferredType = 'Relative XPath';
+                            preferredType = 'Default';
                         } else if (validGrouped.length > 0) {
                             preferredType = validGrouped[0].type;
                         } else {
-                            preferredType = enabledGrouped.includes('Relative XPath') ? 'Relative XPath' : enabledGrouped[0];
+                            preferredType = groupedTypes.includes('Default') ? 'Default' : groupedTypes[0];
                         }
 
                         const preferredLocatorFn = elementLocators.find(l => l.type === preferredType);
                         const preferredValue = preferredLocatorFn ? preferredLocatorFn.locator : '-';
+                        const valStyle = preferredLocatorFn ? '' : 'color: var(--secondary-text); opacity: 0.5;';
 
-                        // create dropdown options
-                        const options = enabledGrouped.map(type => {
+                        // Create Dropdown Options
+                        const options = groupedTypes.map(type => {
                             const loc = elementLocators.find(l => l.type === type);
                             const val = loc ? loc.locator : '-';
                             const isDisabled = !loc;
@@ -305,14 +264,16 @@ const LocatorX = {
                                      <select class="strategy-dropdown pom-strategy-select">
                                         ${options}
                                      </select>
-                                     <div class="strategy-value editable">${preferredValue}</div>
+                                     <div class="strategy-value editable" style="${valStyle}">${preferredValue}</div>
                                 </div>
                             </td>`;
                     } else {
+                        // Should technically not happen if hasGrouped is true, but safe fallback
                         row.innerHTML += `<td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>`;
                     }
                 }
 
+                // Actions Column
                 const healBtn = hasFingerprint
                     ? `<i class="bi-bandaid heal-btn" title="Heal Locator" style="color: var(--status-green); cursor: pointer; margin-right: 6px;"></i>`
                     : `<i class="bi-bandaid" title="Missing Fingerprint" style="color: var(--border-light); cursor: not-allowed; margin-right: 6px;"></i>`;
@@ -324,15 +285,24 @@ const LocatorX = {
                 </td>`;
 
                 // Bind Events
-                if (hasGroupedColumn) {
+                if (hasGrouped) {
                     const select = row.querySelector('.pom-strategy-select');
                     if (select) {
                         select.addEventListener('change', (e) => {
                             const newType = e.target.value;
                             const newValue = elementLocators.find(l => l.type === newType);
-                            if (newValue) {
-                                const valDiv = row.querySelector('.strategy-value');
-                                if (valDiv) valDiv.textContent = newValue.locator;
+                            const valDiv = row.querySelector('.strategy-value');
+
+                            if (valDiv) {
+                                if (newValue) {
+                                    valDiv.textContent = newValue.locator;
+                                    valDiv.style.color = '';
+                                    valDiv.style.opacity = '1';
+                                } else {
+                                    valDiv.textContent = '-';
+                                    valDiv.style.color = 'var(--secondary-text)';
+                                    valDiv.style.opacity = '0.5';
+                                }
                             }
                         });
                     }
@@ -594,9 +564,22 @@ const LocatorX = {
             this.setupCheckboxes();
             this.setupRelativeXPath();
             this.setupScopeSwitch();
+            this.setupHorizontalScroll();
             this.loadFiltersFromStorage();
             this.saveCurrentFilters('home');
             this.updateTable();
+        },
+
+        setupHorizontalScroll() {
+            const container = document.querySelector('.locator-options');
+            if (container) {
+                container.addEventListener('wheel', (e) => {
+                    if (e.deltaY !== 0) {
+                        e.preventDefault();
+                        container.scrollLeft += e.deltaY;
+                    }
+                }, { passive: false });
+            }
         },
 
         loadFiltersFromStorage() {
@@ -732,24 +715,35 @@ const LocatorX = {
                 });
             });
 
+            // Special handling for Relative XPath parent checkbox
+            const relativeXPath = document.getElementById('relativeXPath');
+            if (relativeXPath) {
+                relativeXPath.addEventListener('change', () => {
+                    if (relativeXPath.checked) {
+                        const defaultXpath = document.getElementById('xpathLocator');
+                        if (defaultXpath && !defaultXpath.checked) defaultXpath.checked = true;
+                    }
+                    this.updateNestedIcon();
+                    chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
+
+                    if (LocatorX.tabs.current === 'home') this.updateTable();
+                    else this.updatePOMTable();
+                });
+            }
+
             nestedCheckboxes.forEach(cb => {
                 cb.addEventListener('change', () => {
                     const relativeXPath = document.getElementById('relativeXPath');
                     const anyNested = Array.from(nestedCheckboxes).some(c => c.checked);
 
-                    if (relativeXPath) {
-                        relativeXPath.checked = anyNested;
-                    }
+                    if (relativeXPath) relativeXPath.checked = anyNested;
                     this.updateNestedIcon();
 
                     // Save to storage
                     chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
 
-                    if (LocatorX.tabs.current === 'home') {
-                        this.updateTable();
-                    } else {
-                        this.updatePOMTable();
-                    }
+                    if (LocatorX.tabs.current === 'home') this.updateTable();
+                    else this.updatePOMTable();
                 });
             });
         },
@@ -766,10 +760,50 @@ const LocatorX = {
 
             tbody.innerHTML = '';
 
-            // If we have actual captured data, show that
-            // If we have actual captured data, show that
+            const groupedTypes = [
+                LocatorXConfig.STRATEGY_NAMES.xpath,
+                LocatorXConfig.STRATEGY_NAMES.containsXpath,
+                LocatorXConfig.STRATEGY_NAMES.indexedXpath,
+                LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
+                LocatorXConfig.STRATEGY_NAMES.partialLinkTextXpath,
+                LocatorXConfig.STRATEGY_NAMES.attributeXpath,
+                LocatorXConfig.STRATEGY_NAMES.cssXpath
+            ];
+
+            const standardTypes = checkedTypes.filter(t => !groupedTypes.includes(t));
+            const activeGroupedTypes = checkedTypes.filter(t => groupedTypes.includes(t));
+
+            // 1. Render Standard Types (Structure Only)
+            standardTypes.forEach(type => {
+                const row = document.createElement('tr');
+                row.setAttribute('data-type', type);
+                row.innerHTML = `
+                        <td><span class="match-count match-none">-</span></td>
+                        <td>${type}</td>
+                        <td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>
+                        <td>
+                            <i class="bi-clipboard disabled" title="Copy"></i>
+                            <i class="bi-bookmark-plus disabled" title="Save"></i>
+                        </td>
+                    `;
+                tbody.appendChild(row);
+            });
+
+            // 2. Render Grouped Types (Structure Only)
+            if (activeGroupedTypes.length > 0) {
+                // Determine which strategy to show initially: preserve existing selection if possible
+                let currentType = activeGroupedTypes.includes('Default')
+                    ? 'Default'
+                    : activeGroupedTypes[0];
+
+                // If we have data, we might want to be smarter, but for structure, default is fine.
+                // We pass [] as locators so it renders default state
+                this.renderGroupRow(tbody, activeGroupedTypes, currentType, []);
+            }
+
+            // 3. If we have data, populate it now
             if (this.lastLocators && this.lastLocators.length > 0) {
-                this.renderHomeTable(this.lastLocators);
+                this.updateTableData(this.lastLocators);
 
                 // Restore detail and badge
                 const detailEl = document.getElementById('homeElementDetail');
@@ -783,63 +817,84 @@ const LocatorX = {
                         badge.textContent = this.lastElementType;
                         badge.setAttribute('data-type', this.lastElementType);
                         badge.classList.remove('hidden');
-                    } else {
-                        badge.classList.add('hidden');
                     }
+                    else badge.classList.add('hidden');
                 }
-            } else {
-                // Otherwise show "structural" empty rows for enabled filters
-                const checkedTypes = this.getCheckedTypes();
-                checkedTypes.forEach(type => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><span class="match-count match-none">-</span></td>
-                        <td>${type}</td>
-                        <td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>
-                        <td>
-                            <i class="bi-clipboard disabled" title="Copy"></i>
-                            <i class="bi-bookmark-plus disabled" title="Save"></i>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
             }
-
             this.updatePOMTable();
         },
 
-        renderHomeTable(locators) {
-            const tbody = document.querySelector('.home-container .locator-table tbody');
+        updateTableData(locators) {
+            const tbody = document.querySelector('.locator-table tbody');
             if (!tbody) return;
 
-            const checkedTypes = this.getCheckedTypes();
-            const groupedTypes = [
-                'Relative XPath', 'Contains XPath', 'Indexed XPath',
-                'Link Text XPath', 'Partial Link XPath',
-                'Attribute XPath', 'CSS XPath'
-            ];
-
-            const standardTypes = checkedTypes.filter(t => !groupedTypes.includes(t));
-            const activeGroupedTypes = checkedTypes.filter(t => groupedTypes.includes(t));
-
-            tbody.innerHTML = '';
-
-            // 1. Render Standard Types (ID, Name, CSS, etc.)
-            standardTypes.forEach(type => {
+            // Update Standard Rows
+            const standardRows = tbody.querySelectorAll('tr[data-type]');
+            standardRows.forEach(row => {
+                const type = row.getAttribute('data-type');
                 const locator = locators.find(l => l.type === type);
-                this.renderRow(tbody, type, locator);
+
+                const matchCell = row.querySelector('td:nth-child(1) span');
+                const valCell = row.querySelector('td:nth-child(3)');
+                const actions = row.querySelectorAll('i');
+
+                if (locator) {
+                    const matchClass = locator.matches === 0 ? 'match-none' :
+                        locator.matches === 1 ? 'match-single' : 'match-multiple';
+
+                    matchCell.className = `match-count ${matchClass}`;
+                    matchCell.textContent = locator.matches;
+
+                    valCell.textContent = locator.locator;
+                    valCell.style.color = '';
+                    valCell.style.opacity = '1';
+
+                    actions.forEach(btn => btn.classList.remove('disabled'));
+                } else {
+                    matchCell.className = 'match-count match-none';
+                    matchCell.textContent = '-';
+                    valCell.textContent = '-';
+                    valCell.style.color = 'var(--secondary-text)';
+                    valCell.style.opacity = '0.5';
+                    actions.forEach(btn => btn.classList.add('disabled'));
+                }
             });
 
-            // 2. Render Grouped Types (Strategies Dropdown)
-            if (activeGroupedTypes.length > 0) {
-                // Determine which strategy to show initially
-                // Default to 'Relative XPath' if present, otherwise first available
-                let currentType = activeGroupedTypes.includes('Relative XPath')
-                    ? 'Relative XPath'
-                    : activeGroupedTypes[0];
+            // Update Group Row
+            const groupRow = tbody.querySelector('.strategy-row');
+            if (groupRow) {
+                const select = groupRow.querySelector('.strategy-dropdown');
+                if (select) {
+                    const availableTypes = Array.from(select.options).map(o => o.value);
 
-                const locator = locators.find(l => l.type === currentType);
-                this.renderGroupRow(tbody, activeGroupedTypes, currentType, locators);
+                    // Find best strategy among available types
+                    let bestType = null;
+
+                    // 1. Try 'Default' if available and valid
+                    const relative = locators.find(l => l.type === 'Default');
+                    if (availableTypes.includes('Default') && relative) {
+                        bestType = 'Default';
+                    } else {
+                        // 2. Try first available matching locator
+                        const firstMatch = availableTypes.find(t => locators.some(l => l.type === t));
+                        // 3. Fallback to first available option
+                        bestType = firstMatch || availableTypes[0];
+                    }
+
+                    if (bestType) {
+                        select.value = bestType;
+                        const locator = locators.find(l => l.type === bestType);
+                        this.updateGroupRow(groupRow, bestType, locator);
+
+                        // Also update options disabled state maybe?
+                        // renderGroupRow used allLocators to set disabled state.
+                        // Here we should probably update options too.
+                        Array.from(select.options).forEach(opt => {
+                            const hasLoc = locators.some(l => l.type === opt.value);
+                            opt.disabled = false; // Always enabled per user request 
+                        });
+                    }
+                }
             }
         },
 
@@ -886,8 +941,8 @@ const LocatorX = {
             // Dropdown Options
             const options = availableTypes.map(type => {
                 const typeLocator = allLocators.find(l => l.type === type);
-                const isDisabled = !typeLocator;
-                return `<option value="${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}>${type}${isDisabled ? '' : ''}</option>`;
+                const isDisabled = false; // Always enabled per user request
+                return `<option value="${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}>${type}</option>`;
             }).join('');
 
             const locatorValue = locator ? locator.locator : '-';
@@ -915,7 +970,10 @@ const LocatorX = {
             if (select) {
                 select.addEventListener('change', (e) => {
                     const newType = e.target.value;
-                    const newLocator = allLocators.find(l => l.type === newType);
+                    // FIX: Use this.lastLocators to get the most up-to-date data
+                    // The 'allLocators' argument passed to this function is often stale (empty array from init)
+                    const locators = this.lastLocators || [];
+                    const newLocator = locators.find(l => l.type === newType);
                     this.updateGroupRow(row, newType, newLocator);
                 });
             }
@@ -963,7 +1021,8 @@ const LocatorX = {
             this.lastMetadata = metadata;
 
             if (LocatorX.tabs.current === 'home') {
-                this.renderHomeTable(locators);
+                // Data Update Only!
+                this.updateTableData(locators);
                 this.updateElementInfo(elementInfo, elementType, metadata);
             } else if (LocatorX.tabs.current === 'pom') {
                 this.handlePOMDisplay(locators, fingerprint);
@@ -1068,43 +1127,58 @@ const LocatorX = {
         },
 
         updatePOMTable() {
-            const pomTable = document.querySelector('.pom-table');
-            if (!pomTable) return;
+            const table = document.querySelector('.pom-table');
+            if (!table) return;
+
+            // 1. CLEAR & BUILD HEADER
+            let thead = table.querySelector('thead');
+            if (!thead) {
+                thead = document.createElement('thead');
+                table.appendChild(thead);
+            }
+            thead.innerHTML = '';
 
             const checkedTypes = this.getCheckedTypes();
+            const groupedTypes = [
+                LocatorXConfig.STRATEGY_NAMES.xpath,
+                LocatorXConfig.STRATEGY_NAMES.containsXpath,
+                LocatorXConfig.STRATEGY_NAMES.indexedXpath,
+                LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
+                LocatorXConfig.STRATEGY_NAMES.partialLinkTextXpath,
+                LocatorXConfig.STRATEGY_NAMES.attributeXpath,
+                LocatorXConfig.STRATEGY_NAMES.cssXpath
+            ];
 
-            // If we are in POM mode and have a page, re-render it
-            if (LocatorX.tabs.current === 'pom' && LocatorX.pom.currentPageId) {
-                LocatorX.pom.renderTable(LocatorX.pom.currentPageId);
+            const standardTypes = checkedTypes.filter(t => !groupedTypes.includes(t));
+            const hasGrouped = checkedTypes.some(t => groupedTypes.includes(t));
+
+            // Store active structure for Row Renderer to use
+            this.pomStructure = {
+                standard: standardTypes,
+                hasGrouped: hasGrouped,
+                groupedTypes: checkedTypes.filter(t => groupedTypes.includes(t)) // Pass enabled options for dropdown
+            };
+
+            // Build Header Row
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th>#</th>'; // Index
+
+            // Standard Headers
+            standardTypes.forEach(type => {
+                headerRow.innerHTML += `<th>${type}</th>`;
+            });
+
+            // Grouped Header
+            if (hasGrouped) {
+                headerRow.innerHTML += `<th>Relative XPath</th>`;
             }
 
-            // Header update is still needed
-            const headermain = pomTable.querySelector('thead tr');
-            if (headermain) {
-                const checkedTypes = this.getCheckedTypes();
-                const standardTypes = [];
-                let hasRelativeXPath = false;
+            headerRow.innerHTML += '<th>Actions</th>';
+            thead.appendChild(headerRow);
 
-                const groupedTypes = ['Relative XPath', 'Contains XPath', 'Indexed XPath', 'Link Text XPath', 'Partial Link XPath', 'Attribute XPath', 'CSS XPath'];
-
-                checkedTypes.forEach(type => {
-                    if (groupedTypes.includes(type)) {
-                        hasRelativeXPath = true;
-                    } else {
-                        standardTypes.push(type);
-                    }
-                });
-
-                headermain.innerHTML = '<th>#</th>';
-                standardTypes.forEach(type => {
-                    headermain.innerHTML += `<th>${type}</th>`;
-                });
-
-                if (hasRelativeXPath) {
-                    headermain.innerHTML += '<th>Relative XPath</th>';
-                }
-
-                headermain.innerHTML += '<th>Actions</th>';
+            // 2. TRIGGER ROW UPDATE (re-render current page with new structure)
+            if (LocatorX.pom && LocatorX.pom.currentPageId) {
+                LocatorX.pom.renderTable(LocatorX.pom.currentPageId);
             }
         },
 
@@ -1131,13 +1205,13 @@ const LocatorX = {
             const relativeXPath = document.getElementById('relativeXPath');
             if (relativeXPath && relativeXPath.checked) {
                 const nestedTypes = {
-                    'xpathLocator': 'Relative XPath',
-                    'containsXpathLocator': 'Contains XPath',
-                    'indexedXpathLocator': 'Indexed XPath',
-                    'LinkTextXpathLocator': 'Link Text XPath',
-                    'PLinkTextXpathLocator': 'Partial Link XPath',
-                    'attributeXpathLocator': 'Attribute XPath',
-                    'cssXpathLocator': 'CSS XPath'
+                    'xpathLocator': LocatorXConfig.STRATEGY_NAMES.xpath,
+                    'containsXpathLocator': LocatorXConfig.STRATEGY_NAMES.containsXpath,
+                    'indexedXpathLocator': LocatorXConfig.STRATEGY_NAMES.indexedXpath,
+                    'LinkTextXpathLocator': LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
+                    'PLinkTextXpathLocator': LocatorXConfig.STRATEGY_NAMES.partialLinkTextXpath,
+                    'attributeXpathLocator': LocatorXConfig.STRATEGY_NAMES.attributeXpath,
+                    'cssXpathLocator': LocatorXConfig.STRATEGY_NAMES.cssXpath
                 };
 
                 Object.keys(nestedTypes).forEach(id => {
@@ -1159,11 +1233,21 @@ const LocatorX = {
 
             if (arrow && nested) {
                 arrow.addEventListener('click', e => {
+                    e.preventDefault();
                     e.stopPropagation();
                     const isVisible = nested.style.display === 'block';
-                    nested.style.display = isVisible ? 'none' : 'block';
-                    arrow.classList.toggle('expanded', !isVisible);
-                    if (!isVisible) nested.classList.add('show-above');
+
+                    if (isVisible) {
+                        nested.style.display = 'none';
+                        arrow.classList.remove('expanded');
+                    } else {
+                        // Calculate position relative to viewport
+                        const rect = arrow.getBoundingClientRect();
+                        nested.style.top = `${rect.bottom + 2}px`;
+                        nested.style.left = `${rect.right - 90}px`; // Align right edge
+                        nested.style.display = 'block';
+                        arrow.classList.add('expanded');
+                    }
                 });
 
                 nested.addEventListener('click', e => e.stopPropagation());

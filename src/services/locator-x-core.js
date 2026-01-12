@@ -44,22 +44,19 @@ class LocatorXCore {
     updateFilters(tab, filters) {
         this.storage.saveFilterState(tab, filters);
 
-        // Validate with current framework/language
+        // Validate with current framework
         const framework = this.getSetting('framework', 'unknown');
-        const language = this.getSetting('language', 'unknown');
 
         return this.filterManager.validateFilterCombination(
             this.getEnabledFilters(tab),
-            framework,
-            language
+            framework
         );
     }
 
-    applyDependencyRules(framework, language) {
+    applyDependencyRules(framework) {
         const defaultFilters = this.filterManager.createDefaultFilterState();
 
         let homeFilters = this.filterManager.applyFrameworkRules(framework, defaultFilters);
-        homeFilters = this.filterManager.applyLanguageRules(language, homeFilters);
 
         let pomFilters = { ...homeFilters };
 
@@ -77,11 +74,10 @@ class LocatorXCore {
     saveSetting(key, value) {
         this.storage.saveSetting(key, value);
 
-        // Apply dependency rules if framework or language changed
-        if (key === 'framework' || key === 'language') {
+        // Apply dependency rules if framework changed
+        if (key === 'framework') {
             const framework = this.getSetting('framework', 'unknown');
-            const language = this.getSetting('language', 'unknown');
-            return this.applyDependencyRules(framework, language);
+            return this.applyDependencyRules(framework);
         }
     }
 

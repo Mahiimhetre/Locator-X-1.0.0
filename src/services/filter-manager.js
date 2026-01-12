@@ -13,17 +13,6 @@ class FilterManager {
                 selenium: {
                     enabled: ['id', 'name', 'className', 'css', 'xpath', 'linkText', 'partialLinkText']
                 }
-            },
-            language: {
-                javascript: {
-                    preferred: ['css', 'xpath']
-                },
-                python: {
-                    preferred: ['id', 'className', 'xpath']
-                },
-                java: {
-                    preferred: ['id', 'className', 'xpath']
-                }
             }
         };
     }
@@ -54,33 +43,14 @@ class FilterManager {
         return filtered;
     }
 
-    applyLanguageRules(language, availableFilters) {
-        const rules = this.filterRules.language[language];
-        if (!rules) return availableFilters;
-
-        let filtered = { ...availableFilters };
-
-        if (rules.preferred) {
-            // Mark preferred filters
-            rules.preferred.forEach(filter => {
-                if (filtered[filter]) {
-                    filtered[filter].preferred = true;
-                }
-            });
-        }
-
-        return filtered;
-    }
-
     getEnabledFilters(filterState) {
-        return Object.keys(filterState).filter(key => 
+        return Object.keys(filterState).filter(key =>
             filterState[key].enabled && !filterState[key].disabled
         );
     }
 
-    validateFilterCombination(filters, framework, language) {
+    validateFilterCombination(filters, framework) {
         const frameworkRules = this.filterRules.framework[framework];
-        const languageRules = this.filterRules.language[language];
 
         const issues = [];
 
@@ -104,9 +74,8 @@ class FilterManager {
         };
     }
 
-    getRecommendedFilters(framework, language) {
+    getRecommendedFilters(framework) {
         const frameworkRules = this.filterRules.framework[framework] || {};
-        const languageRules = this.filterRules.language[language] || {};
 
         let recommended = [];
 
@@ -120,37 +89,39 @@ class FilterManager {
 
         // Remove framework disabled filters
         if (frameworkRules.disabled) {
-            recommended = recommended.filter(filter => 
+            recommended = recommended.filter(filter =>
                 !frameworkRules.disabled.includes(filter)
             );
-        }
-
-        // Prioritize language preferred filters
-        if (languageRules.preferred) {
-            const preferred = languageRules.preferred.filter(filter => 
-                recommended.includes(filter)
-            );
-            const others = recommended.filter(filter => 
-                !languageRules.preferred.includes(filter)
-            );
-            recommended = [...preferred, ...others];
         }
 
         return recommended;
     }
 
     createDefaultFilterState() {
-        return {
-            id: { enabled: true, disabled: false },
-            name: { enabled: true, disabled: false },
-            className: { enabled: true, disabled: false },
-            tagname: { enabled: true, disabled: false },
-            css: { enabled: true, disabled: false },
-            xpath: { enabled: true, disabled: false },
-            linkText: { enabled: true, disabled: false },
-            partialLinkText: { enabled: true, disabled: false },
-            absolute: { enabled: true, disabled: false }
-        };
+        const defaults = {};
+        if (typeof LocatorXConfig !== 'undefined' && LocatorXConfig.STRATEGY_NAMES) {
+            Object.keys(LocatorXConfig.STRATEGY_NAMES).forEach(key => {
+                defaults[key] = { enabled: true, disabled: false };
+            });
+            // Ensure absolute is there if not in strategy names (it's usually separate)
+            if (!defaults['absoluteXPath']) {
+                defaults['absoluteXPath'] = { enabled: true, disabled: false };
+            }
+        } else {
+            // Fallback
+            return {
+                id: { enabled: true, disabled: false },
+                name: { enabled: true, disabled: false },
+                className: { enabled: true, disabled: false },
+                tagname: { enabled: true, disabled: false },
+                css: { enabled: true, disabled: false },
+                xpath: { enabled: true, disabled: false },
+                linkText: { enabled: true, disabled: false },
+                partialLinkText: { enabled: true, disabled: false },
+                absoluteXPath: { enabled: true, disabled: false }
+            };
+        }
+        return defaults;
     }
 }
 

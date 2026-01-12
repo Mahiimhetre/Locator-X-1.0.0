@@ -452,6 +452,7 @@ body {
 .main-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: clip;
   padding-bottom: 50px;
 }
 
@@ -462,6 +463,8 @@ body {
   background-color: var(--primary-bg);
   border-top: 1px solid var(--border-light);
   margin-top: -1px;
+  overflow: visible;
+  position: relative;
 }
 
 .home-container.active,
@@ -753,7 +756,7 @@ body {
 }
 
 .locator-table td {
-  padding: 6px 12px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--border-light);
   color: var(--primary-text);
 }
@@ -1140,32 +1143,41 @@ body {
   box-shadow: 0 2px 4px var(--shadow-medium);
 }
 
-.select-all-section {
-  padding: 3px 6px;
-  background: var(--surface-2);
-  border-radius: 4px;
-  margin-bottom: 4px;
-}
-
-.select-all {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  color: var(--primary-text);
-  cursor: pointer;
-}
-
 .select-all input {
   transform: scale(1.05);
   accent-color: var(--accent);
 }
 
 .locator-options {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: inline-flex;
   gap: 3px;
   padding: 2px 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Enhanced scrollbar for premium feel */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+.locator-options::-webkit-scrollbar {
+  height: 4px;
+  /* Compact height */
+}
+
+.locator-options::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 2px;
+}
+
+.locator-options::-webkit-scrollbar-thumb {
+  background-color: var(--border-dark);
+  border-radius: 2px;
+  transition: background-color 0.2s;
+}
+
+.locator-options::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent);
 }
 
 .locator-options label {
@@ -1233,24 +1245,14 @@ body {
 }
 
 .relative-xpath-nested {
-  position: absolute;
-  top: 100%;
-  right: 2px;
+  position: fixed;
   width: 90px;
-  z-index: 10;
+  z-index: 9999;
   background: var(--secondary-bg);
   border: 1px solid var(--border-light);
   border-radius: 4px;
   box-shadow: 0 2px 6px var(--shadow-medium);
-  margin-top: 1px;
   padding: 0;
-}
-
-.relative-xpath-nested.show-above {
-  top: auto;
-  bottom: 100%;
-  margin-top: 0;
-  margin-bottom: 1px;
 }
 
 .nested-options {

@@ -127,58 +127,6 @@
                                         title="Change Scope Target"></i>
                                 </div>
                             </div>
-                            <div class="select-all-section">
-                                <label class="select-all">
-                                    <input type="checkbox" id="locTypeAll">
-                                    <span>Select All Locators</span>
-                                </label>
-                            </div>
-                            <div class="locator-options">
-                                <label><input type="checkbox" class="loc-type" id="idLocator" value="id" checked>
-                                    ID</label>
-                                <label><input type="checkbox" class="loc-type" id="nameLocator" value="name" checked>
-                                    Name</label>
-                                <label><input type="checkbox" class="loc-type" id="tagnameLocator" value="tagname"
-                                        checked> Tagname</label>
-                                <label><input type="checkbox" class="loc-type" id="classNameLocator" value="className"
-                                        checked> ClassName</label>
-                                <label><input type="checkbox" class="loc-type" id="cssLocator" value="css" checked>
-                                    CSS</label>
-                                <label><input type="checkbox" class="loc-type" id="linkTextLocator" value="linkText"
-                                        checked> LinkText</label>
-                                <label><input type="checkbox" class="loc-type" id="pLinkTextLocator" value="pLinkText"
-                                        checked> Partial LinkText</label>
-                                <label class="relative-xpath-container" data-feature="locator.xpath.relative">
-                                    <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked>
-                                    <span>Relative XPath</span>
-                                    <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
-                                    <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
-                                        <fieldset class="nested-options">
-                                            <legend>Strategies <i class="bi-check2-square nested-select-all"
-                                                    id="nestedSelectAll" title="Select/Deselect All"></i></legend>
-                                            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator"
-                                                    value="xpath" checked>Default XPath</label>
-                                            <label><input type="checkbox" class="nested-loc-type"
-                                                    id="containsXpathLocator" value="contains" checked>Contains</label>
-                                            <label><input type="checkbox" class="nested-loc-type"
-                                                    id="indexedXpathLocator" value="indexed" checked>Indexed
-                                                XPath</label>
-                                            <label><input type="checkbox" class="nested-loc-type"
-                                                    id="LinkTextXpathLocator" value="linktext" checked>Link Text</label>
-                                            <label><input type="checkbox" class="nested-loc-type"
-                                                    id="PLinkTextXpathLocator" value="partiallinktext" checked>Partial
-                                                Link Text</label>
-                                            <label><input type="checkbox" class="nested-loc-type"
-                                                    id="attributeXpathLocator" value="attribute"
-                                                    checked>Attribute</label>
-                                            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator"
-                                                    value="css" checked>CSS</label>
-                                        </fieldset>
-                                    </div>
-                                </label>
-                                <label data-feature="locator.xpath"><input type="checkbox" class="loc-type"
-                                        id="absoluteLocator" value="absolute" checked> Absolute XPath</label>
-                            </div>
                         </div>
                     </li>
                 </ul>
@@ -187,6 +135,32 @@
 
         <main class="main-content">
             <div class="notification-container" id="notificationContainer"></div>
+            <div class="locator-options">
+                <label class="select-all"><input type="checkbox" id="locTypeAll">
+                    <span>Select All</span>
+                </label>
+                <label><input type="checkbox" class="loc-type" id="idLocator" value="id" checked>
+                    ID</label>
+                <label><input type="checkbox" class="loc-type" id="nameLocator" value="name" checked>
+                    Name</label>
+                <label><input type="checkbox" class="loc-type" id="tagnameLocator" value="tagname" checked>
+                    Tagname</label>
+                <label><input type="checkbox" class="loc-type" id="classNameLocator" value="className" checked>
+                    ClassName</label>
+                <label><input type="checkbox" class="loc-type" id="cssLocator" value="css" checked>
+                    CSS</label>
+                <label><input type="checkbox" class="loc-type" id="linkTextLocator" value="linkText" checked>
+                    LinkText</label>
+                <label><input type="checkbox" class="loc-type" id="pLinkTextLocator" value="pLinkText" checked>
+                    Partial LinkText</label>
+                <label class="relative-xpath-container" data-feature="locator.xpath.relative">
+                    <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked>
+                    <span>Relative XPath</span>
+                    <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
+                </label>
+                <label data-feature="locator.xpath"><input type="checkbox" class="loc-type" id="absoluteLocator"
+                        value="absolute" checked> Absolute XPath</label>
+            </div>
             <div class="home-container active">
                 <div class="search-container">
                     <div id="elementTypeBadge" class="element-type-badge hidden"></div>
@@ -305,6 +279,28 @@
     <script src="../../config/plans.js"></script>
     <script src="../../services/plan-service.js"></script>
     <script src="../shared/panel-controller.js"></script>
+
+    <!-- Portal dropdown for Relative XPath (positioned with fixed) -->
+    <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
+        <fieldset class="nested-options">
+            <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll"
+                    title="Select/Deselect All"></i></legend>
+            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath"
+                    checked>Default</label>
+            <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator" value="contains"
+                    checked>Contains</label>
+            <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator" value="indexed"
+                    checked>Indexed</label>
+            <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator" value="linktext"
+                    checked>Link Text</label>
+            <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator" value="partiallinktext"
+                    checked>PLink Text</label>
+            <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator" value="attribute"
+                    checked>Attribute</label>
+            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="cssXpath" checked>CSS
+                XPath</label>
+        </fieldset>
+    </div>
 </body>
 
 </html>

@@ -179,39 +179,46 @@ class DOMScanner {
                 iframeXPath = this.getIframeXPath();
             }
 
-            chrome.storage.local.get(['enabledFilters'], (result) => {
-                const enabledTypes = result.enabledFilters || [];
-                let locators = this.generateLocators(element, enabledTypes);
+            // Always generate ALL supported locator types
+            // This decouples generation from visibility (which is handled in the UI)
+            const allTypes = [
+                'idLocator', 'nameLocator', 'classNameLocator', 'tagnameLocator',
+                'cssLocator', 'linkTextLocator', 'pLinkTextLocator', 'absoluteLocator',
+                'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
+                'LinkTextXpathLocator', 'PLinkTextXpathLocator', 'attributeXpathLocator',
+                'cssXpathLocator', 'jsPathLocator'
+            ];
 
-                // If in same-origin iframe, combine XPaths
-                if (isInIframe && !isCrossOrigin && iframeXPath) {
-                    locators = locators.map(loc => {
-                        if (loc.type.includes('XPath')) {
-                            return {
-                                ...loc,
-                                locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
-                            };
-                        }
-                        return loc;
-                    });
-                }
+            let locators = this.generateLocators(element, allTypes);
 
-                const fingerprint = this.generator.generateFingerprint(element);
-                const info = this.getElementInfo(element);
-                const type = this.getElementType(element);
-
-                chrome.runtime.sendMessage({
-                    action: 'locatorsGenerated',
-                    locators: locators,
-                    fingerprint: fingerprint,
-                    elementInfo: info,
-                    elementType: type,
-                    metadata: {
-                        isInIframe,
-                        isCrossOrigin,
-                        iframeXPath
+            // If in same-origin iframe, combine XPaths
+            if (isInIframe && !isCrossOrigin && iframeXPath) {
+                locators = locators.map(loc => {
+                    if (loc.type.includes('XPath')) {
+                        return {
+                            ...loc,
+                            locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
+                        };
                     }
+                    return loc;
                 });
+            }
+
+            const fingerprint = this.generator.generateFingerprint(element);
+            const info = this.getElementInfo(element);
+            const type = this.getElementType(element);
+
+            chrome.runtime.sendMessage({
+                action: 'locatorsGenerated',
+                locators: locators,
+                fingerprint: fingerprint,
+                elementInfo: info,
+                elementType: type,
+                metadata: {
+                    isInIframe,
+                    isCrossOrigin,
+                    iframeXPath
+                }
             });
         } catch (e) {
             console.error('[Locator-X] Error in handleMouseClick:', e);
@@ -434,24 +441,16 @@ class DOMScanner {
             }
 
             // Map UI display name back to strategy key if possible
-            const displayToStrategy = {
-                'ID': 'id',
-                'Name': 'name',
-                'ClassName': 'className',
-                'TagName': 'tagname',
-                'CSS': 'css',
-                'LinkText': 'linkText',
-                'Partial LinkText': 'partialLinkText',
-                'Absolute XPath': 'absoluteXPath',
-                'XPath': 'xpath',
-                'Contains XPath': 'containsXpath',
-                'Indexed XPath': 'indexedXpath',
-                'Link Text XPath': 'linkTextXpath',
-                'Partial Link XPath': 'partialLinkTextXpath',
-                'Attribute XPath': 'attributeXpath',
-                'CSS XPath': 'cssXpath',
-                'JS Path': 'jsPath'
-            };
+            // dynamically generate map from LocatorXConfig
+            const displayToStrategy = {};
+            if (typeof LocatorXConfig !== 'undefined' && LocatorXConfig.STRATEGY_NAMES) {
+                Object.entries(LocatorXConfig.STRATEGY_NAMES).forEach(([key, value]) => {
+                    displayToStrategy[value] = key;
+                });
+            } else {
+                // Fallback if config not loaded (should not happen given manifest order)
+                console.error('[Locator-X] LocatorXConfig not found in content script');
+            }
 
             const strategy = displayToStrategy[type] || null;
             const count = this.generator.countMatches(selector, strategy);
@@ -483,23 +482,28 @@ class DOMScanner {
                         elementType = this.getElementType(element);
                         fingerprint = this.generator.generateFingerprint(element);
 
-                        // Also generate all locators using currently enabled filters
-                        chrome.storage.local.get(['enabledFilters'], (result) => {
-                            const enabledTypes = result.enabledFilters || [];
-                            locators = this.generateLocators(element, enabledTypes);
+                        // Also generate all locators (Decoupled Generation)
+                        // No need to fetch storage, just generate everything.
+                        const allTypes = [
+                            'idLocator', 'nameLocator', 'classNameLocator', 'tagnameLocator',
+                            'cssLocator', 'linkTextLocator', 'pLinkTextLocator', 'absoluteLocator',
+                            'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
+                            'LinkTextXpathLocator', 'PLinkTextXpathLocator', 'attributeXpathLocator',
+                            'cssXpathLocator', 'jsPathLocator'
+                        ];
+                        locators = this.generateLocators(element, allTypes);
 
-                            if (isInIframe && !isCrossOrigin && iframeXPath) {
-                                locators = locators.map(loc => {
-                                    if (loc.type.includes('XPath')) {
-                                        return {
-                                            ...loc,
-                                            locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
-                                        };
-                                    }
-                                    return loc;
-                                });
-                            }
-                        });
+                        if (isInIframe && !isCrossOrigin && iframeXPath) {
+                            locators = locators.map(loc => {
+                                if (loc.type.includes('XPath')) {
+                                    return {
+                                        ...loc,
+                                        locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
+                                    };
+                                }
+                                return loc;
+                            });
+                        }
 
                         if (!locators) {
                             locators = this.generateLocators(element, []); // Fallback to all
