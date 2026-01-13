@@ -27,10 +27,25 @@ class LocatorGenerator {
         };
     }
 
+    isExtensionElement(element) {
+        if (!element || !element.classList) return false;
+        const config = (typeof LocatorXConfig !== 'undefined') ? LocatorXConfig : null;
+        if (!config) return false;
+
+        const ids = config.IDENTIFIERS;
+        return element.classList.contains(ids.OVERLAY_CLASS) ||
+            element.classList.contains(ids.MATCH_OVERLAY_CLASS) ||
+            element.classList.contains(ids.HIGHLIGHT_CLASS) ||
+            (element.id && element.id.toLowerCase().startsWith(ids.ID_PREFIX.toLowerCase()));
+    }
+
     cleanClassName(className) {
         if (!className || typeof className !== 'string') return '';
+        const highlightClass = (typeof LocatorXConfig !== 'undefined') ?
+            LocatorXConfig.IDENTIFIERS.HIGHLIGHT_CLASS : 'locator-x-highlight';
+
         return className.split(' ')
-            .filter(cls => cls !== 'locator-x-highlight' && cls.trim() !== '')
+            .filter(cls => cls !== highlightClass && cls.trim() !== '')
             .map(cls => this.escapeSelector(cls))
             .join('.');
     }
@@ -46,6 +61,7 @@ class LocatorGenerator {
     }
 
     generateLocators(element, enabledTypes = []) {
+        if (this.isExtensionElement(element)) return [];
         console.log('[Locator-X] Starting generateLocators for element:', element);
         const locators = [];
         const typeMap = {
@@ -380,70 +396,6 @@ class LocatorGenerator {
         return res;
     }
 
-    countMatches(selector, strategy) {
-        if (!selector) return 0;
-
-        try {
-            const lowerStrategy = (strategy || '').toLowerCase();
-
-            // 1. Explicit Strategy Mode (Used by Table Rows)
-            if (strategy) {
-                if (lowerStrategy.includes('xpath') || lowerStrategy === 'absolutexpath') {
-                    return document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength;
-                }
-                if (lowerStrategy === 'linktext') {
-                    const xpath = selector.includes("'") ? `//a[text()="${selector}"]` : `//a[text()='${selector}']`;
-                    return document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength;
-                }
-                if (lowerStrategy === 'partiallinktext') {
-                    const xpath = selector.includes("'") ? `//a[contains(text(),"${selector}")]` : `//a[contains(text(),'${selector}')]`;
-                    return document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null).snapshotLength;
-                }
-                if (lowerStrategy === 'jspath') {
-                    try {
-                        const res = eval(selector);
-                        return res ? (res.length || 1) : 0;
-                    } catch (e) { return 0; }
-                }
-                return document.querySelectorAll(selector).length;
-            }
-
-            // 2. SMART DISCOVERY MODE (Used by Search Bar)
-            // Try as CSS first (most common for simple strings)
-            let cssCount = 0;
-            try {
-                cssCount = this.querySelectorAllDeep(selector).length;
-            } catch (e) {
-                cssCount = 0; // Syntax error for XPath in querySelector
-            }
-
-            // Try as XPath if CSS failed or if it looks like XPath
-            const looksLikeXpath = selector.startsWith('/') ||
-                selector.startsWith('(') ||
-                selector.startsWith('.//') ||
-                selector.includes('//') ||
-                selector.includes('text()') ||
-                selector.includes('@');
-
-            if (cssCount === 0 || looksLikeXpath) {
-                try {
-                    const xpathResult = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-                    const xpathCount = xpathResult.snapshotLength;
-
-                    // If both matched something, return the higher count (or combine if needed, but usually it's one or the other)
-                    return Math.max(cssCount, xpathCount);
-                } catch (e) {
-                    return cssCount; // Fallback to whatever CSS found
-                }
-            }
-
-            return cssCount;
-        } catch (e) {
-            return 0;
-        }
-    }
-
-
     generateFingerprint(element) {
         return {
             tag: element.tagName.toLowerCase(),
@@ -475,20 +427,154 @@ class LocatorGenerator {
         return attrs;
     }
 
-    // Helper to find all elements across Shadow boundaries
-    querySelectorAllDeep(selector, root = document, results = []) {
+    countMatches(selector, strategy) {
+        if (!selector) return 0;
+
         try {
-            const matches = root.querySelectorAll(selector);
-            matches.forEach(m => results.push(m));
+            const lowerStrategy = (strategy || '').toLowerCase();
+
+            // 1. Explicit Strategy Mode
+            if (strategy) {
+                if (lowerStrategy.includes('xpath') || lowerStrategy === 'absolutexpath') {
+                    try {
+                        return this.evaluateXPathDeep(selector).length;
+                    } catch (e) { return 0; }
+                }
+                if (lowerStrategy === 'linktext') {
+                    const xpath = selector.includes("'") ? `//a[text()="${selector}"]` : `//a[text()='${selector}']`;
+                    return this.evaluateXPathDeep(xpath).length;
+                }
+                if (lowerStrategy === 'partiallinktext') {
+                    const xpath = selector.includes("'") ? `//a[contains(text(),"${selector}")]` : `//a[contains(text(),'${selector}')]`;
+                    return this.evaluateXPathDeep(xpath).length;
+                }
+                if (lowerStrategy === 'jspath') {
+                    try {
+                        const res = eval(selector);
+                        return res ? (res.length || 1) : 0;
+                    } catch (e) { return 0; }
+                }
+                return this.querySelectorAllDeep(selector).length;
+            }
+
+            // 2. SMART DISCOVERY MODE (Used by Search Bar)
+            // Try CSS first
+            let cssMatches = [];
+            let cssError = false;
+
+            const looksLikeXpath = selector.startsWith('/') ||
+                selector.startsWith('(') ||
+                selector.startsWith('.//') ||
+                selector.includes('//') ||
+                selector.includes('text()') ||
+                selector.includes('@');
+
+            if (!looksLikeXpath) {
+                try {
+                    cssMatches = this.querySelectorAllDeep(selector);
+                } catch (e) {
+                    cssError = true;
+                }
+            }
+
+            // Try XPath if CSS failed or looks like XPath
+            let xpathMatches = [];
+            if (cssMatches.length === 0 || cssError || looksLikeXpath) {
+                try {
+                    xpathMatches = this.evaluateXPathDeep(selector);
+                } catch (e) { }
+            }
+
+            // Text search fallback (DevTools style)
+            let textCount = 0;
+            if (cssMatches.length === 0 && xpathMatches.length === 0 && selector.length > 2) {
+                textCount = this.countTextMatches(selector);
+            }
+
+            return Math.max(cssMatches.length, xpathMatches.length, textCount);
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    countTextMatches(query) {
+        const lowerQuery = query.toLowerCase();
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+            acceptNode: (node) => {
+                if (this.isExtensionElement(node.parentElement)) return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        }, false);
+        let count = 0;
+        let node;
+        while (node = walker.nextNode()) {
+            if (node.textContent.toLowerCase().includes(lowerQuery)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // Evaluate XPath across Shadow boundaries (by recursing evaluate)
+    evaluateXPathDeep(xpath, root = document, results = []) {
+        if (root.host && this.isExtensionElement(root.host)) return results;
+        try {
+            const res = document.evaluate(xpath, root, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+            for (let i = 0; i < res.snapshotLength; i++) {
+                const item = res.snapshotItem(i);
+                if (!this.isExtensionElement(item)) {
+                    results.push(item);
+                }
+            }
         } catch (e) { }
 
-        const allElements = root.querySelectorAll('*');
-        for (const el of allElements) {
+        // Recurse into Shadow DOM (XPath doesn't natively cross boundaries)
+        const all = root.querySelectorAll('*');
+        for (const el of all) {
+            if (el.shadowRoot) {
+                this.evaluateXPathDeep(xpath, el.shadowRoot, results);
+            }
+        }
+        return results;
+    }
+
+    // Helper to find all elements across Shadow boundaries
+    querySelectorAllDeep(selector, root = document, results = []) {
+        if (root.host && this.isExtensionElement(root.host)) return results;
+        try {
+            const matches = root.querySelectorAll(selector);
+            matches.forEach(m => {
+                if (!this.isExtensionElement(m)) {
+                    results.push(m);
+                }
+            });
+        } catch (e) {
+            if (e.name === 'SyntaxError') throw e;
+        }
+
+        // Search in Shadow Roots only (to avoid double-counting light DOM)
+        const all = root.querySelectorAll('*');
+        for (const el of all) {
             if (el.shadowRoot) {
                 this.querySelectorAllDeep(selector, el.shadowRoot, results);
             }
         }
         return results;
+    }
+
+    // Helper to find first match across Shadow boundaries
+    querySelectorDeep(selector, root = document) {
+        let element = root.querySelector(selector);
+        if (element) return element;
+
+        const all = root.querySelectorAll('*');
+        for (const el of all) {
+            if (el.shadowRoot) {
+                element = this.querySelectorDeep(selector, el.shadowRoot);
+                if (element) return element;
+            }
+        }
+        return null;
     }
 }
 

@@ -17,6 +17,16 @@ const LocatorXConfig = {
         FILTERS: (tab) => `locator-x-filters-${tab}`
     },
 
+    IDENTIFIERS: {
+        ROOT_ID: 'locatorXOverlay',
+        OVERLAY_CLASS: 'locator-x-overlay',
+        MATCH_OVERLAY_CLASS: 'locator-x-match-overlay',
+        HIGHLIGHT_CLASS: 'locator-x-highlight',
+        // Generic check that matches any ID beginning with this prefix
+        ID_PREFIX: 'locatorx',
+        DATA_ATTRIBUTES: ['data-locator-type', 'data-label']
+    },
+
     // Display names for locator strategies
     STRATEGY_NAMES: {
         'id': 'ID',

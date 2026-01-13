@@ -1,0 +1,144 @@
+:root {
+    /* Semantic Palette */
+    --success: #27ae60;
+    --warning: #f39c12;
+    --danger: #e74c3c;
+    --info: #3498db;
+
+    /* Base Colors - Light Theme Default */
+    --primary-bg: #f5f7fa;
+    --secondary-bg: #ffffff;
+    --primary-text: #2c3e50;
+    --secondary-text: #7f8c8d;
+    --accent: var(--info);
+    --accent-rgb: 52, 152, 219;
+    --accent-hover: #2980b9;
+    --border-light: #ecf0f1;
+    --border-dark: #bdc3c7;
+    --highlight: var(--warning);
+
+    /* Status Colors (Light tints for UI backgrounds) */
+    --status-green: #d4edda;
+    --status-green-text: #155724;
+    --status-yellow: #fff3cd;
+    --status-yellow-text: #856404;
+    --status-red: #f8d7da;
+    --status-red-text: #721c24;
+
+    /* Shadows & Effects */
+    --shadow-light: rgba(0, 0, 0, 0.05);
+    --shadow-medium: rgba(0, 0, 0, 0.1);
+    --shadow-strong: rgba(0, 0, 0, 0.15);
+    --surface-2: #eef2f6;
+    --accent-muted: rgba(52, 152, 219, 0.28);
+    --accent-contrast: var(--secondary-bg);
+
+    --gradient-start: #1e90ff;
+    --gradient-end: #ff7a00;
+
+    /* Element Types */
+    --badge-iframe: #9b59b6;
+    --badge-shadow-host: #e67e22;
+    --badge-shadow-dom: #d35400;
+    --badge-svg: #16a085;
+    --badge-canvas: var(--danger);
+    --badge-cross-origin: var(--danger);
+    --badge-shadow-content: var(--warning);
+
+    /* Match Badges */
+    --match-none: var(--danger);
+    --match-single: var(--success);
+
+    /* Saved Item Badges */
+    --saved-badge-xpath-bg: #e3f2fd;
+    --saved-badge-xpath-text: #1565c0;
+    --saved-badge-css-bg: #e8f5e9;
+    --saved-badge-css-text: #2e7d32;
+    --saved-badge-id-bg: #fff3e0;
+    --saved-badge-id-text: #ef6c00;
+    --saved-badge-class-bg: #f3e5f5;
+    --saved-badge-class-text: #7b1fa2;
+    --saved-badge-manual-bg: #eceff1;
+    --saved-badge-manual-text: #546e7a;
+}
+
+body.dark-theme {
+    /* Semantic Palette - Dark Mode */
+    --success: #2ecc71;
+    --warning: #f1c40f;
+    --danger: #e74c3c;
+    --info: #5dade2;
+
+    --primary-bg: #21252b;
+    --secondary-bg: #2c313a;
+    --primary-text: #ecf0f1;
+    --secondary-text: #bdc3c7;
+    --accent: var(--info);
+    --accent-rgb: 93, 173, 226;
+    --accent-hover: #4a98d3;
+    --border-light: #343a40;
+    --border-dark: #495057;
+    --highlight: var(--warning);
+
+    --status-green: #2d5a37;
+    --status-green-text: #a8dadc;
+    --status-yellow: #6a5e00;
+    --status-yellow-text: #ffe066;
+    --status-red: #7c3a41;
+    --status-red-text: #f08080;
+
+    --shadow-light: rgba(0, 0, 0, 0.2);
+    --shadow-medium: rgba(0, 0, 0, 0.3);
+    --shadow-strong: rgba(0, 0, 0, 0.4);
+
+    --surface-2: #2a2f36;
+    --accent-muted: rgba(var(--accent-rgb), 0.28);
+    --accent-contrast: #fff;
+
+    /* ... add more overrides if needed, assuming defaults work for dark mode mostly */
+}
+
+/* Global Styles */
+body {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    margin: 0;
+    padding: 0;
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+/* Global Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--primary-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-dark);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-text);
+}

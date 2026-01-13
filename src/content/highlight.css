@@ -1,3 +1,26 @@
+:root {
+    --overlay-border: #00d4ff;
+    --overlay-bg: rgba(0, 212, 255, 0.1);
+    --overlay-shadow: rgba(0, 212, 255, 0.5);
+    --overlay-label-bg: #2c3e50;
+    --overlay-label-text: #ffffff;
+
+    --context-menu-bg: #1e1e1e;
+    --context-menu-border: #333333;
+    --context-menu-text: #e0e0e0;
+    --context-menu-subtext: #888888;
+    --context-menu-header: #00d4ff;
+    --menu-action-bg: #2a2a2a;
+    --menu-action-border: #444444;
+    --menu-action-hover-bg: #00d4ff;
+    --menu-action-hover-text: #000000;
+
+    --match-overlay-border: rgba(243, 156, 18, 0.8);
+    --match-overlay-bg: rgba(243, 156, 18, 0.1);
+
+    --shadow-medium: rgba(0, 0, 0, 0.1);
+}
+
 /* Non-intrusive floating overlay */
 .locator-x-overlay {
     position: absolute !important;
@@ -5,9 +28,9 @@
     left: 0 !important;
     pointer-events: none !important;
     z-index: 2147483647 !important;
-    border: 2px dashed #00d4ff !important;
-    background: rgba(0, 212, 255, 0.1) !important;
-    box-shadow: 0 0 8px rgba(0, 212, 255, 0.5) !important;
+    border: 2px dashed var(--overlay-border) !important;
+    background: var(--overlay-bg) !important;
+    box-shadow: 0 0 8px var(--overlay-shadow) !important;
     border-radius: 4px !important;
     transition: width 0.1s ease-out, height 0.1s ease-out !important;
     /* Only animate size, position is absolute/fixed */
@@ -21,13 +44,13 @@
     position: absolute !important;
     top: -10px !important;
     left: 6px !important;
-    background: #2c3e50 !important;
-    color: white !important;
+    background: var(--overlay-label-bg) !important;
+    color: var(--overlay-label-text) !important;
     padding: 3px 6px !important;
     font: 12px monospace !important;
     border-radius: 3px !important;
     white-space: nowrap !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 2px 4px var(--shadow-medium) !important;
     z-index: 2147483648 !important;
     /* Above overlay */
 }
@@ -41,22 +64,22 @@
 .locator-x-context-menu {
     position: fixed !important;
     z-index: 2147483647 !important;
-    background: #1e1e1e !important;
-    border: 1px solid #333 !important;
+    background: var(--context-menu-bg) !important;
+    border: 1px solid var(--context-menu-border) !important;
     border-radius: 8px !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+    box-shadow: 0 4px 15px var(--shadow-medium) !important;
     padding: 8px 0 !important;
     min-width: 220px !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-    color: #e0e0e0 !important;
+    color: var(--context-menu-text) !important;
     font-size: 13px !important;
 }
 
 .locator-x-context-menu .menu-header {
     padding: 8px 16px !important;
     font-weight: 600 !important;
-    color: #00d4ff !important;
-    border-bottom: 1px solid #333 !important;
+    color: var(--context-menu-header) !important;
+    border-bottom: 1px solid var(--context-menu-border) !important;
     margin-bottom: 4px !important;
     font-size: 11px !important;
     text-transform: uppercase !important;
@@ -69,7 +92,7 @@
 
 .locator-x-context-menu .menu-label {
     font-size: 11px !important;
-    color: #888 !important;
+    color: var(--context-menu-subtext) !important;
     margin-bottom: 4px !important;
 }
 
@@ -82,8 +105,8 @@
     flex: 1 !important;
     text-align: center !important;
     padding: 4px 8px !important;
-    background: #2a2a2a !important;
-    border: 1px solid #444 !important;
+    background: var(--menu-action-bg) !important;
+    border: 1px solid var(--menu-action-border) !important;
     border-radius: 4px !important;
     cursor: pointer !important;
     font-size: 10px !important;
@@ -91,9 +114,9 @@
 }
 
 .locator-x-context-menu .menu-action:hover {
-    background: #00d4ff !important;
-    color: #000 !important;
-    border-color: #00d4ff !important;
+    background: var(--menu-action-hover-bg) !important;
+    color: var(--menu-action-hover-text) !important;
+    border-color: var(--menu-action-hover-bg) !important;
 }
 
 /* Fallback/Internal use only - deprecated for public exposure */
@@ -109,8 +132,8 @@
     pointer-events: none !important;
     z-index: 2147483646 !important;
     /* Just below primary overlay */
-    border: 1px dashed rgba(243, 156, 18, 0.8) !important;
-    background: rgba(243, 156, 18, 0.1) !important;
+    border: 1px dashed var(--match-overlay-border) !important;
+    background: var(--match-overlay-bg) !important;
     border-radius: 2px !important;
     pointer-events: none !important;
     display: none;

@@ -1475,7 +1475,9 @@ const LocatorX = {
                             chrome.tabs.sendMessage(tab.id, { action: 'evaluateSelector', selector: query }, { frameId: frame.frameId }, (response) => {
                                 respondedFrames++;
                                 if (chrome.runtime.lastError) {
-                                    if (respondedFrames === frames.length) this.finalizeEvaluation(totalCount, suggestions, query, dropdown, badge);
+                                    if (respondedFrames === frames.length) {
+                                        LocatorX.search.finalizeEvaluation(totalCount, suggestions, query, dropdown, badge, foundResult);
+                                    }
                                     return;
                                 }
 
@@ -1483,7 +1485,7 @@ const LocatorX = {
                                     totalCount += response.count;
                                     if (response.count === 1 && !foundResult) {
                                         foundResult = true;
-                                        this.updateElementInfo(response.elementInfo, response.elementType);
+                                        LocatorX.filters.updateElementInfo(response.elementInfo, response.elementType);
                                         if (response.locators) {
                                             LocatorX.filters.displayGeneratedLocators(
                                                 response.locators,
@@ -1497,7 +1499,7 @@ const LocatorX = {
                                 }
 
                                 if (respondedFrames === frames.length) {
-                                    this.finalizeEvaluation(totalCount, suggestions, query, dropdown, badge, foundResult);
+                                    LocatorX.search.finalizeEvaluation(totalCount, suggestions, query, dropdown, badge, foundResult);
                                 }
                             });
                         });
@@ -1507,10 +1509,10 @@ const LocatorX = {
         },
 
         finalizeEvaluation(totalCount, suggestions, query, dropdown, badge, foundResult) {
-            this.renderDropdown(suggestions, query, dropdown, totalCount);
+            LocatorX.search.renderDropdown(suggestions, query, dropdown, totalCount);
 
             if (!foundResult && totalCount !== 1) {
-                this.updateElementInfo(null, null);
+                LocatorX.filters.updateElementInfo(null, null);
                 LocatorX.filters.displayGeneratedLocators([], null, null, null);
             }
 
@@ -1525,7 +1527,7 @@ const LocatorX = {
 
             // Trigger highlighting if matches found (in all frames)
             if (totalCount > 0) {
-                this.highlightMatchesInAllFrames(query);
+                LocatorX.search.highlightMatchesInAllFrames(query);
             }
         },
 
@@ -2156,8 +2158,8 @@ const LocatorX = {
                                         LocatorX.notifications.error('Connection lost');
                                         return;
                                     }
-                                    if (!response || !response.success) {
-                                        LocatorX.notifications.error('Heal failed');
+                                    if (!response || !response.success || !response.locators || response.locators.length === 0) {
+                                        LocatorX.notifications.error('Heal failed: No matches found');
                                         return;
                                     }
 

@@ -5,7 +5,7 @@ class DOMScanner {
         this.isLocked = false;
         this.highlightedElement = null;
         this.lastRightClickedElement = null;
-        this.overlay = this.createOverlay();
+        this.overlay = null; // Lazy init
         this.matchOverlays = []; // Pool for multi-match highlights
         this.matchedElements = []; // The elements currently matched
         this.animationFrameId = null;
@@ -13,13 +13,16 @@ class DOMScanner {
         this.updateOverlayLoop = this.updateOverlayLoop.bind(this);
     }
 
-    createOverlay() {
-        const div = document.createElement('div');
-        div.className = 'locator-x-overlay';
-        div.id = 'locatorXOverlay';
-        // Append to documentElement for maximum isolation from body transforms/margins
-        document.documentElement.appendChild(div);
-        return div;
+    getOverlay() {
+        if (this.overlay) return this.overlay;
+        const ids = LocatorXConfig.IDENTIFIERS;
+        this.overlay = document.createElement('div');
+        this.overlay.className = ids.OVERLAY_CLASS;
+        this.overlay.id = ids.ROOT_ID;
+        this.overlay.style.display = 'none';
+        // Append to documentElement for maximum isolation
+        document.documentElement.appendChild(this.overlay);
+        return this.overlay;
     }
 
     setupEventListeners() {
@@ -50,7 +53,8 @@ class DOMScanner {
 
         // Global tracker for context menu
         document.addEventListener('contextmenu', (e) => {
-            const element = (e.target.id === 'locatorXOverlay') ? this.highlightedElement : e.target;
+            const overlay = this.getOverlay();
+            const element = (e.target === overlay) ? this.highlightedElement : e.target;
             this.lastRightClickedElement = element;
 
             if (element) {
@@ -144,10 +148,11 @@ class DOMScanner {
 
         // Use composedPath to find the real element inside Shadow DOM
         const element = event.composedPath ? event.composedPath()[0] : event.target;
+        const overlay = this.getOverlay();
 
         if (element === this.highlightedElement ||
-            element === this.overlay ||
-            element.closest && element.closest('#locatorXOverlay')) return;
+            element === overlay ||
+            element.closest && element.closest(`#${LocatorXConfig.IDENTIFIERS.ROOT_ID}`)) return;
 
         this.highlightElement(element);
     }
@@ -167,7 +172,8 @@ class DOMScanner {
 
             // Use composedPath to find the real element inside Shadow DOM
             const target = event.composedPath ? event.composedPath()[0] : event.target;
-            const element = target === this.overlay ? this.highlightedElement : target;
+            const overlay = this.getOverlay();
+            const element = target === overlay ? this.highlightedElement : target;
 
             if (!element) return;
 
@@ -247,9 +253,10 @@ class DOMScanner {
             return;
         }
 
+        const overlay = this.getOverlay();
         this.highlightedElement = element;
+        overlay.style.display = 'block';
         this.repositionOverlay();
-        this.overlay.style.display = 'block';
 
         // Ensure loop is running if we are highlighting
         if (!this.animationFrameId) {
@@ -347,7 +354,8 @@ class DOMScanner {
 
             // 1. Try CSS
             try {
-                matches = this.querySelectorAllDeep(selector).slice(0, 21);
+                if (!this.generator) this.generator = new LocatorGenerator();
+                matches = this.generator.querySelectorAllDeep(selector).slice(0, 21);
             } catch (e) { }
 
             // 2. Try XPath if CSS failed or if it looks like XPath
@@ -405,9 +413,12 @@ class DOMScanner {
     }
 
     ensureMatchOverlays(count) {
+        // Pool overlays to avoid constant DOM churn
+        const ids = LocatorXConfig.IDENTIFIERS;
         while (this.matchOverlays.length < count && this.matchOverlays.length < 20) {
             const div = document.createElement('div');
-            div.className = 'locator-x-match-overlay';
+            div.className = ids.MATCH_OVERLAY_CLASS;
+            div.style.display = 'none';
             document.documentElement.appendChild(div);
             this.matchOverlays.push(div);
         }
@@ -475,7 +486,8 @@ class DOMScanner {
                     if (strategy === 'xpath' || selector.startsWith('/') || selector.startsWith('(')) {
                         element = document.evaluate(selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
                     } else {
-                        element = this.querySelectorDeep(selector);
+                        if (!this.generator) this.generator = new LocatorGenerator();
+                        element = this.generator.querySelectorDeep(selector);
                     }
                     if (element) {
                         elementInfo = this.getElementInfo(element);
@@ -580,14 +592,15 @@ class DOMScanner {
             }
 
             // IDs
-            if (el.id && !el.id.startsWith('locator-x')) {
+            const ids = LocatorXConfig.IDENTIFIERS;
+            if (el.id && !el.id.toLowerCase().startsWith(ids.ID_PREFIX.toLowerCase())) {
                 structure.ids[el.id] = (structure.ids[el.id] || 0) + 1;
             }
 
             // Classes
             if (el.classList.length > 0) {
                 el.classList.forEach(cls => {
-                    if (!cls.startsWith('locator-x')) {
+                    if (!cls.startsWith(ids.ID_PREFIX)) { // Using prefix for broad exclusion
                         structure.classes[cls] = (structure.classes[cls] || 0) + 1;
                     }
                 });
@@ -625,12 +638,14 @@ class DOMScanner {
             let value = attr.value;
 
             // Skip extension-specific attributes
-            if (attr.name === 'data-locator-type' || attr.name === 'data-label') continue;
+            const dataAttrs = LocatorXConfig.IDENTIFIERS.DATA_ATTRIBUTES;
+            if (dataAttrs.includes(attr.name)) continue;
 
             // Clean up class attribute
             if (attr.name === 'class') {
+                const highlightClass = LocatorXConfig.IDENTIFIERS.HIGHLIGHT_CLASS;
                 value = value.split(' ')
-                    .filter(cls => !cls.includes('locator-x-highlight'))
+                    .filter(cls => !cls.includes(highlightClass))
                     .join(' ').trim();
                 if (!value) continue;
             }
@@ -719,58 +734,7 @@ class DOMScanner {
         return "//iframe";
     }
 
-    // Helper to find elements across Shadow boundaries and same-origin frames
-    querySelectorDeep(selector, root = document) {
-        let element = root.querySelector(selector);
-        if (element) return element;
 
-        // Search in all shadow roots
-        const allElements = root.querySelectorAll('*');
-        for (const el of allElements) {
-            // Shadow DOM
-            if (el.shadowRoot) {
-                element = this.querySelectorDeep(selector, el.shadowRoot);
-                if (element) return element;
-            }
-            // Same-origin Iframes
-            if (el.tagName === 'IFRAME' || el.tagName === 'FRAME') {
-                try {
-                    const doc = el.contentDocument;
-                    if (doc) {
-                        element = this.querySelectorDeep(selector, doc);
-                        if (element) return element;
-                    }
-                } catch (e) { }
-            }
-        }
-        return null;
-    }
-
-    // Helper to find all elements across Shadow boundaries and same-origin frames
-    querySelectorAllDeep(selector, root = document, results = []) {
-        try {
-            const matches = root.querySelectorAll(selector);
-            matches.forEach(m => results.push(m));
-        } catch (e) { }
-
-        const allElements = root.querySelectorAll('*');
-        for (const el of allElements) {
-            // Shadow DOM
-            if (el.shadowRoot) {
-                this.querySelectorAllDeep(selector, el.shadowRoot, results);
-            }
-            // Same-origin Iframes
-            if (el.tagName === 'IFRAME' || el.tagName === 'FRAME') {
-                try {
-                    const doc = el.contentDocument;
-                    if (doc) {
-                        this.querySelectorAllDeep(selector, doc, results);
-                    }
-                } catch (e) { }
-            }
-        }
-        return results;
-    }
 
     handleContextMenuLocator(menuId) {
         const element = this.lastRightClickedElement;
@@ -826,7 +790,7 @@ class DOMScanner {
 
             // We can return a specific robust locator (e.g. CSS or XPath) or a list
             // Let's return the standard list so user can choose
-            const locators = this.generator.generateLocators(match.element, ['id', 'name', 'css', 'xpath']);
+            const locators = this.generator.generateLocators(match.element, ['idLocator', 'nameLocator', 'cssLocator', 'xpathLocator']);
 
             return {
                 success: true,

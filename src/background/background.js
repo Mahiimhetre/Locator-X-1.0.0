@@ -189,7 +189,7 @@ chrome.runtime.onConnect.addListener((port) => {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 const tab = tabs[0];
                 if (tab && tab.id) {
-                    chrome.tabs.sendMessage(tab.id, { action: 'stopScanning' }).catch(() => { });
+                    chrome.tabs.sendMessage(tab.id, { action: 'stopScanning', force: true }).catch(() => { });
                 }
             });
         });
