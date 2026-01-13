@@ -1792,8 +1792,11 @@ const LocatorX = {
             this.userProfile = document.getElementById('userProfile');
             this.userAvatar = document.getElementById('userAvatar');
             this.userInitials = document.getElementById('userInitials');
+            this.dropdownUserAvatar = document.getElementById('dropdownUserAvatar');
+            this.dropdownUserInitials = document.getElementById('dropdownUserInitials');
             this.userName = document.getElementById('userName');
             this.userPlan = document.getElementById('userPlan');
+            this.triggerPlanBadge = document.getElementById('triggerPlanBadge');
             this.headerLogo = document.getElementById('headerLogo');
             this.lastUserState = null;
             this.updateTimeout = null;
@@ -1814,6 +1817,7 @@ const LocatorX = {
 
             // Listen for broadcast messages from background
             chrome.runtime.onMessage.addListener((message) => {
+                console.log('PanelController: Received message', message);
                 if (message.action === 'AUTH_STATE_CHANGED') {
                     this.checkStatus();
                 }
@@ -1842,7 +1846,8 @@ const LocatorX = {
             const userState = JSON.stringify({
                 avatar: user.avatar,
                 name: user.name,
-                plan: user.plan
+                plan: user.plan,
+                updated: user._lastUpdated
             });
 
             if (this.lastUserState === userState) return;
@@ -1865,18 +1870,30 @@ const LocatorX = {
                     if (user.avatar) {
                         this.userAvatar.classList.remove('hidden');
                         if (this.userInitials) this.userInitials.classList.add('hidden');
+                        if (this.dropdownUserAvatar) this.dropdownUserAvatar.classList.remove('hidden');
+                        if (this.dropdownUserInitials) this.dropdownUserInitials.classList.add('hidden');
+
+                        const avatarUrl = user.avatar + (user._lastUpdated ? `?t=${user._lastUpdated}` : '');
 
                         // Only update .src if it's different to prevent flicker
-                        if (this.userAvatar.getAttribute('src') !== user.avatar) {
-                            this.userAvatar.src = user.avatar;
+                        if (this.userAvatar.getAttribute('src') !== avatarUrl) {
+                            this.userAvatar.src = avatarUrl;
                         }
+                        if (this.dropdownUserAvatar && this.dropdownUserAvatar.getAttribute('src') !== avatarUrl) {
+                            this.dropdownUserAvatar.src = avatarUrl;
+                        }
+
                         // Handle broken image -> Switch to initials
-                        this.userAvatar.onerror = () => {
+                        const handleError = () => {
                             this.userAvatar.classList.add('hidden');
+                            if (this.dropdownUserAvatar) this.dropdownUserAvatar.classList.add('hidden');
                             this._showInitials(user.name);
                         };
+                        this.userAvatar.onerror = handleError;
+                        if (this.dropdownUserAvatar) this.dropdownUserAvatar.onerror = handleError;
                     } else {
                         this.userAvatar.classList.add('hidden');
+                        if (this.dropdownUserAvatar) this.dropdownUserAvatar.classList.add('hidden');
                         this._showInitials(user.name);
                     }
                 }
@@ -1887,9 +1904,12 @@ const LocatorX = {
                 if (this.userPlan && this.userPlan.textContent !== planText) {
                     this.userPlan.textContent = planText;
                 }
+
+                if (this.triggerPlanBadge) {
+                    this.triggerPlanBadge.textContent = planText;
+                    this.triggerPlanBadge.classList.remove('hidden');
+                }
             }
-
-
 
             // CRITICAL: Update Feature Gates based on user plan
             if (typeof planService !== 'undefined') {
@@ -1898,15 +1918,23 @@ const LocatorX = {
         },
 
         _showInitials(name) {
-            if (!this.userInitials) return;
-            this.userInitials.classList.remove('hidden');
             const initial = name ? name.charAt(0).toUpperCase() : '?';
-            this.userInitials.textContent = initial;
+            if (this.userInitials) {
+                this.userInitials.textContent = initial;
+                this.userInitials.classList.remove('hidden');
+            }
+            if (this.dropdownUserInitials) {
+                this.dropdownUserInitials.textContent = initial;
+                this.dropdownUserInitials.classList.remove('hidden');
+            }
 
             // Deterministic background color
             const colors = ['#8e44ad', '#2980b9', '#27ae60', '#d35400', '#c0392b', '#16a085'];
             const charCodeSum = (name || 'User').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-            this.userInitials.style.backgroundColor = colors[charCodeSum % colors.length];
+            const color = colors[charCodeSum % colors.length];
+
+            if (this.userInitials) this.userInitials.style.backgroundColor = color;
+            if (this.dropdownUserInitials) this.dropdownUserInitials.style.backgroundColor = color;
         },
 
         showLoggedOut() {

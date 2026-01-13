@@ -236,9 +236,11 @@
                     <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
                     <div id="userProfile" class="user-profile hidden">
                         <!-- Trigger -->
-                        <div id="userDropdownTrigger" style="display:flex; align-items:center; cursor:pointer;">
+                        <div id="userDropdownTrigger"
+                            style="display:flex; align-items:center; cursor:pointer; position:relative;">
                             <img id="userAvatar" src="" alt="User" class="user-avatar">
                             <div id="userInitials" class="user-avatar-initials hidden"></div>
+                            <div id="triggerPlanBadge" class="plan-badge-trigger hidden"></div>
                         </div>
 
                         <!-- Dropdown -->
@@ -246,9 +248,20 @@
                             style="min-width: 180px; padding: 0;">
                             <div class="dropdown-header"
                                 style="margin:0; padding: 12px; border-bottom: 1px solid var(--border-light);">
-                                <div style="display:flex; flex-direction:column; gap:4px;">
-                                    <strong id="userName" class="user-name" style="font-size:12px;"></strong>
-                                    <span id="userPlan" class="user-plan-badge"></span>
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div style="position:relative;">
+                                        <img id="dropdownUserAvatar" src="" alt="User" class="user-avatar"
+                                            style="width:32px; height:32px;">
+                                        <div id="dropdownUserInitials" class="user-avatar-initials hidden"
+                                            style="width:32px; height:32px; font-size:14px;"></div>
+                                    </div>
+                                    <div style="display:flex; flex-direction:column; gap:2px;">
+                                        <strong id="userName" class="user-name"
+                                            style="font-size:13px; color:var(--primary-text);"></strong>
+                                        <div style="display:flex;">
+                                            <span id="userPlan" class="user-plan-badge"></span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="dropdown-content" style="padding: 4px;">

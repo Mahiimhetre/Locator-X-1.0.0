@@ -12,6 +12,14 @@ window.addEventListener('storage', (event) => {
     }
 });
 
+// Listen for custom events from the website (using document for better reliability)
+document.addEventListener('SYNC_LOCATOR_X', (event) => {
+    console.log('Locator-X Content Script: Caught sync event', event.detail);
+    if (event.detail) {
+        syncAuthState(event.detail);
+    }
+});
+
 // Also check on load and periodically
 syncAuthState();
 
@@ -39,19 +47,17 @@ localStorage.removeItem = function (key) {
 };
 
 
-function syncAuthState() {
+function syncAuthState(providedUser = null) {
     try {
-        const userStr = localStorage.getItem(USERS_KEY);
+        const user = providedUser || JSON.parse(localStorage.getItem(USERS_KEY) || 'null');
 
-        if (userStr) {
-            const user = JSON.parse(userStr);
-            console.log('Locator-X Sync: User found', user);
+        if (user) {
+            console.log('Locator-X Sync: Syncing user', user);
 
-            // Send to background
+            // Send to background using SYNC_PROFILE for safe merging
             chrome.runtime.sendMessage({
-                action: 'LOGIN_SUCCESS',
+                action: 'SYNC_PROFILE',
                 payload: {
-                    token: 'dummy-token-for-sync', // We might not have the raw token exposed, but background needs one to validate "loggedIn"
                     user: user
                 }
             });

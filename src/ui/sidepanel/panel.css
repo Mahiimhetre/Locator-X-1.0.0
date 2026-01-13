@@ -163,9 +163,35 @@
 
 .user-plan-badge {
   font-size: 8px;
-  color: var(--secondary-text);
+  color: var(--primary-text);
+  background: var(--highlight);
+  padding: 1px 4px;
+  border-radius: 10px;
+  font-weight: 600;
   text-transform: uppercase;
+  display: inline-block;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   margin-top: 1px;
+}
+
+.plan-badge-trigger {
+  position: absolute;
+  top: -6px;
+  left: 6px;
+  background: var(--highlight);
+  color: var(--primary-text);
+  font-size: 8px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.plan-badge-trigger.hidden {
+  display: none;
 }
 
 .logout-btn {

@@ -3,7 +3,6 @@ importScripts('../services/plan-service.js');
 
 // Create context menus on installation
 chrome.runtime.onInstalled.addListener(() => {
-    // ... (existing creation logic is fine)
     chrome.contextMenus.create({
         id: "locator-x-parent",
         title: "Locator-X",
@@ -28,23 +27,20 @@ chrome.runtime.onInstalled.addListener(() => {
             contexts: ["all"]
         });
 
-        // Create child item for the actual value
         chrome.contextMenus.create({
             id: `${cat.id}-value`,
             parentId: cat.id,
             title: "Scanning...",
             contexts: ["all"],
-            visible: false // Only show when a value is found
+            visible: false
         });
     });
 
-    // Reset DevTools status on install/startup
     chrome.storage.local.set({ devtoolsActive: false });
 });
 
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-    // ... (existing click handler)
     if (info.menuItemId.endsWith('-value')) {
         const type = info.menuItemId.replace('-value', '');
         chrome.tabs.sendMessage(tab.id, {
@@ -54,24 +50,81 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     }
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'updateContextMenuValues') {
-        // Access plan from storage - Secure Source of Truth
-        planService.init().then(() => {
-            const categories = [
-                'copy-id', 'copy-name', 'copy-class', 'copy-rel-xpath',
-                'copy-css', 'copy-js-path', 'copy-abs-xpath'
-            ];
+// Centralized Auth/Sync Logic
+const handleAuthSync = (message, sendResponse) => {
+    if (message.action === 'LOGIN_SUCCESS') {
+        const { token, user } = message.payload;
+        if (token && user) {
+            chrome.storage.local.set({
+                authToken: token,
+                user: user,
+                'locator-x-plan': user.plan || 'free'
+            }, () => {
+                chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: user }).catch(() => { });
+                sendResponse({ success: true });
+            });
+            return true;
+        } else {
+            sendResponse({ success: false, error: 'Invalid payload' });
+        }
+    } else if (message.action === 'SYNC_PLAN') {
+        const { plan } = message.payload;
+        if (plan) {
+            chrome.storage.local.get(['user'], (result) => {
+                const updates = { 'locator-x-plan': plan };
+                let updatedUser = null;
+                if (result.user) {
+                    updatedUser = { ...result.user, plan: plan, _lastUpdated: Date.now() };
+                    updates.user = updatedUser;
+                }
+                chrome.storage.local.set(updates, () => {
+                    chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: updatedUser }).catch(() => { });
+                    sendResponse({ success: true, plan: plan });
+                });
+            });
+            return true;
+        }
+    } else if (message.action === 'SYNC_PROFILE') {
+        const { user } = message.payload;
+        if (user) {
+            chrome.storage.local.get(['user', 'authToken'], (result) => {
+                const updatedUser = { ...result.user, ...user, _lastUpdated: Date.now() };
+                const updates = {
+                    user: updatedUser,
+                    'locator-x-plan': updatedUser.plan || 'free'
+                };
+                if (!result.authToken) {
+                    updates.authToken = 'dummy-token-for-sync';
+                }
+                chrome.storage.local.set(updates, () => {
+                    chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: updatedUser }).catch(() => { });
+                    sendResponse({ success: true });
+                });
+            });
+            return true;
+        }
+    } else if (message.action === 'LOGOUT') {
+        chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan'], () => {
+            chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: null }).catch(() => { });
+            sendResponse({ success: true });
+        });
+        return true;
+    }
+    return false;
+};
 
+// Internal Message Listener
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (['LOGIN_SUCCESS', 'SYNC_PLAN', 'SYNC_PROFILE', 'LOGOUT'].includes(message.action)) {
+        return handleAuthSync(message, sendResponse);
+    }
+
+    if (message.action === 'updateContextMenuValues') {
+        planService.init().then(() => {
+            const categories = ['copy-id', 'copy-name', 'copy-class', 'copy-rel-xpath', 'copy-css', 'copy-js-path', 'copy-abs-xpath'];
             categories.forEach(catId => {
                 const shortType = catId.replace('copy-', '');
-                const typeMap = {
-                    'id': 'id', 'name': 'name', 'class': 'className',
-                    'rel-xpath': 'xpath', 'css': 'css', 'js-path': 'jsPath',
-                    'abs-xpath': 'absoluteXPath'
-                };
-
-                // Determine feature key for this type
+                const typeMap = { 'id': 'id', 'name': 'name', 'class': 'className', 'rel-xpath': 'xpath', 'css': 'css', 'js-path': 'jsPath', 'abs-xpath': 'absoluteXPath' };
                 let featureKey = null;
                 if (shortType === 'id') featureKey = 'locator.id';
                 else if (shortType === 'name') featureKey = 'locator.name';
@@ -91,17 +144,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
             sendResponse({ success: true });
         }).catch(err => {
-            console.error('Plan service init failed:', err);
             sendResponse({ success: false, error: err.message });
         });
         return true;
-
     } else if (message.action === 'locatorsGenerated' || message.action === 'deactivateInspect') {
         chrome.runtime.sendMessage(message).catch(() => { });
         sendResponse({ success: true });
-
     } else if (message.action === 'broadcastToTab') {
-        // Broadcast a message to ALL frames of the active tab
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const tab = tabs[0];
             if (tab && tab.id) {
@@ -113,79 +162,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         });
         sendResponse({ success: true });
-
-    } else if (message.action === 'LOGIN_SUCCESS') {
-        const { token, user } = message.payload;
-        if (token && user) {
-            chrome.storage.local.set({
-                authToken: token,
-                user: user,
-                'locator-x-plan': user.plan || 'free'
-            }, () => {
-                chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: user }).catch(() => { });
-                sendResponse({ success: true });
-            });
-            return true;
-        } else {
-            sendResponse({ success: false, error: 'Invalid payload' });
-        }
-
-    } else if (message.action === 'LOGOUT') {
-        chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan'], () => {
-            chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: null }).catch(() => { });
-            sendResponse({ success: true });
-        });
-        return true;
-    }
-
-    return false; // Don't keep channel open if not handled
-});
-
-// Handle extension icon clicks to open sidepanel
-chrome.action.onClicked.addListener((tab) => {
-    chrome.sidePanel.open({ tabId: tab.id });
-});
-
-// Handle External Messages from Website (Auth & Plan Sync)
-chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
-    if (message.action === 'LOGIN_SUCCESS') {
-        const { token, user } = message.payload;
-        if (token && user) {
-            chrome.storage.local.set({
-                authToken: token,
-                user: user,
-                'locator-x-plan': user.plan || 'free'
-            }, () => {
-                sendResponse({ success: true });
-                chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: user }).catch(() => { });
-            });
-            return true;
-        } else {
-            sendResponse({ success: false, error: 'Invalid payload' });
-        }
-    } else if (message.action === 'SYNC_PLAN') {
-        const { plan } = message.payload;
-        if (plan) {
-            chrome.storage.local.set({ 'locator-x-plan': plan }, () => {
-                sendResponse({ success: true, plan: plan });
-            });
-            return true;
-        }
-    } else if (message.action === 'LOGOUT') {
-        chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan'], () => {
-            sendResponse({ success: true });
-            chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: null }).catch(() => { });
-        });
-        return true;
     }
     return false;
+});
+
+// External Message Listener
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+    console.log('Background: Received external message', message.action, message);
+    if (['LOGIN_SUCCESS', 'SYNC_PLAN', 'SYNC_PROFILE', 'LOGOUT'].includes(message.action)) {
+        return handleAuthSync(message, sendResponse);
+    }
+    return false;
+});
+
+// Icon click -> Open Sidepanel
+chrome.action.onClicked.addListener((tab) => {
+    chrome.sidePanel.open({ tabId: tab.id });
 });
 
 // Handle sidepanel cleanup on close
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name === 'locatorx-panel') {
         port.onDisconnect.addListener(() => {
-            // Panel closed -> stop scanning in current active tab
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 const tab = tabs[0];
                 if (tab && tab.id) {
@@ -197,7 +195,6 @@ chrome.runtime.onConnect.addListener((port) => {
 
     if (port.name === 'locatorx-devtools') {
         port.onDisconnect.addListener(() => {
-            // DevTools closed or sidebar hidden
             chrome.storage.local.set({ devtoolsActive: false });
         });
     }
