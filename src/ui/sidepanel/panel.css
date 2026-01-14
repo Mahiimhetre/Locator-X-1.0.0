@@ -417,7 +417,7 @@
 }
 
 .home-container,
-.pom-content {
+.pom-container {
   padding: 16px;
   display: none;
   background-color: var(--primary-bg);
@@ -428,7 +428,7 @@
 }
 
 .home-container.active,
-.pom-content.active {
+.pom-container.active {
   display: block;
 }
 
@@ -1788,7 +1788,7 @@ select:focus {
 }
 
 /* Adjust table container to fit with nav */
-.pom-content .table-container {
+.pom-container .table-container {
   height: calc(100% - 70px);
 }
 

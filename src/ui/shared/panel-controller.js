@@ -422,7 +422,7 @@ const LocatorX = {
 
             // Update UI
             document.querySelectorAll('.nav-option').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.home-container, .pom-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.home-container, .pom-container').forEach(el => el.classList.remove('active'));
 
             if (tab === 'home') {
                 LocatorX.filters.saveCurrentFilters('pom');
@@ -435,7 +435,7 @@ const LocatorX = {
                 LocatorX.filters.saveCurrentFilters('home');
                 LocatorX.filters.loadFilters('pom');
                 document.getElementById('navPOM').classList.add('active');
-                document.querySelector('.pom-content').classList.add('active');
+                document.querySelector('.pom-container').classList.add('active');
                 this.updateScope('bi-diagram-3', 'POM');
                 LocatorX.filters.updatePOMTable();
 
@@ -1096,7 +1096,7 @@ const LocatorX = {
 
 
         addLocatorsToPage(page, locators, fingerprint) {
-            const tbody = document.querySelector('.pom-content .pom-table tbody');
+            const tbody = document.querySelector('.pom-container .pom-table tbody');
             if (!tbody) return;
 
             // Check for duplicates (existing logic)
@@ -2419,7 +2419,7 @@ const LocatorX = {
         },
 
         updateRowNumbers() {
-            const pomTable = document.querySelector('.pom-content .locator-table tbody');
+            const pomTable = document.querySelector('.pom-container .locator-table tbody');
             if (pomTable) {
                 const rows = pomTable.querySelectorAll('tr');
                 rows.forEach((row, index) => {
