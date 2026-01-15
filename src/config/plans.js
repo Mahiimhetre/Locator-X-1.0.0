@@ -43,19 +43,21 @@ const LocatorXPlans = {
             'ui.copy',
             'ui.save'
         ],
-        pro: [
-            // Inherits Free
-            'locator.id', 'locator.name', 'locator.linkText', 'locator.css', 'module.inspect', 'module.saved', 'ui.theme.light', 'ui.copy', 'ui.save',
-            // Pro Features
-            'locator.xpath',
-            'locator.xpath.relative',
-            'locator.playwright',
-            'module.pom',
-            'ui.export',
-            'ui.theme.dark',
-            'ui.settings.framework',
-            'ui.settings.reset'
-        ],
+        get pro() {
+            return [
+                ...this.free,
+                // Pro Features
+                'locator.xpath',
+                'locator.xpath.relative',
+                'locator.playwright',
+                'module.pom',
+                'module.axes',
+                'ui.export',
+                'ui.theme.dark',
+                'ui.settings.framework',
+                'ui.settings.reset'
+            ];
+        },
         team: 'ALL' // Grants access to everything
     },
 
