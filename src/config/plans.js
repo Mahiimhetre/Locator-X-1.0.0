@@ -55,7 +55,8 @@ const LocatorXPlans = {
                 'ui.export',
                 'ui.theme.dark',
                 'ui.settings.framework',
-                'ui.settings.reset'
+                'ui.settings.reset',
+                'ui.quickEdit'
             ];
         },
         team: 'ALL' // Grants access to everything

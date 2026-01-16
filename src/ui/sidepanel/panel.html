@@ -57,6 +57,13 @@
                             <span>POM</span>
                         </div>
                     </li>
+                    <li class="nav-option" id="navAxes" data-feature="module.axes">
+                        <div class="nav-axes">
+                            <i class="bi-diagram-2"></i>
+                            <span>Axes</span>
+                        </div>
+                    </li>
+
                 </ul>
                 <ul class="nav-items">
                     <li class="nav-item" id="navMultiSelect">
@@ -157,16 +164,39 @@
                     <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked>
                     <span>Relative XPath</span>
                     <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
+                    <!-- Portal dropdown for Relative XPath (positioned with fixed) -->
+                    <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
+                        <fieldset class="nested-options">
+                            <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll"
+                                    title="Select/Deselect All"></i></legend>
+                            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath"
+                                    checked>Default</label>
+                            <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator"
+                                    value="contains" checked>Contains</label>
+                            <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator"
+                                    value="indexed" checked>Indexed</label>
+                            <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator"
+                                    value="linktext" checked>Link Text</label>
+                            <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator"
+                                    value="partiallinktext" checked>PLink Text</label>
+                            <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator"
+                                    value="attribute" checked>Attribute</label>
+                            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="cssXpath"
+                                    checked>CSS
+                                XPath</label>
+                        </fieldset>
+                    </div>
                 </label>
                 <label data-feature="locator.xpath"><input type="checkbox" class="loc-type" id="absoluteLocator"
                         value="absolute" checked> Absolute XPath</label>
             </div>
+
             <div class="home-container active">
-                <div class="search-container">
+                <div class="input-container">
                     <div id="elementTypeBadge" class="element-type-badge hidden"></div>
                     <input type="text" class="search-input" id="searchInput" placeholder="Enter selector or element..."
                         autocomplete="off">
-                    <span id="searchMatchBadge" class="search-match-badge">0</span>
+                    <span id="searchMatchBadge" class="match-badge">0</span>
                     <div id="searchDropdown" class="search-dropdown"></div>
                 </div>
                 <div class="save-container">
@@ -224,83 +254,89 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            <div class="axes-container">
+                <!-- Anchor/Target Selection -->
+                <!-- Anchor/Target Selection -->
+                <div class="input-container">
+                    <!-- Anchor Box -->
+                    <div class="search-input" id="axesAnchorBox" title="Anchor Element, Click to Inspect"
+                        style="cursor: pointer;" data-label="ANCHOR">
+                        <span class="item-text" id="axesAnchorValue">Not Selected</span>
+                    </div>
 
+                    <!-- Swap Button -->
+                    <div class="nav-item" id="axesSwapBtn" title="Swap Anchor & Target">
+                        <i class="bi-arrow-left-right"></i>
+                    </div>
 
+                    <!-- Target Box -->
+                    <div class="search-input" id="axesTargetBox" title="Target Element, Click to Inspect"
+                        style="cursor: pointer;" data-label="TARGET">
+                        <span class="item-text" id="axesTargetValue">Not Selected</span>
+                    </div>
+                </div>
 
+                <!-- Result Section -->
+                <div class="input-container">
+                    <div class="search-input" id="axesResultBox" title="Result Locator" data-label="RESULT">
+                        <span class="item-text" id="axesResultValue">capture Elements to get the result...</span>
+                        <span id="axesMatchCount" class="match-badge">0</span>
+                    </div>
+                </div>
             </div>
         </main>
+    </div>
 
-        <footer class="footer">
-            <div class="footer-content">
-                <div class="auth-container">
-                    <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
-                    <div id="userProfile" class="user-profile hidden">
-                        <!-- Trigger -->
-                        <div id="userDropdownTrigger"
-                            style="display:flex; align-items:center; cursor:pointer; position:relative;">
-                            <img id="userAvatar" src="" alt="User" class="user-avatar">
-                            <div id="userInitials" class="user-avatar-initials hidden"></div>
-                            <div id="triggerPlanBadge" class="plan-badge-trigger hidden"></div>
-                        </div>
 
-                        <!-- Dropdown -->
-                        <div id="userDropdown" class="navdropdown footer-dropdown"
-                            style="min-width: 180px; padding: 0;">
-                            <div class="dropdown-header"
-                                style="margin:0; padding: 12px; border-bottom: 1px solid var(--border-light);">
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <div style="position:relative;">
-                                        <img id="dropdownUserAvatar" src="" alt="User" class="user-avatar"
-                                            style="width:32px; height:32px;">
-                                        <div id="dropdownUserInitials" class="user-avatar-initials hidden"
-                                            style="width:32px; height:32px; font-size:14px;"></div>
-                                    </div>
-                                    <div style="display:flex; flex-direction:column; gap:2px;">
-                                        <strong id="userName" class="user-name"
-                                            style="font-size:13px; color:var(--primary-text);"></strong>
-                                        <div style="display:flex;">
-                                            <span id="userPlan" class="user-plan-badge"></span>
-                                        </div>
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="auth-container">
+                <i class="bi-person-circle login-btn header-icon-button" id="loginBtn" title="Login"></i>
+                <div id="userProfile" class="user-profile hidden">
+                    <!-- Trigger -->
+                    <div id="userDropdownTrigger"
+                        style="display:flex; align-items:center; cursor:pointer; position:relative;">
+                        <img id="userAvatar" src="" alt="User" class="user-avatar">
+                        <div id="userInitials" class="user-avatar-initials hidden"></div>
+                        <div id="triggerPlanBadge" class="plan-badge-trigger hidden"></div>
+                    </div>
+
+                    <!-- Dropdown -->
+                    <div id="userDropdown" class="navdropdown footer-dropdown" style="min-width: 180px; padding: 0;">
+                        <div class="dropdown-header"
+                            style="margin:0; padding: 12px; border-bottom: 1px solid var(--border-light);">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="position:relative;">
+                                    <img id="dropdownUserAvatar" src="" alt="User" class="user-avatar"
+                                        style="width:32px; height:32px;">
+                                    <div id="dropdownUserInitials" class="user-avatar-initials hidden"
+                                        style="width:32px; height:32px; font-size:14px;"></div>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:2px;">
+                                    <strong id="userName" class="user-name"
+                                        style="font-size:13px; color:var(--primary-text);"></strong>
+                                    <div style="display:flex;">
+                                        <span id="userPlan" class="user-plan-badge"></span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="dropdown-content" style="padding: 4px;">
-                                <div class="dropdown-item" id="logoutBtn">
-                                    <i class="bi-box-arrow-right item-icon"></i>
-                                    <span class="item-text">Logout</span>
-                                </div>
+                        </div>
+                        <div class="dropdown-content" style="padding: 4px;">
+                            <div class="dropdown-item" id="logoutBtn">
+                                <i class="bi-box-arrow-right item-icon"></i>
+                                <span class="item-text">Logout</span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <span class="footer-text">© 2024 Locator-X</span>
-                <div class="footer-links">
-                    <span class="version-badge">v1.0.0</span>
-                </div>
             </div>
-        </footer>
-    </div>
-
-    <!-- Portal dropdown for Relative XPath (positioned with fixed) -->
-    <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
-        <fieldset class="nested-options">
-            <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll"
-                    title="Select/Deselect All"></i></legend>
-            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath"
-                    checked>Default</label>
-            <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator" value="contains"
-                    checked>Contains</label>
-            <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator" value="indexed"
-                    checked>Indexed</label>
-            <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator" value="linktext"
-                    checked>Link Text</label>
-            <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator" value="partiallinktext"
-                    checked>PLink Text</label>
-            <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator" value="attribute"
-                    checked>Attribute</label>
-            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="cssXpath" checked>CSS
-                XPath</label>
-        </fieldset>
+            <span class="footer-text">© 2024 Locator-X</span>
+            <div class="footer-links">
+                <span class="version-badge">v1.0.0</span>
+            </div>
+        </div>
+    </footer>
     </div>
 
     <script src="../shared/site-support.js"></script>

@@ -23,8 +23,86 @@ class LocatorGenerator {
             linkTextXpath: (element) => this.generateLinkTextXPath(element),
             partialLinkTextXpath: (element) => this.generatePartialLinkTextXPath(element),
             attributeXpath: (element) => this.generateAttributeXPath(element),
-            cssXpath: (element) => this.generateCSSXPath(element)
+            // Axes XPath
+            axes: (anchor, target) => this.generateAxesXPath(anchor, target)
         };
+    }
+
+    generateAxesXPath(anchor, target) {
+        if (!anchor || !target) return null;
+
+        // 1. Determine relationship
+        let relationship = '';
+        let axis = '';
+
+        if (anchor === target) return 'self::*';
+
+        // Check for Ancestor/Descendant
+        if (anchor.contains(target)) {
+            relationship = 'descendant';
+            axis = 'descendant';
+        } else if (target.contains(anchor)) {
+            relationship = 'ancestor';
+            axis = 'ancestor';
+        } else {
+            // Check for Siblings or General Preceding/Following
+            // Use compareDocumentPosition bitmask
+            const comparison = anchor.compareDocumentPosition(target);
+
+            if (comparison & Node.DOCUMENT_POSITION_FOLLOWING) {
+                // Target is after Anchor
+                if (anchor.parentNode === target.parentNode) {
+                    axis = 'following-sibling';
+                } else {
+                    axis = 'following';
+                }
+            } else if (comparison & Node.DOCUMENT_POSITION_PRECEDING) {
+                // Target is before Anchor
+                if (anchor.parentNode === target.parentNode) {
+                    axis = 'preceding-sibling';
+                } else {
+                    axis = 'preceding';
+                }
+            }
+        }
+
+        if (!axis) return null;
+
+        // Generate Anchor XPath (Relative or ID-based)
+        const anchorXpath = this.generateRelativeXPath(anchor);
+
+        // Generate Target Selector relative to axis
+        // We want something like: //anchor/axis::target
+
+        const targetTag = target.tagName.toLowerCase();
+        let targetPredicate = '';
+
+        // Try to identify target uniquely within that axis if possible
+        // For simplicity, we'll try ID, then Text, then Class, then Index
+
+        if (target.id) {
+            const quote = target.id.includes("'") ? '"' : "'";
+            targetPredicate = `[@id=${quote}${target.id}${quote}]`;
+        } else {
+            // Text Match
+            const text = target.textContent?.trim();
+            if (text && text.length > 0 && text.length < 50) {
+                const quote = text.includes("'") ? '"' : "'";
+                targetPredicate = `[normalize-space()=${quote}${text}${quote}]`;
+            } else if (target.className) {
+                const cleaned = this.cleanClassName(target.className).split('.')[0];
+                if (cleaned) {
+                    const quote = cleaned.includes("'") ? '"' : "'";
+                    targetPredicate = `[contains(@class, ${quote}${cleaned}${quote})]`;
+                }
+            }
+        }
+
+        // If no specific predicate, maybe use index? 
+        // Indexing relative to axis can be tricky.
+
+        const xpath = `${anchorXpath}/${axis}::${targetTag}${targetPredicate}`;
+        return xpath;
     }
 
     isExtensionElement(element) {
@@ -426,6 +504,7 @@ class LocatorGenerator {
         });
         return attrs;
     }
+
 
     countMatches(selector, strategy) {
         if (!selector) return 0;

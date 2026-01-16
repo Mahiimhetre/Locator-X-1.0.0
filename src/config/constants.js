@@ -18,10 +18,10 @@ const LocatorXConfig = {
     },
 
     IDENTIFIERS: {
-        ROOT_ID: 'locatorXOverlay',
-        OVERLAY_CLASS: 'locator-x-overlay',
-        MATCH_OVERLAY_CLASS: 'locator-x-match-overlay',
-        HIGHLIGHT_CLASS: 'locator-x-highlight',
+        ROOT_ID: 'lxOverlay',
+        OVERLAY_CLASS: 'lx-ovl',
+        MATCH_OVERLAY_CLASS: 'lx-match',
+        HIGHLIGHT_CLASS: 'lx-high',
         // Generic check that matches any ID beginning with this prefix
         ID_PREFIX: 'locatorx',
         DATA_ATTRIBUTES: ['data-locator-type', 'data-label']
@@ -59,6 +59,19 @@ const LocatorXConfig = {
         'alt',
         'role'
     ],
+
+    // Global Filter Groups
+    FILTER_GROUPS: {
+        // All core locator IDs
+        CORE: [
+            'idLocator', 'nameLocator', 'tagnameLocator', 'classNameLocator',
+            'cssLocator', 'linkTextLocator', 'pLinkTextLocator',
+            'relativeXPath', 'absoluteLocator',
+            'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
+            'LinkTextXpathLocator', 'PLinkTextXpathLocator', 'attributeXpathLocator',
+            'cssXpathLocator'
+        ]
+    },
 
     // UI and Logic limits
     LIMITS: {

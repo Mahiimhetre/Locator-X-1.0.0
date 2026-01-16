@@ -410,6 +410,7 @@ const LocatorX = {
         init() {
             document.getElementById('navHome').addEventListener('click', () => this.switch('home'));
             document.getElementById('navPOM').addEventListener('click', () => this.switch('pom'));
+            document.getElementById('navAxes').addEventListener('click', () => this.switch('axes'));
             this.switch('home');
         },
 
@@ -422,7 +423,7 @@ const LocatorX = {
 
             // Update UI
             document.querySelectorAll('.nav-option').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.home-container, .pom-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.home-container, .pom-container, .axes-container').forEach(el => el.classList.remove('active'));
 
             if (tab === 'home') {
                 LocatorX.filters.saveCurrentFilters('pom');
@@ -431,6 +432,11 @@ const LocatorX = {
                 document.querySelector('.home-container').classList.add('active');
                 this.updateScope('bi-house', 'Home');
                 LocatorX.filters.updateTable();
+            } else if (tab === 'axes') {
+                // Axes Tab
+                document.getElementById('navAxes').classList.add('active');
+                document.querySelector('.axes-container').classList.add('active');
+                this.updateScope('bi-diagram-2', 'Axes');
             } else {
                 LocatorX.filters.saveCurrentFilters('home');
                 LocatorX.filters.loadFilters('pom');
@@ -454,6 +460,7 @@ const LocatorX = {
                 LocatorX.inspect.currentMode = tab;
                 LocatorX.inspect.updateUI();
             }
+            LocatorX.filters.updateFilterVisibility(tab);
         },
 
         updateScope(icon, text) {
@@ -603,15 +610,17 @@ const LocatorX = {
                 filters[cb.id] = cb.checked;
             });
 
-            if (tab === 'home') {
-                this.homeFilters = filters;
-            } else {
+            if (tab === 'pom') {
                 this.pomFilters = filters;
+            } else {
+                // Home and Axes share filters (or default)
+                this.homeFilters = filters;
             }
         },
 
         loadFilters(tab) {
-            const filters = tab === 'home' ? this.homeFilters : this.pomFilters;
+            const filters = tab === 'pom' ? this.pomFilters : this.homeFilters;
+
             if (Object.keys(filters).length === 0) return;
 
             Object.keys(filters).forEach(id => {
@@ -619,7 +628,31 @@ const LocatorX = {
                 if (checkbox) checkbox.checked = filters[id];
             });
 
+            this.updateSelectAllState();
             this.updateNestedIcon();
+        },
+
+        getRelevantFilterIds(tab) {
+            // All tabs use CORE now
+            return LocatorXConfig.FILTER_GROUPS.CORE;
+        },
+
+        updateSelectAllState() {
+            const selectAll = document.getElementById('locTypeAll');
+            if (!selectAll) return;
+
+            const relevantIds = this.getRelevantFilterIds(LocatorX.tabs.current);
+            // Only check top-level checkboxes for 'Select All' state
+            const checkboxes = Array.from(document.querySelectorAll('.loc-type'))
+                .filter(cb => relevantIds.includes(cb.id));
+
+            if (checkboxes.length === 0) return;
+
+            const allChecked = checkboxes.every(cb => cb.checked);
+            const noneChecked = checkboxes.every(cb => !cb.checked);
+
+            selectAll.checked = allChecked;
+            selectAll.indeterminate = !allChecked && !noneChecked;
         },
 
         updateFiltersForDependencies() {
@@ -666,15 +699,22 @@ const LocatorX = {
 
         setupSelectAll() {
             const selectAll = document.getElementById('locTypeAll');
-            const checkboxes = document.querySelectorAll('.loc-type');
             const nestedCheckboxes = document.querySelectorAll('.nested-loc-type');
 
             if (selectAll) {
                 selectAll.addEventListener('change', () => {
-                    checkboxes.forEach(cb => cb.checked = selectAll.checked);
-                    nestedCheckboxes.forEach(cb => {
-                        cb.checked = selectAll.checked;
+                    const relevantIds = this.getRelevantFilterIds(LocatorX.tabs.current);
+                    // Update both main and nested checkboxes that are relevant
+                    const checkboxes = document.querySelectorAll('.loc-type, .nested-loc-type');
+
+                    checkboxes.forEach(cb => {
+                        if (relevantIds.includes(cb.id)) {
+                            cb.checked = selectAll.checked;
+                        }
                     });
+
+                    // Nested checkboxes logic is now covered by the generic loop above if IDs are in relevantIds,
+                    // but we still update the icon just in case.
                     this.updateNestedIcon();
 
                     // Save to storage
@@ -682,6 +722,8 @@ const LocatorX = {
 
                     if (LocatorX.tabs.current === 'home') {
                         this.updateTable();
+                    } else if (LocatorX.tabs.current === 'axes') {
+                        this.updateTable(); // Reuse table update for axes if needed or just sync
                     } else if (LocatorX.tabs.current === 'pom') {
                         this.updatePOMTable();
                     }
@@ -690,19 +732,12 @@ const LocatorX = {
         },
 
         setupCheckboxes() {
-            const selectAll = document.getElementById('locTypeAll');
             const checkboxes = document.querySelectorAll('.loc-type');
             const nestedCheckboxes = document.querySelectorAll('.nested-loc-type');
 
             checkboxes.forEach(cb => {
                 cb.addEventListener('change', () => {
-                    const allChecked = Array.from(checkboxes).every(c => c.checked);
-                    const noneChecked = Array.from(checkboxes).every(c => !c.checked);
-
-                    if (selectAll) {
-                        selectAll.checked = allChecked;
-                        selectAll.indeterminate = !allChecked && !noneChecked;
-                    }
+                    this.updateSelectAllState();
 
                     // Save to storage
                     chrome.storage.local.set({ enabledFilters: this.getEnabledFilterIds() });
@@ -748,6 +783,27 @@ const LocatorX = {
             });
         },
 
+        updateFilterVisibility(tab) {
+            // Dynamically calculate non-Axes filters using Global Config
+            // Formerly hid filters for Axes. Now simplified to show all filters or custom logic if needed.
+            // For now, per user request, we remove specific Axes filter hiding logic so it behaves like Home.
+
+            // If we wanted to hide specific ones, we would do:
+            // const axesIds = LocatorXConfig.FILTER_GROUPS.AXES;
+            // ...
+
+            // Re-show all if previously hidden?
+            // Since we might have hidden them before, we should ensure they are visible.
+            const allIds = LocatorXConfig.FILTER_GROUPS.CORE;
+            allIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const label = el.closest('label');
+                    if (label) label.style.display = '';
+                }
+            });
+        },
+
         updateTable() {
             const tbody = document.querySelector('.locator-table tbody');
             if (!tbody) return;
@@ -778,7 +834,7 @@ const LocatorX = {
                 const row = document.createElement('tr');
                 row.setAttribute('data-type', type);
                 row.innerHTML = `
-                        <td><span class="match-count match-none">-</span></td>
+                        <td><span class="match-count" data-count="0">-</span></td>
                         <td>${type}</td>
                         <td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>
                         <td>
@@ -839,10 +895,7 @@ const LocatorX = {
                 const actions = row.querySelectorAll('i');
 
                 if (locator) {
-                    const matchClass = locator.matches === 0 ? 'match-none' :
-                        locator.matches === 1 ? 'match-single' : 'match-multiple';
-
-                    matchCell.className = `match-count ${matchClass}`;
+                    matchCell.setAttribute('data-count', locator.matches);
                     matchCell.textContent = locator.matches;
 
                     valCell.textContent = locator.locator;
@@ -851,7 +904,7 @@ const LocatorX = {
 
                     actions.forEach(btn => btn.classList.remove('disabled'));
                 } else {
-                    matchCell.className = 'match-count match-none';
+                    matchCell.setAttribute('data-count', '0');
                     matchCell.textContent = '-';
                     valCell.textContent = '-';
                     valCell.style.color = 'var(--secondary-text)';
@@ -901,11 +954,8 @@ const LocatorX = {
         renderRow(tbody, type, locator) {
             const row = document.createElement('tr');
             if (locator) {
-                const matchClass = locator.matches === 0 ? 'match-none' :
-                    locator.matches === 1 ? 'match-single' : 'match-multiple';
-
                 row.innerHTML = `
-                    <td><span class="match-count ${matchClass}">${locator.matches}</span></td>
+                    <td><span class="match-count" data-count="${locator.matches}">${locator.matches}</span></td>
                     <td>${locator.type}</td>
                     <td class="editable">${locator.locator}</td>
                     <td>
@@ -915,7 +965,7 @@ const LocatorX = {
                 `;
             } else {
                 row.innerHTML = `
-                    <td><span class="match-count match-none">-</span></td>
+                    <td><span class="match-count" data-count="0">-</span></td>
                     <td>${type}</td>
                     <td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>
                     <td>
@@ -934,9 +984,7 @@ const LocatorX = {
 
             // Match Count
             const matchCount = locator ? locator.matches : '-';
-            const matchClass = !locator ? 'match-none' :
-                (locator.matches === 0 ? 'match-none' :
-                    locator.matches === 1 ? 'match-single' : 'match-multiple');
+            const displayCount = locator ? locator.matches : '0';
 
             // Dropdown Options
             const options = availableTypes.map(type => {
@@ -950,7 +998,7 @@ const LocatorX = {
             const actionClass = locator ? '' : 'disabled';
 
             row.innerHTML = `
-                <td><span class="match-count ${matchClass}" id="strategyMatchCount">${matchCount}</span></td>
+                <td><span class="match-count" data-count="${displayCount}" id="strategyMatchCount">${matchCount}</span></td>
                 <td class="strategy-cell">
                     <select class="strategy-dropdown" id="strategySelect">
                         ${options}
@@ -986,7 +1034,7 @@ const LocatorX = {
 
             if (locator) {
                 matchBadge.textContent = locator.matches;
-                matchBadge.className = `match-count ${locator.matches === 0 ? 'match-none' : locator.matches === 1 ? 'match-single' : 'match-multiple'}`;
+                matchBadge.setAttribute('data-count', locator.matches);
 
                 locatorCell.textContent = locator.locator;
                 locatorCell.style.color = '';
@@ -995,7 +1043,7 @@ const LocatorX = {
                 actions.forEach(btn => btn.classList.remove('disabled'));
             } else {
                 matchBadge.textContent = '-';
-                matchBadge.className = 'match-count match-none';
+                matchBadge.setAttribute('data-count', '0');
 
                 locatorCell.textContent = '-';
                 locatorCell.style.color = 'var(--secondary-text)';
@@ -1407,11 +1455,9 @@ const LocatorX = {
             if (value.length === 0) {
                 dropdown.classList.remove('visible');
                 dropdown.style.display = 'none';
-                const badge = document.getElementById('searchMatchBadge');
                 if (badge) {
                     badge.textContent = '0';
-                    badge.classList.remove('match-single', 'match-multiple');
-                    badge.classList.add('match-none');
+                    badge.setAttribute('data-count', '0');
                 }
                 return;
             }
@@ -1519,10 +1565,7 @@ const LocatorX = {
             // Update the new search match badge
             if (badge) {
                 badge.textContent = totalCount;
-                badge.classList.remove('hidden', 'match-none', 'match-single', 'match-multiple');
-                if (totalCount === 0) badge.classList.add('match-none');
-                else if (totalCount === 1) badge.classList.add('match-single');
-                else badge.classList.add('match-multiple');
+                badge.setAttribute('data-count', totalCount);
             }
 
             // Trigger highlighting if matches found (in all frames)
@@ -1677,6 +1720,7 @@ const LocatorX = {
         isActive: false,
         currentMode: 'home',
 
+
         init() {
             const inspectBtn = document.getElementById('inspectBtn');
             if (inspectBtn) {
@@ -1704,12 +1748,68 @@ const LocatorX = {
                     if (LocatorX.tabs.current === 'home') {
                         this.deactivate();
                     }
+
                 } else if (message.action === 'deactivateInspect') {
                     // Handle ESC key and right-click deactivation from content script
                     this.deactivate();
                 } else if (message.action === 'notification') {
                     if (message.type === 'success') LocatorX.notifications.success(message.message);
                     else if (message.type === 'error') LocatorX.notifications.error(message.message);
+                } else if (message.action === 'axesAnchorCaptured') {
+                    // Update UI for Anchor - Simplified Status
+                    const anchorVal = document.getElementById('axesAnchorValue');
+
+                    if (anchorVal) {
+                        // Show element tag + ID but cleanly, OR just "Captured" based on request
+                        // User said "remove content show text like captured"
+                        // We will show "Captured: Tag#ID" for clarity but keep it simple text
+                        anchorVal.textContent = `Captured: ${message.elementInfo.tagName}`;
+                        anchorVal.style.color = 'var(--text-primary)';
+                        anchorVal.style.fontWeight = '500';
+                    }
+
+                    // Switch pulse to purple for Target
+                    const inspectBtn = document.getElementById('inspectBtn');
+                    if (inspectBtn) {
+                        inspectBtn.classList.remove('yellow');
+                        inspectBtn.classList.add('purple');
+                    }
+
+                    // Update Target to show it's next
+                    const targetVal = document.getElementById('axesTargetValue');
+                    if (targetVal) {
+                        targetVal.textContent = 'Select Target...';
+                        targetVal.style.color = 'var(--text-secondary)';
+                    }
+
+                } else if (message.action === 'axesResult') {
+                    // Update UI for Target
+                    const targetVal = document.getElementById('axesTargetValue');
+
+                    if (targetVal) {
+                        targetVal.textContent = `Captured: ${message.elementInfo.tagName}`;
+                        targetVal.style.color = 'var(--text-primary)';
+                        targetVal.style.fontWeight = '500';
+                    }
+                    // Update Result
+                    const resultVal = document.getElementById('axesResultValue');
+                    const matchBadge = document.getElementById('axesMatchCount');
+
+                    if (resultVal) {
+                        // Use textContent to avoid HTML injection, but maybe format it?
+                        resultVal.textContent = message.locator || 'No result found';
+                        // Auto-copy or similar?
+                    }
+
+                    if (matchBadge) {
+                        matchBadge.textContent = message.matchCount;
+                        matchBadge.className = 'match-badge'; // Reset
+                        if (message.matchCount === 0) matchBadge.classList.add('match-none');
+                        else if (message.matchCount === 1) matchBadge.classList.add('match-success');
+                        else matchBadge.classList.add('match-warning');
+                    }
+
+                    this.deactivate();
                 }
             });
         },
@@ -1729,12 +1829,37 @@ const LocatorX = {
 
             this.updateUI();
 
+            if (this.currentMode === 'axes' && inspectBtn) {
+                inspectBtn.classList.add('yellow');
+
+                // Reset UI Text
+                const anchorVal = document.getElementById('axesAnchorValue');
+                const targetVal = document.getElementById('axesTargetValue');
+                const resultVal = document.getElementById('axesResultValue');
+
+                if (anchorVal) {
+                    anchorVal.textContent = 'Select Anchor...';
+                    anchorVal.style.color = 'var(--text-secondary)';
+                }
+                if (targetVal) {
+                    targetVal.textContent = 'Waiting...';
+                    targetVal.style.color = 'var(--text-secondary)';
+                }
+                if (resultVal) resultVal.textContent = 'Capture Elements to get the result...';
+            }
+
             // Broadcast to ALL frames
-            this.broadcastActionToTab({ action: 'startScanning' });
+            this.broadcastActionToTab({ action: 'startScanning', mode: this.currentMode });
         },
 
         deactivate() {
             this.isActive = false;
+
+            const inspectBtn = document.getElementById('inspectBtn');
+            if (inspectBtn) {
+                inspectBtn.classList.remove('yellow', 'purple');
+            }
+
             this.updateUI();
 
             // Broadcast to ALL frames
@@ -1771,6 +1896,10 @@ const LocatorX = {
                     // Green Pulse for Home (Standard)
                     inspectBtn.style.animation = 'pulse-green 2s infinite';
                     inspectBtn.style.color = '#28a745';
+                } else if (this.currentMode === 'axes') {
+                    // Yellow Pulse for Axes
+                    inspectBtn.style.animation = 'pulse-yellow 2s infinite';
+                    inspectBtn.style.color = '#f1c40f';
                 } else {
                     // Red Pulse for POM (Recording)
                     inspectBtn.style.animation = 'pulse-red 2s infinite';
@@ -1781,7 +1910,9 @@ const LocatorX = {
                 inspectBtn.classList.add('bi-arrow-up-left-circle');
                 inspectBtn.style.color = 'var(--secondary-text)';
             }
-        }
+        },
+
+
     },
 
     // Authentication Management
@@ -2433,28 +2564,65 @@ const LocatorX = {
             let clickTimeout;
 
             document.addEventListener('click', (e) => {
-                if (!e.target || !e.target.classList) return;
+                // Check for valid targets: Table cells (.editable) OR Axes Inputs
+                const isTableCell = e.target && e.target.classList && e.target.classList.contains('editable');
+                const isAxesInput = e.target && e.target.matches && e.target.matches('#axesAnchor, #axesTarget, #axesResult');
 
-                if (e.target.classList.contains('editable') && !e.target.classList.contains('editing')) {
-                    clickCount++;
+                if (!isTableCell && !isAxesInput) return;
 
-                    if (clickCount === 1) {
-                        clickTimeout = setTimeout(() => {
-                            // Single click - highlight in search (only for locator cells, not name cells)
-                            if (!e.target.classList.contains('saved-name')) {
-                                const locator = e.target.textContent;
-                                const searchInput = document.querySelector('.search-input');
-                                if (searchInput) {
-                                    searchInput.value = locator;
-                                    searchInput.focus();
-                                }
+                // Ignore if already editing
+                if (isTableCell && e.target.classList.contains('editing')) return;
+                if (isAxesInput && !e.target.hasAttribute('readonly')) return;
+
+                clickCount++;
+
+                if (clickCount === 1) {
+                    clickTimeout = setTimeout(() => {
+                        // Single click - highlight in search (Table Cells only)
+                        if (isTableCell && !e.target.classList.contains('saved-name')) {
+                            const locator = e.target.textContent;
+                            const searchInput = document.querySelector('.search-input');
+                            if (searchInput) {
+                                searchInput.value = locator;
+                                searchInput.focus();
                             }
-                            clickCount = 0;
-                        }, 300);
-                    } else if (clickCount === 2) {
-                        // Double click - make editable
-                        clearTimeout(clickTimeout);
+                        }
+                        // Axes Inputs: default behavior (focus) is fine
+                        clickCount = 0;
+                    }, 300);
+                } else if (clickCount === 2) {
+                    // Double click detected
+                    clearTimeout(clickTimeout);
+                    clickCount = 0;
 
+                    // FEATURE GATE: Check for Quick Edit permission
+                    if (typeof planService !== 'undefined' && !planService.isEnabled('ui.quickEdit')) {
+                        planService._showUpgradePrompt('Quick Edit');
+                        return;
+                    }
+
+                    if (isAxesInput) {
+                        // Enable Axes Input Editing
+                        const el = e.target;
+                        el.removeAttribute('readonly');
+                        el.focus();
+                        el.select();
+
+                        const lock = () => {
+                            el.setAttribute('readonly', 'true');
+                            el.removeEventListener('blur', lock);
+                            el.removeEventListener('keydown', keyHandler);
+                        };
+                        const keyHandler = (ev) => {
+                            if (ev.key === 'Enter' || ev.key === 'Escape') {
+                                lock();
+                            }
+                        };
+                        el.addEventListener('blur', lock);
+                        el.addEventListener('keydown', keyHandler);
+
+                    } else if (isTableCell) {
+                        // Existing Table Cell Editing Logic
                         let onSave = null;
                         if (e.target.classList.contains('saved-name')) {
                             const savedItem = e.target.closest('.saved-item');
@@ -2467,9 +2635,7 @@ const LocatorX = {
                                 }
                             };
                         }
-
                         this.makeEditable(e.target, onSave);
-                        clickCount = 0;
                     }
                 }
             });
@@ -2547,12 +2713,16 @@ const LocatorX = {
                             return;
                         }
 
-                        const count = response.count;
-                        badge.textContent = count;
-                        badge.classList.add(count === 0 ? 'match-none' : (count === 1 ? 'match-single' : 'match-multiple'));
+                        const status = response; // Directly use the response containing count, status
+                        badge.textContent = status.count;
+                        badge.classList.remove('hidden', 'match-none', 'match-multiple', 'match-single');
+                        badge.classList.add(`match-${status.status}`);
+                        // Clear inline styles to let CSS take over
+                        badge.style.backgroundColor = '';
+                        badge.style.color = '';
 
                         // Also highlight matches while editing
-                        if (count > 0) {
+                        if (status.count > 0) {
                             chrome.tabs.sendMessage(tab.id, {
                                 action: 'highlightMatches',
                                 selector: locator

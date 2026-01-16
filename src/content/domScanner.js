@@ -9,8 +9,48 @@ class DOMScanner {
         this.matchOverlays = []; // Pool for multi-match highlights
         this.matchedElements = []; // The elements currently matched
         this.animationFrameId = null;
+        this.axesState = { step: 0, anchor: null }; // Axes capture state
+        this.axesOverlays = []; // Persistent overlays for Axes
+        this.generator = new LocatorGenerator();
         this.setupEventListeners();
         this.updateOverlayLoop = this.updateOverlayLoop.bind(this);
+    }
+
+    // Clear specific axes overlays
+    clearAxesOverlays() {
+        if (this.axesOverlays) {
+            this.axesOverlays.forEach(ol => ol.remove());
+            this.axesOverlays = [];
+        }
+    }
+
+    createPersistentOverlay(element, type) {
+        if (!element) return;
+        const rect = element.getBoundingClientRect();
+        const scrollX = window.scrollX || window.pageXOffset;
+        const scrollY = window.scrollY || window.pageYOffset;
+
+        const div = document.createElement('div');
+        div.className = `lx-ovl ${type}`; // 'anchor' or 'target'
+        div.style.position = 'absolute';
+        div.style.left = '0';
+        div.style.top = '0';
+        div.style.transform = `translate3d(${rect.left + scrollX}px, ${rect.top + scrollY}px, 0)`;
+        div.style.width = `${rect.width}px`;
+        div.style.height = `${rect.height}px`;
+        div.style.zIndex = '2147483646'; // Below the main overlay (ends in 7)
+        div.style.pointerEvents = 'none';
+        div.style.display = 'block';
+
+        // Add label ONLY if it's a special type (e.g. Shadow Content)
+        // User requested: "if it has sudo elemtn (label) with that highlight that also should keep"
+        const specialType = this.getElementType(element);
+        if (specialType && specialType !== 'Normal') {
+            div.setAttribute('data-label', specialType);
+        }
+
+        document.body.appendChild(div);
+        this.axesOverlays.push(div);
     }
 
     getOverlay() {
@@ -28,7 +68,7 @@ class DOMScanner {
     setupEventListeners() {
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.action === 'startScanning') {
-                this.startScanning();
+                this.startScanning(message.mode);
                 sendResponse({ success: true });
             } else if (message.action === 'stopScanning') {
                 this.stopScanning(message.force);
@@ -105,10 +145,25 @@ class DOMScanner {
         }
     }
 
-    startScanning() {
+    startScanning(mode = 'home') {
         if (this.isActive) return;
 
         this.isActive = true;
+        this.currentMode = mode;
+
+        // Reset Axes State
+        if (mode === 'axes') {
+            this.axesState = { step: 1, anchor: null };
+        } else {
+            this.axesState = { step: 0, anchor: null };
+        }
+
+        // Apply mode-specific class to overlay
+        const overlay = this.getOverlay();
+        overlay.classList.remove('axes', 'pom', 'home', 'anchor', 'target');
+        if (mode && mode !== 'axes') overlay.classList.add(mode);
+        // For axes, classes are added dynamically in highlightElement based on step
+
         document.addEventListener('mousemove', this.handleMouseMove, true);
         document.addEventListener('click', this.handleMouseClick, true);
         document.addEventListener('keydown', this.handleKeyPress, true);
@@ -117,10 +172,13 @@ class DOMScanner {
         this.startOverlayLoop();
 
         this.clearHighlight();
+        this.clearAxesOverlays();
         this.isLocked = false;
         document.body.style.userSelect = 'none';
         document.body.style.cursor = 'crosshair';
     }
+
+
 
     stopScanning(force = false) {
         if (this.isActive && !force) {
@@ -128,6 +186,11 @@ class DOMScanner {
         }
 
         this.isActive = false;
+
+        // Reset overlay classes
+        const overlay = this.getOverlay();
+        overlay.classList.remove('axes', 'pom');
+
         document.removeEventListener('mousemove', this.handleMouseMove, true);
         document.removeEventListener('click', this.handleMouseClick, true);
         document.removeEventListener('keydown', this.handleKeyPress, true);
@@ -137,6 +200,7 @@ class DOMScanner {
 
         if (force) {
             this.clearHighlight();
+            this.clearAxesOverlays();
         }
 
         document.body.style.userSelect = '';
@@ -153,6 +217,12 @@ class DOMScanner {
         if (element === this.highlightedElement ||
             element === overlay ||
             element.closest && element.closest(`#${LocatorXConfig.IDENTIFIERS.ROOT_ID}`)) return;
+
+        if (this.currentMode === 'axes') {
+            overlay.classList.remove('anchor', 'target');
+            if (this.axesState.step === 1) overlay.classList.add('anchor'); // Yellow
+            else if (this.axesState.step === 2) overlay.classList.add('target'); // Purple
+        }
 
         this.highlightElement(element);
     }
@@ -177,6 +247,50 @@ class DOMScanner {
 
             if (!element) return;
 
+
+
+            // Handle Axes Mode Logic
+            if (this.currentMode === 'axes') {
+                if (this.axesState.step === 1) {
+                    // Capture Anchor
+                    this.axesState.anchor = element;
+                    this.axesState.step = 2; // Move to Target step
+
+                    // Create persistent overlay for Anchor
+                    this.createPersistentOverlay(element, 'anchor');
+
+                    chrome.runtime.sendMessage({
+                        action: 'axesAnchorCaptured',
+                        elementInfo: this.getElementDetails(element)
+                    });
+                    // Force overlay update for color change immediately
+                    const overlay = this.getOverlay();
+                    overlay.classList.remove('anchor');
+                    overlay.classList.add('target');
+                    return;
+                } else if (this.axesState.step === 2) {
+                    // Capture Target & Generate Result
+                    const anchor = this.axesState.anchor;
+
+                    // Create persistent overlay for Target
+                    this.createPersistentOverlay(element, 'target');
+
+                    const result = this.generator.generateAxesXPath(anchor, element);
+                    const info = this.getElementDetails(element);
+
+                    this.stopScanning();
+
+                    chrome.runtime.sendMessage({
+                        action: 'axesResult',
+                        locator: result || 'No Axes relationship found!',
+                        elementInfo: info,
+                        matchCount: result ? this.generator.countMatches(result, 'xpath') : 0
+                    });
+
+                    return;
+                }
+            }
+
             const isInIframe = this.detectIframe();
             const isCrossOrigin = this.isCrossOriginIframe();
             let iframeXPath = null;
@@ -187,7 +301,8 @@ class DOMScanner {
 
             // Always generate ALL supported locator types
             // This decouples generation from visibility (which is handled in the UI)
-            const allTypes = [
+            // Determine types based on mode
+            let targetTypes = [
                 'idLocator', 'nameLocator', 'classNameLocator', 'tagnameLocator',
                 'cssLocator', 'linkTextLocator', 'pLinkTextLocator', 'absoluteLocator',
                 'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
@@ -195,7 +310,9 @@ class DOMScanner {
                 'cssXpathLocator', 'jsPathLocator'
             ];
 
-            let locators = this.generateLocators(element, allTypes);
+
+
+            let locators = this.generateLocators(element, targetTypes);
 
             // If in same-origin iframe, combine XPaths
             if (isInIframe && !isCrossOrigin && iframeXPath) {
@@ -445,57 +562,51 @@ class DOMScanner {
     }
 
     evaluateSelector(selector, type = null) {
-        if (!selector) return { count: 0 };
+        if (!selector) return { count: 0, status: 'none' };
         try {
             if (!this.generator) {
                 this.generator = new LocatorGenerator();
             }
 
             // Map UI display name back to strategy key if possible
-            // dynamically generate map from LocatorXConfig
             const displayToStrategy = {};
             if (typeof LocatorXConfig !== 'undefined' && LocatorXConfig.STRATEGY_NAMES) {
                 Object.entries(LocatorXConfig.STRATEGY_NAMES).forEach(([key, value]) => {
                     displayToStrategy[value] = key;
                 });
-            } else {
-                // Fallback if config not loaded (should not happen given manifest order)
-                console.error('[Locator-X] LocatorXConfig not found in content script');
             }
 
             const strategy = displayToStrategy[type] || null;
             const count = this.generator.countMatches(selector, strategy);
+            const status = this.generator.getMatchStatus(count);
 
-            // If exactly one match, provide info for the badge/detail
-            let elementInfo = null;
-            let elementType = null;
-            let locators = null;
-            let fingerprint = null;
-
-            const isInIframe = this.detectIframe();
-            const isCrossOrigin = this.isCrossOriginIframe();
-            let iframeXPath = null;
-
-            if (isInIframe && !isCrossOrigin) {
-                iframeXPath = this.getIframeXPath();
-            }
-
+            // Fetch extra info if single match (useful for detail panel)
             if (count === 1) {
                 try {
                     let element = null;
                     if (strategy === 'xpath' || selector.startsWith('/') || selector.startsWith('(')) {
                         element = document.evaluate(selector, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
                     } else {
-                        if (!this.generator) this.generator = new LocatorGenerator();
                         element = this.generator.querySelectorDeep(selector);
                     }
-                    if (element) {
-                        elementInfo = this.getElementInfo(element);
-                        elementType = this.getElementType(element);
-                        fingerprint = this.generator.generateFingerprint(element);
 
-                        // Also generate all locators (Decoupled Generation)
-                        // No need to fetch storage, just generate everything.
+                    if (element) {
+                        status.elementInfo = this.getElementInfo(element);
+                        status.elementType = this.getElementType(element);
+                        status.fingerprint = this.generator.generateFingerprint(element);
+
+                        // Metadata for iframe context
+                        const isInIframe = this.detectIframe();
+                        const isCrossOrigin = this.isCrossOriginIframe();
+                        const iframeXPath = isInIframe ? this.getIframeXPath() : null;
+
+                        status.metadata = {
+                            isInIframe,
+                            isCrossOrigin,
+                            iframeXPath
+                        };
+
+                        // Restore locator generation for the search bar detail view
                         const allTypes = [
                             'idLocator', 'nameLocator', 'classNameLocator', 'tagnameLocator',
                             'cssLocator', 'linkTextLocator', 'pLinkTextLocator', 'absoluteLocator',
@@ -503,8 +614,9 @@ class DOMScanner {
                             'LinkTextXpathLocator', 'PLinkTextXpathLocator', 'attributeXpathLocator',
                             'cssXpathLocator', 'jsPathLocator'
                         ];
-                        locators = this.generateLocators(element, allTypes);
+                        let locators = this.generateLocators(element, allTypes);
 
+                        // Prepend iframe XPath if in non-cross-origin iframe
                         if (isInIframe && !isCrossOrigin && iframeXPath) {
                             locators = locators.map(loc => {
                                 if (loc.type.includes('XPath')) {
@@ -516,44 +628,19 @@ class DOMScanner {
                                 return loc;
                             });
                         }
-
-                        if (!locators) {
-                            locators = this.generateLocators(element, []); // Fallback to all
-                            if (isInIframe && !isCrossOrigin && iframeXPath) {
-                                locators = locators.map(loc => {
-                                    if (loc.type.includes('XPath')) {
-                                        return {
-                                            ...loc,
-                                            locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
-                                        };
-                                    }
-                                    return loc;
-                                });
-                            }
-                        }
+                        status.locators = locators;
                     }
                 } catch (e) { }
             }
 
-            return {
-                count,
-                elementInfo,
-                elementType,
-                locators,
-                fingerprint,
-                metadata: {
-                    isInIframe,
-                    isCrossOrigin,
-                    iframeXPath
-                }
-            };
+            return status;
         } catch (e) {
-            // Silence DOMExceptions for evaluateSelector as well
+            // Silence common syntax errors during typing
             if (e.name === 'SyntaxError' || e instanceof DOMException) {
-                return { count: 0 };
+                return { count: 0, status: 'none' };
             }
             console.warn(`Error evaluating selector "${selector}":`, e);
-            return { count: 0, error: e.message };
+            return { count: 0, status: 'none' };
         }
     }
 
@@ -625,6 +712,16 @@ class DOMScanner {
         structure.textFragments = Array.from(structure.textFragments).slice(0, 50);
 
         return structure;
+    }
+
+    // Return structured info for Axes processing
+    getElementDetails(element) {
+        if (!element) return { tagName: 'unknown' };
+        return {
+            tagName: element.tagName.toLowerCase(),
+            id: element.id || '',
+            className: typeof element.className === 'string' ? element.className : ''
+        };
     }
 
     getElementInfo(element) {
