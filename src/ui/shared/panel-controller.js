@@ -2303,7 +2303,6 @@ const LocatorX = {
                 let content = `
                         <div class="dropdown-header">
                             <strong>Saved Locators</strong> <span class="badge-count">${saved.length}</span>
-                            <i class="bi-box-arrow-down action-btn header-action" id="exportSavedBtn" title="Export All" data-feature="ui.export" style="margin-left: auto; cursor: pointer;"></i>
                         </div>
                         <div class="dropdown-content">
                     `;
@@ -2351,10 +2350,7 @@ const LocatorX = {
 
             // Add new listener with proper binding
             this.handleSavedClick = (e) => {
-                if (e.target.id === 'exportSavedBtn') {
-                    this.exportLocators();
-                    return;
-                }
+
 
                 if (e.target.closest('.saved-heal')) {
                     const itemDiv = e.target.closest('.saved-item');
@@ -2436,22 +2432,6 @@ const LocatorX = {
 
             dropdown.addEventListener('click', this.handleSavedClick);
         },
-
-        exportLocators() {
-            const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
-            if (saved.length === 0) {
-                LocatorX.notifications.info('No locators to export');
-                return;
-            }
-
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(saved, null, 2));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "locator-x_saved.json");
-            document.body.appendChild(downloadAnchorNode); // required for firefox
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        }
     },
 
     // Table Management
@@ -2543,7 +2523,7 @@ const LocatorX = {
 
                 if (e.target.classList.contains('bi-clipboard')) {
                     const row = e.target.closest('tr');
-                    const locatorCell = row.querySelector('.editable');
+                    const locatorCell = row.querySelector('.lx-editable');
                     const locator = locatorCell.textContent;
                     LocatorX.utils.copyToClipboard(locator).then(success => {
                         if (success) LocatorX.notifications.success('Locator copied to clipboard');
@@ -2552,10 +2532,13 @@ const LocatorX = {
                 }
                 if (e.target.classList.contains('bi-bookmark-plus')) {
                     const row = e.target.closest('tr');
-                    const locatorCell = row.querySelector('.editable');
-                    const typeCell = row.cells[1];
+                    const locatorCell = row.querySelector('.lx-editable');
                     const locator = locatorCell.textContent;
-                    const type = typeCell.textContent;
+                    let type = row.getAttribute('data-type');
+                    if (!type) {
+                        const strategySelect = row.querySelector('.strategy-dropdown');
+                        type = strategySelect ? strategySelect.value : row.cells[1].textContent;
+                    }
 
                     // Save with auto-generated name
                     const savedName = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

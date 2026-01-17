@@ -2,3 +2,4 @@ demos/
 node_modules/
 dist/
 .env
+/export_req
