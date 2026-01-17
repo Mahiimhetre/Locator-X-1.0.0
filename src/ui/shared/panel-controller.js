@@ -224,7 +224,7 @@ const LocatorX = {
                     const val = matching ? matching.locator : '-';
                     // Add distinct style for empty
                     const style = matching ? '' : 'color: var(--secondary-text); opacity: 0.5;';
-                    row.innerHTML += `<td class="editable" style="${style}">${val}</td>`;
+                    row.innerHTML += `<td class="lx-editable" data-target="pom-cell" data-locator-type="${type}" style="${style}">${val}</td>`;
                 });
 
                 // Render Grouped Column (Relative XPath) if needed
@@ -264,12 +264,12 @@ const LocatorX = {
                                      <select class="strategy-dropdown pom-strategy-select">
                                         ${options}
                                      </select>
-                                     <div class="strategy-value editable" style="${valStyle}">${preferredValue}</div>
+                                     <div class="strategy-value lx-editable" data-target="pom-cell" data-is-strategy="true" style="${valStyle}">${preferredValue}</div>
                                 </div>
                             </td>`;
                     } else {
                         // Should technically not happen if hasGrouped is true, but safe fallback
-                        row.innerHTML += `<td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>`;
+                        row.innerHTML += `<td class="lx-editable" data-target="pom-cell" data-locator-type="Strategy" style="color: var(--secondary-text); opacity: 0.5;">-</td>`;
                     }
                 }
 
@@ -470,6 +470,67 @@ const LocatorX = {
                 scopeIcon.className = icon;
                 scopeText.textContent = text;
             }
+        }
+    },
+
+    // Axes Management
+    axes: {
+        init() {
+            const swapBtn = document.getElementById('axesSwapBtn');
+
+        },
+
+        swap() {
+            const btn = document.getElementById('axesSwapBtn');
+            if (btn) btn.style.opacity = '0.5';
+
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const tab = tabs[0];
+                if (tab && tab.id) {
+                    chrome.tabs.sendMessage(tab.id, { action: 'swapAxes' }, () => {
+                        // Response handled by message listener (axesResult), but we clear opacity here
+                        if (btn) btn.style.opacity = '1';
+                    });
+                }
+            });
+        },
+
+        updateResultMatch(locator) {
+            const badge = document.getElementById('axesMatchCount');
+            if (!badge) return;
+
+            // Use attribute for '...' state if needed, or handle via class
+            // Actually, for '...' typically we might want text, but user said "css copy data count". 
+            // Let's assume data-count can hold "..." or we handle loading state differently?
+            // Existing code set text to '...'.
+            // Let's set data-count to '...' so CSS picks it up.
+            badge.setAttribute('data-count', '...');
+            badge.className = 'match-badge';
+
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const tab = tabs[0];
+                if (tab && tab.id) {
+                    chrome.tabs.sendMessage(tab.id, {
+                        action: 'evaluateSelector',
+                        selector: locator,
+                        type: 'xpath'
+                    }, (status) => {
+                        if (chrome.runtime.lastError || !status) {
+                            // badge.textContent = '0'; // REMOVED
+                            badge.dataset.count = '0';
+                            return;
+                        }
+
+                        badge.dataset.count = status.count;
+                        badge.classList.remove('hidden'); // Ensure visible
+
+                        // Highlight matches
+                        if (status.count > 0) {
+                            chrome.tabs.sendMessage(tab.id, { action: 'highlightMatches', selector: locator }).catch(() => { });
+                        }
+                    });
+                }
+            });
         }
     },
 
@@ -836,7 +897,7 @@ const LocatorX = {
                 row.innerHTML = `
                         <td><span class="match-count" data-count="0">-</span></td>
                         <td>${type}</td>
-                        <td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>
+                        <td class="lx-editable" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;">-</td>
                         <td>
                             <i class="bi-clipboard disabled" title="Copy"></i>
                             <i class="bi-bookmark-plus disabled" title="Save"></i>
@@ -957,7 +1018,7 @@ const LocatorX = {
                 row.innerHTML = `
                     <td><span class="match-count" data-count="${locator.matches}">${locator.matches}</span></td>
                     <td>${locator.type}</td>
-                    <td class="editable">${locator.locator}</td>
+                    <td class="lx-editable" data-target="table-cell">${locator.locator}</td>
                     <td>
                         <i class="bi-clipboard" title="Copy"></i>
                         <i class="bi-bookmark-plus" title="Save"></i>
@@ -967,7 +1028,7 @@ const LocatorX = {
                 row.innerHTML = `
                     <td><span class="match-count" data-count="0">-</span></td>
                     <td>${type}</td>
-                    <td class="editable" style="color: var(--secondary-text); opacity: 0.5;">-</td>
+                    <td class="lx-editable" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;">-</td>
                     <td>
                         <i class="bi-clipboard disabled" title="Copy"></i>
                         <i class="bi-bookmark-plus disabled" title="Save"></i>
@@ -1004,7 +1065,7 @@ const LocatorX = {
                         ${options}
                     </select>
                 </td>
-                <td class="editable" id="strategyLocator" ${locatorStyle}>${locatorValue}</td>
+                <td class="lx-editable" id="strategyLocator" data-target="table-cell" ${locatorStyle}>${locatorValue}</td>
                 <td>
                     <i class="bi-clipboard ${actionClass}" title="Copy"></i>
                     <i class="bi-bookmark-plus ${actionClass}" title="Save"></i>
@@ -1456,7 +1517,7 @@ const LocatorX = {
                 dropdown.classList.remove('visible');
                 dropdown.style.display = 'none';
                 if (badge) {
-                    badge.textContent = '0';
+                    // badge.textContent = '0'; // REMOVED
                     badge.setAttribute('data-count', '0');
                 }
                 return;
@@ -1564,7 +1625,7 @@ const LocatorX = {
 
             // Update the new search match badge
             if (badge) {
-                badge.textContent = totalCount;
+                // badge.textContent = totalCount; // REMOVED
                 badge.setAttribute('data-count', totalCount);
             }
 
@@ -1802,8 +1863,8 @@ const LocatorX = {
                     }
 
                     if (matchBadge) {
-                        matchBadge.textContent = message.matchCount;
-                        matchBadge.className = 'match-badge'; // Reset
+                        // matchBadge.textContent = message.matchCount; // REMOVED
+                        matchBadge.setAttribute('data-count', message.matchCount);
                         if (message.matchCount === 0) matchBadge.classList.add('match-none');
                         else if (message.matchCount === 1) matchBadge.classList.add('match-success');
                         else matchBadge.classList.add('match-warning');
@@ -2253,7 +2314,7 @@ const LocatorX = {
                             <div class="saved-item" data-index="${index}">
                                 <div class="saved-main">
                                     <div class="saved-info">
-                                        <span class="saved-name editable" title="Click to rename">${item.name}</span>
+                                        <span class="saved-name lx-editable" title="Double-click to rename" data-target="saved-name" data-index="${index}">${item.name}</span>
                                         <span class="saved-type-badge ${typeClass}">${item.type}</span>
                                     </div>
                                     <div class="saved-actions">
@@ -2397,6 +2458,7 @@ const LocatorX = {
     table: {
         init() {
             this.setupCopyButtons();
+            this.setupEventListeners();
             this.setupEditableCells();
             this.setupSaveButton();
         },
@@ -2559,35 +2621,69 @@ const LocatorX = {
             }
         },
 
+        setupEventListeners() {
+            // Centralized Event Listener for Update Logic
+            document.addEventListener('locatorx-update', (e) => {
+                const { newValue, element, context } = e.detail;
+                const targetType = context.target;
+
+                if (targetType === 'saved-name') {
+                    const index = parseInt(context.index);
+                    const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
+                    if (saved[index]) {
+                        saved[index].name = newValue;
+                        localStorage.setItem('locator-x-saved', JSON.stringify(saved));
+                        LocatorX.savedLocators.updateDropdown();
+                        LocatorX.notifications.success('Locator renamed');
+                    }
+                } else if (targetType === 'table-cell') {
+                    this.updateMatchCount(element);
+                } else if (targetType === 'axes-result') {
+                    LocatorX.axes.updateResultMatch(newValue);
+                } else if (targetType === 'pom-cell') {
+                    // Start of POM Update Logic
+                    const isStrategy = context.isStrategy === 'true';
+                    const locatorType = context.locatorType;
+
+                    // TODO: Implement deep update for POM structure if needed (e.g. updating the underlying page object)
+                    // For now, we update the UI match count if possible, or just acknowledge the change.
+                    // Since POM is complex, we might just want to trigger a re-scan or update the specific locator object in memory.
+
+                    const row = element.closest('tr');
+                    /* 
+                       Logic to update the specific locator in LocatorX.pom.pages[activePage] 
+                       would go here. For now, just ensuring the edit "sticks" in UI is the first step.
+                    */
+                    LocatorX.notifications.success('Locator updated locally');
+                }
+            });
+        },
+
         setupEditableCells() {
             let clickCount = 0;
             let clickTimeout;
 
             document.addEventListener('click', (e) => {
-                // Check for valid targets: Table cells (.editable) OR Axes Inputs
-                const isTableCell = e.target && e.target.classList && e.target.classList.contains('editable');
-                const isAxesInput = e.target && e.target.matches && e.target.matches('#axesAnchor, #axesTarget, #axesResult');
-
-                if (!isTableCell && !isAxesInput) return;
+                // Check for generic editable class
+                const editableEl = e.target.closest('.lx-editable');
+                if (!editableEl) return;
 
                 // Ignore if already editing
-                if (isTableCell && e.target.classList.contains('editing')) return;
-                if (isAxesInput && !e.target.hasAttribute('readonly')) return;
+                if (editableEl.classList.contains('editing')) return;
 
                 clickCount++;
 
                 if (clickCount === 1) {
                     clickTimeout = setTimeout(() => {
-                        // Single click - highlight in search (Table Cells only)
-                        if (isTableCell && !e.target.classList.contains('saved-name')) {
-                            const locator = e.target.textContent;
+                        // Single click - highlight in search (Table Cells only - heuristic)
+                        if (editableEl.dataset.target === 'table-cell') {
+                            const locator = editableEl.textContent;
                             const searchInput = document.querySelector('.search-input');
                             if (searchInput) {
                                 searchInput.value = locator;
                                 searchInput.focus();
                             }
                         }
-                        // Axes Inputs: default behavior (focus) is fine
                         clickCount = 0;
                     }, 300);
                 } else if (clickCount === 2) {
@@ -2601,47 +2697,12 @@ const LocatorX = {
                         return;
                     }
 
-                    if (isAxesInput) {
-                        // Enable Axes Input Editing
-                        const el = e.target;
-                        el.removeAttribute('readonly');
-                        el.focus();
-                        el.select();
-
-                        const lock = () => {
-                            el.setAttribute('readonly', 'true');
-                            el.removeEventListener('blur', lock);
-                            el.removeEventListener('keydown', keyHandler);
-                        };
-                        const keyHandler = (ev) => {
-                            if (ev.key === 'Enter' || ev.key === 'Escape') {
-                                lock();
-                            }
-                        };
-                        el.addEventListener('blur', lock);
-                        el.addEventListener('keydown', keyHandler);
-
-                    } else if (isTableCell) {
-                        // Existing Table Cell Editing Logic
-                        let onSave = null;
-                        if (e.target.classList.contains('saved-name')) {
-                            const savedItem = e.target.closest('.saved-item');
-                            const index = parseInt(savedItem.dataset.index);
-                            onSave = (newName) => {
-                                const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
-                                if (saved[index]) {
-                                    saved[index].name = newName;
-                                    localStorage.setItem('locator-x-saved', JSON.stringify(saved));
-                                }
-                            };
-                        }
-                        this.makeEditable(e.target, onSave);
-                    }
+                    this.makeEditable(editableEl);
                 }
             });
         },
 
-        makeEditable(cell, onSave = null) {
+        makeEditable(cell) {
             const currentValue = cell.textContent;
             cell.classList.add('editing');
 
@@ -2660,12 +2721,16 @@ const LocatorX = {
                 cell.classList.remove('editing');
 
                 if (newValue !== currentValue) {
-                    if (onSave) {
-                        onSave(newValue);
-                    } else if (cell.closest('.locator-table')) {
-                        // Trigger match count update for this row
-                        this.updateMatchCount(cell);
-                    }
+                    // Dispatch generic update event
+                    cell.dispatchEvent(new CustomEvent('locatorx-update', {
+                        bubbles: true,
+                        detail: {
+                            oldValue: currentValue,
+                            newValue: newValue,
+                            element: cell,
+                            context: cell.dataset
+                        }
+                    }));
                 }
             };
 
@@ -2702,27 +2767,24 @@ const LocatorX = {
                         selector: locator,
                         type: type
                     }, (response) => {
-                        if (chrome.runtime.lastError) {
+                        const count = (response && typeof response.count !== 'undefined') ? response.count : 0;
+
+                        if (chrome.runtime.lastError || !response) {
                             badge.textContent = '0';
-                            badge.classList.add('match-none');
-                            return;
-                        }
-                        if (!response || typeof response.count === 'undefined') {
-                            badge.textContent = '0';
-                            badge.classList.add('match-none');
+                            badge.dataset.count = '0';
                             return;
                         }
 
-                        const status = response; // Directly use the response containing count, status
-                        badge.textContent = status.count;
-                        badge.classList.remove('hidden', 'match-none', 'match-multiple', 'match-single');
-                        badge.classList.add(`match-${status.status}`);
+                        badge.textContent = count;
+                        badge.dataset.count = count;
+                        badge.classList.remove('hidden');
+
                         // Clear inline styles to let CSS take over
                         badge.style.backgroundColor = '';
                         badge.style.color = '';
 
                         // Also highlight matches while editing
-                        if (status.count > 0) {
+                        if (count > 0) {
                             chrome.tabs.sendMessage(tab.id, {
                                 action: 'highlightMatches',
                                 selector: locator
@@ -2736,7 +2798,10 @@ const LocatorX = {
 };
 
 // Initialize the application with error handling
-LocatorX.init().catch(err => {
+LocatorX.init().then(() => {
+    // Initialize Axes after main init
+    if (LocatorX.axes) LocatorX.axes.init();
+}).catch(err => {
     console.error('Failed to initialize Locator-X:', err);
 });
 

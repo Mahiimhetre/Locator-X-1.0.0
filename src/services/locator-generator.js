@@ -594,6 +594,8 @@ class LocatorGenerator {
         return count;
     }
 
+
+
     // Evaluate XPath across Shadow boundaries (by recursing evaluate)
     evaluateXPathDeep(xpath, root = document, results = []) {
         if (root.host && this.isExtensionElement(root.host)) return results;

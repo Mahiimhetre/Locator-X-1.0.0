@@ -608,18 +608,26 @@
   transition: all 0.2s ease;
 }
 
-[data-count="0"] {
-  background-color: var(--danger);
+.match-badge::after {
+  content: attr(data-count);
+}
+
+/* Match Count Badge Styling */
+.match-count[data-count="0"],
+.match-badge[data-count="0"] {
+  background-color: var(--danger) !important;
   color: white !important;
 }
 
-[data-count="1"] {
-  background-color: var(--success);
+.match-count[data-count="1"],
+.match-badge[data-count="1"] {
+  background-color: var(--success) !important;
   color: white !important;
 }
 
-[data-count]:not([data-count="0"]):not([data-count="1"]) {
-  background-color: var(--warning);
+.match-count[data-count]:not([data-count="0"]):not([data-count="1"]),
+.match-badge[data-count]:not([data-count="0"]):not([data-count="1"]) {
+  background-color: var(--warning) !important;
   color: white !important;
 }
 
@@ -952,18 +960,6 @@
   font-size: 9px;
   font-weight: 600;
   color: white;
-}
-
-.match-single {
-  background-color: var(--success) !important;
-}
-
-.match-none {
-  background-color: var(--danger) !important;
-}
-
-.match-multiple {
-  background-color: var(--warning) !important;
 }
 
 /* Dropdowns */

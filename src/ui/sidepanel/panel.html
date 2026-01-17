@@ -196,7 +196,7 @@
                     <div id="elementTypeBadge" class="element-type-badge hidden"></div>
                     <input type="text" class="search-input" id="searchInput" placeholder="Enter selector or element..."
                         autocomplete="off">
-                    <span id="searchMatchBadge" class="match-badge">0</span>
+                    <span id="searchMatchBadge" class="match-badge" data-count="0"></span>
                     <div id="searchDropdown" class="search-dropdown"></div>
                 </div>
                 <div class="save-container">
@@ -279,9 +279,11 @@
 
                 <!-- Result Section -->
                 <div class="input-container">
-                    <div class="search-input" id="axesResultBox" title="Result Locator" data-label="RESULT">
-                        <span class="item-text" id="axesResultValue">capture Elements to get the result...</span>
-                        <span id="axesMatchCount" class="match-badge">0</span>
+                    <div class="search-input" id="axesResultBox" title="Result Locator (Double-click to edit)"
+                        data-label="RESULT">
+                        <span class="item-text lx-editable" id="axesResultValue" data-target="axes-result">capture
+                            Elements to get the result...</span>
+                        <span id="axesMatchCount" class="match-badge" data-count="0"></span>
                     </div>
                 </div>
             </div>

@@ -87,7 +87,11 @@ class DOMScanner {
                 this.clearMatchHighlights();
             } else if (message.action === 'healLocator') {
                 const result = this.healLocator(message.fingerprint);
+            } else if (message.action === 'healLocator') {
+                const result = this.healLocator(message.fingerprint);
                 sendResponse(result);
+            } else if (message.action === 'swapAxes') {
+                this.swapAxes();
             }
         });
 
@@ -143,6 +147,41 @@ class DOMScanner {
                 setTimeout(() => inThrottle = false, limit);
             }
         }
+    }
+
+    swapAxes() {
+        if (!this.axesState.anchor || !this.axesState.target) return;
+
+        // 1. Swap State
+        const temp = this.axesState.anchor;
+        this.axesState.anchor = this.axesState.target;
+        this.axesState.target = temp;
+
+        // 2. Swap Visual Overlays
+        // We need to find the specific overlays for each element.
+        // Simplified approach: Iterate all axes overlays and toggle their class based on element
+
+        this.axesOverlays.forEach(overlay => {
+            // Check bounding rect matching (approximate solution since we don't store ref map)
+            // Or better, clear and recreate? Recreating is safer and cleaner logic.
+        });
+
+        // Better Approach: Clear and Recreate Overlays with new roles
+        this.clearAxesOverlays();
+        this.createPersistentOverlay(this.axesState.anchor, 'anchor');
+        this.createPersistentOverlay(this.axesState.target, 'target');
+
+        // 3. Regenerate Result
+        const result = this.generator.generateAxesXPath(this.axesState.anchor, this.axesState.target);
+        const info = this.getElementDetails(this.axesState.target);
+
+        // 4. Send Update
+        chrome.runtime.sendMessage({
+            action: 'axesResult',
+            locator: result || 'No Axes relationship found!',
+            elementInfo: info,
+            matchCount: result ? this.generator.countMatches(result, 'xpath') : 0
+        });
     }
 
     startScanning(mode = 'home') {
@@ -274,6 +313,7 @@ class DOMScanner {
 
                     // Create persistent overlay for Target
                     this.createPersistentOverlay(element, 'target');
+                    this.axesState.target = element; // Store target for swapping
 
                     const result = this.generator.generateAxesXPath(anchor, element);
                     const info = this.getElementDetails(element);
@@ -578,7 +618,7 @@ class DOMScanner {
 
             const strategy = displayToStrategy[type] || null;
             const count = this.generator.countMatches(selector, strategy);
-            const status = this.generator.getMatchStatus(count);
+            const status = { count: count };
 
             // Fetch extra info if single match (useful for detail panel)
             if (count === 1) {
