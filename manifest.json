@@ -36,7 +36,6 @@
       "js": [
         "src/config/constants.js",
         "src/services/locator-generator.js",
-        "src/services/healing-engine.js",
         "src/content/domScanner.js"
       ],
       "css": [

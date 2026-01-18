@@ -85,9 +85,7 @@ class DOMScanner {
                 this.highlightMatches(message.selector);
             } else if (message.action === 'clearMatchHighlights') {
                 this.clearMatchHighlights();
-            } else if (message.action === 'healLocator') {
-                const result = this.healLocator(message.fingerprint);
-                sendResponse(result);
+
             } else if (message.action === 'swapAxes') {
                 this.swapAxes();
             }
@@ -365,14 +363,12 @@ class DOMScanner {
                 });
             }
 
-            const fingerprint = this.generator.generateFingerprint(element);
             const info = this.getElementInfo(element);
             const type = this.getElementType(element);
 
             chrome.runtime.sendMessage({
                 action: 'locatorsGenerated',
                 locators: locators,
-                fingerprint: fingerprint,
                 elementInfo: info,
                 elementType: type,
                 metadata: {
@@ -631,7 +627,6 @@ class DOMScanner {
                     if (element) {
                         status.elementInfo = this.getElementInfo(element);
                         status.elementType = this.getElementType(element);
-                        status.fingerprint = this.generator.generateFingerprint(element);
 
                         // Metadata for iframe context
                         const isInIframe = this.detectIframe();
@@ -910,38 +905,7 @@ class DOMScanner {
         }
     }
 
-    healLocator(fingerprint) {
-        if (!window.HealingEngine) return { error: 'Healing Engine not loaded' };
 
-        const engine = new HealingEngine();
-        const start = performance.now();
-        const match = engine.findBestMatch(fingerprint);
-        const duration = performance.now() - start;
-
-        if (match && match.element) {
-            // Generate new locators for this element
-            // We use the same generator logic
-            if (!this.generator) this.generator = new LocatorGenerator();
-
-            // We can return a specific robust locator (e.g. CSS or XPath) or a list
-            // Let's return the standard list so user can choose
-            const locators = this.generator.generateLocators(match.element, ['idLocator', 'nameLocator', 'cssLocator', 'xpathLocator']);
-
-            return {
-                success: true,
-                match: {
-                    score: match.score,
-                    reasons: match.reasons,
-                    tagName: match.element.tagName.toLowerCase(),
-                    text: (match.element.textContent || '').substring(0, 30).trim()
-                },
-                locators: locators,
-                duration: Math.round(duration)
-            };
-        }
-
-        return { success: false, error: 'No matching element found' };
-    }
 
 }
 

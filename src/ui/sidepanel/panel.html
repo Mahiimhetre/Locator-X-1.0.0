@@ -66,9 +66,9 @@
 
                 </ul>
                 <ul class="nav-items">
-                    <li class="nav-item" id="navMultiSelect">
+                    <li class="nav-item" id="navMultiScan" data-feature="module.multiScan">
                         <i class="bi-file-earmark-break"></i>
-                        <div id="multiSelectDropdown" class="navdropdown">
+                        <div id="multiScanDropdown" class="navdropdown">
                             <div class="dropdown-header">
                                 <strong>Scan Multiple Locators</strong>
                             </div>
@@ -82,7 +82,7 @@
                             </div>
                         </div>
                     </li>
-                    <li class="nav-item" id="navHistory">
+                    <li class="nav-item" id="navHistory" data-feature="module.history">
                         <i class="bi-clock-history"></i>
                         <div id="customDropdown" class="navdropdown">
                             <div class="dropdown-header">
@@ -160,7 +160,7 @@
                     LinkText</label>
                 <label><input type="checkbox" class="loc-type" id="pLinkTextLocator" value="pLinkText" checked>
                     Partial LinkText</label>
-                <label class="relative-xpath-container" data-feature="locator.xpath.relative">
+                <label class="relative-xpath-container" data-feature="locator.relativeXpath">
                     <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked>
                     <span>Relative XPath</span>
                     <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
@@ -170,24 +170,25 @@
                             <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll"
                                     title="Select/Deselect All"></i></legend>
                             <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath"
-                                    checked>Default</label>
+                                    data-feature="locator.relativeXpath" checked>Default</label>
                             <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator"
-                                    value="contains" checked>Contains</label>
+                                    value="contains" data-feature="locator.containsXpath" checked>Contains</label>
                             <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator"
-                                    value="indexed" checked>Indexed</label>
+                                    value="indexed" data-feature="locator.indexedXpath" checked>Indexed</label>
                             <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator"
-                                    value="linktext" checked>Link Text</label>
+                                    value="linktext" data-feature="locator.linkTextXpath" checked>Link Text</label>
                             <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator"
-                                    value="partiallinktext" checked>PLink Text</label>
+                                    value="partiallinktext" data-feature="locator.partialLinkTextXpath" checked>PLink
+                                Text</label>
                             <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator"
-                                    value="attribute" checked>Attribute</label>
+                                    value="attribute" data-feature="locator.attributeXpath" checked>Attribute</label>
                             <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="cssXpath"
-                                    checked>CSS
+                                    data-feature="locator.cssXpath" checked>CSS
                                 XPath</label>
                         </fieldset>
                     </div>
                 </label>
-                <label data-feature="locator.xpath"><input type="checkbox" class="loc-type" id="absoluteLocator"
+                <label data-feature="locator.absoluteXpath"><input type="checkbox" class="loc-type" id="absoluteLocator"
                         value="absolute" checked> Absolute XPath</label>
             </div>
 
@@ -345,7 +346,6 @@
     <script src="../../config/constants.js"></script>
     <script src="../../services/storage-manager.js"></script>
     <script src="../../services/filter-manager.js"></script>
-    <script src="../../services/healing-engine.js"></script>
     <script src="../../services/locator-generator.js"></script>
     <script src="../../services/suggestion.js"></script>
     <script src="../../services/locator-x-core.js"></script>

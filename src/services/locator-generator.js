@@ -474,27 +474,6 @@ class LocatorGenerator {
         return res;
     }
 
-    generateFingerprint(element) {
-        return {
-            tag: element.tagName.toLowerCase(),
-            id: element.id || '',
-            name: element.name || '',
-            className: this.cleanClassName(element.className),
-            type: element.getAttribute('type') || '',
-            role: element.getAttribute('role') || '',
-            placeholder: element.getAttribute('placeholder') || '',
-            text: (element.textContent || '').substring(0, 50).trim(),
-            href: element.getAttribute('href') || '',
-            alt: element.getAttribute('alt') || '',
-            title: element.getAttribute('title') || '',
-            parentTag: element.parentElement ? element.parentElement.tagName.toLowerCase() : '',
-            parentId: element.parentElement ? (element.parentElement.id || '') : '',
-            parentClass: element.parentElement ? this.cleanClassName(element.parentElement.className) : '',
-            prevSiblingTag: element.previousElementSibling ? element.previousElementSibling.tagName.toLowerCase() : '',
-            attributes: this.getImportantAttributes(element)
-        };
-    }
-
     getImportantAttributes(element) {
         const important = ['data-testid', 'data-test', 'data-cy', 'aria-label'];
         const attrs = {};
