@@ -87,8 +87,6 @@ class DOMScanner {
                 this.clearMatchHighlights();
             } else if (message.action === 'healLocator') {
                 const result = this.healLocator(message.fingerprint);
-            } else if (message.action === 'healLocator') {
-                const result = this.healLocator(message.fingerprint);
                 sendResponse(result);
             } else if (message.action === 'swapAxes') {
                 this.swapAxes();
