@@ -17,7 +17,7 @@ Locator-X-1.0.0/
 │   │   ├── locator-generator.js # Strategy-based locator generation
 │   │   ├── storage-manager.js # Persistent data abstraction
 │   │   ├── locator-x-core.js # Main orchestrator API
-│   │   └── healing-engine.js # Self-healing locator logic
+
 │   ├── ui/                 # User Interface layer
 │   │   ├── sidepanel/      # Side panel specific HTML/CSS
 │   │   ├── devtools/       # DevTools integration

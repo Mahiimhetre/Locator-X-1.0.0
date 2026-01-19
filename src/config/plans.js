@@ -69,6 +69,7 @@ const LocatorXPlans = {
                 'ui.theme.dark',
                 'ui.settings.framework',
                 'ui.settings.reset',
+                'ui.settings.excludeNumbers',
                 'ui.quickEdit'
             ];
         },

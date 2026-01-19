@@ -14,6 +14,14 @@ class DOMScanner {
         this.generator = new LocatorGenerator();
         this.setupEventListeners();
         this.updateOverlayLoop = this.updateOverlayLoop.bind(this);
+
+        // Load config from storage logic
+        if (chrome.storage && chrome.storage.local) {
+            chrome.storage.local.get(['excludeNumbers'], (result) => {
+                const val = result.excludeNumbers !== undefined ? result.excludeNumbers : true;
+                if (this.generator) this.generator.setConfig({ excludeNumbers: val });
+            });
+        }
     }
 
     // Clear specific axes overlays
@@ -85,9 +93,10 @@ class DOMScanner {
                 this.highlightMatches(message.selector);
             } else if (message.action === 'clearMatchHighlights') {
                 this.clearMatchHighlights();
-
             } else if (message.action === 'swapAxes') {
                 this.swapAxes();
+            } else if (message.action === 'updateConfig') {
+                if (this.generator) this.generator.setConfig(message.config);
             }
         });
 

@@ -274,12 +274,7 @@ const LocatorX = {
                 }
 
                 // Actions Column
-                const healBtn = hasFingerprint
-                    ? `<i class="bi-bandaid heal-btn" title="Heal Locator" style="color: var(--status-green); cursor: pointer; margin-right: 6px;"></i>`
-                    : `<i class="bi-bandaid" title="Missing Fingerprint" style="color: var(--border-light); cursor: not-allowed; margin-right: 6px;"></i>`;
-
                 row.innerHTML += `<td>
-                    ${healBtn}
                     <i class="bi-clipboard" title="Copy"></i>
                     <i class="bi-trash" title="Delete"></i>
                 </td>`;
@@ -307,82 +302,7 @@ const LocatorX = {
                         });
                     }
                 }
-
-                // Bind Heal Event
-                if (hasFingerprint) {
-                    const btn = row.querySelector('.heal-btn');
-                    if (btn) {
-                        btn.addEventListener('click', () => {
-                            this.healLocator(item, row);
-                        });
-                    }
-                }
-
                 tbody.appendChild(row);
-            });
-        },
-
-        async healLocator(item, row) {
-            const btn = row.querySelector('.bi-bandaid');
-            if (btn) {
-                btn.className = 'bi-arrow-repeat spin-anim'; // Spin icon
-            }
-
-            LocatorX.notifications.info('Attempting to heal locator...');
-
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                const tab = tabs[0];
-                if (tab && tab.id) {
-                    chrome.tabs.sendMessage(tab.id, {
-                        action: 'healLocator',
-                        fingerprint: item.fingerprint
-                    }, (response) => {
-                        // Restore icon
-                        if (btn) btn.className = 'bi-bandaid heal-btn';
-
-                        if (chrome.runtime.lastError) {
-                            LocatorX.notifications.error('Connection lost. Please refresh the page.');
-                            return;
-                        }
-
-                        if (!response || !response.success) {
-                            LocatorX.notifications.error('Healing failed: ' + (response?.error || 'Unknown error'));
-                            return;
-                        }
-
-                        // Success!
-                        const match = response.match; // { score, text, tagName }
-                        const newLocators = response.locators;
-                        const duration = response.duration;
-
-                        LocatorX.notifications.success(`Healed in ${duration}ms (Score: ${Math.round(match.score)})`);
-
-                        // Ask user to update
-                        LocatorX.modal.confirm(
-                            'Heal Successful',
-                            `Found match (Score: ${Math.round(match.score)})<br>
-                             Tag: <b>${match.tagName}</b><br>
-                             Text: "${match.text}"<br><br>
-                             reasons: ${match.reasons.join(', ')}<br><br>
-                             <b>Update stored locators?</b>`,
-                            { icon: 'bi-bandaid-fill' }
-                        ).then(confirmed => {
-                            if (confirmed) {
-                                // Update item in storage
-                                item.locators = newLocators; // Update locators
-                                // Fingerprint usually stays same or update it too? 
-                                // Ideally update fingerprint to the NEW element's state so future healing is accurate to the NEW state.
-                                // But response doesn't give full fingerprint back currently, only partial info + locators.
-                                // Let's keep old fingerprint or better yet, ask scanner to return new fingerprint.
-                                // For now, just update locators.
-
-                                const page = this.getCurrentPage();
-                                LocatorX.core.savePOMPage(page);
-                                this.renderTable(page.id);
-                            }
-                        });
-                    });
-                }
             });
         },
 
@@ -411,6 +331,23 @@ const LocatorX = {
             document.getElementById('navHome').addEventListener('click', () => this.switch('home'));
             document.getElementById('navPOM').addEventListener('click', () => this.switch('pom'));
             document.getElementById('navAxes').addEventListener('click', () => this.switch('axes'));
+
+            // Dynamic View Close Button
+            const closeBtn = document.getElementById('closeDynamicBtn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => LocatorX.dynamicView.hide());
+            }
+
+            // Open MultiScan Directly
+            const navMultiScan = document.getElementById('navMultiScan');
+            if (navMultiScan) {
+                navMultiScan.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    LocatorX.dropdowns.closeAll();
+                    LocatorX.multiScan.show();
+                });
+            }
+
             this.switch('home');
         },
 
@@ -422,27 +359,32 @@ const LocatorX = {
             }
 
             // Update UI
+            // Update UI
             document.querySelectorAll('.nav-option').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.home-container, .pom-container, .axes-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.home-container, .pom-container, .axes-container, .dynamic-container').forEach(el => el.classList.remove('active'));
+
+            // Handle MultiScan Active State
+            const navMultiScan = document.getElementById('navMultiScan');
+            if (navMultiScan) navMultiScan.classList.remove('active');
 
             if (tab === 'home') {
                 LocatorX.filters.saveCurrentFilters('pom');
                 LocatorX.filters.loadFilters('home');
                 document.getElementById('navHome').classList.add('active');
                 document.querySelector('.home-container').classList.add('active');
-                this.updateScope('bi-house', 'Home');
+                document.querySelector('.home-container').classList.add('active');
                 LocatorX.filters.updateTable();
             } else if (tab === 'axes') {
                 // Axes Tab
                 document.getElementById('navAxes').classList.add('active');
                 document.querySelector('.axes-container').classList.add('active');
-                this.updateScope('bi-diagram-2', 'Axes');
-            } else {
+                document.querySelector('.axes-container').classList.add('active');
+            } else if (tab === 'pom') {
                 LocatorX.filters.saveCurrentFilters('home');
                 LocatorX.filters.loadFilters('pom');
                 document.getElementById('navPOM').classList.add('active');
                 document.querySelector('.pom-container').classList.add('active');
-                this.updateScope('bi-diagram-3', 'POM');
+                document.querySelector('.pom-container').classList.add('active');
                 LocatorX.filters.updatePOMTable();
 
                 // Init POM if needed
@@ -452,6 +394,11 @@ const LocatorX = {
                     // re-render in case filter changed
                     LocatorX.pom.renderTable(LocatorX.pom.currentPageId);
                 }
+            } else {
+                // Dynamic View (Default)
+                document.querySelector('.dynamic-container').classList.add('active');
+                if (navMultiScan) navMultiScan.classList.add('active');
+                this.current = 'dynamic'; // Ensure state reflects dynamic
             }
             this.current = tab;
 
@@ -462,14 +409,26 @@ const LocatorX = {
             }
             LocatorX.filters.updateFilterVisibility(tab);
         },
+    },
 
-        updateScope(icon, text) {
-            const scopeIcon = document.getElementById('scopeIcon');
-            const scopeText = document.getElementById('scopeText');
-            if (scopeIcon && scopeText) {
-                scopeIcon.className = icon;
-                scopeText.textContent = text;
-            }
+    // Dynamic View Manager
+    dynamicView: {
+        lastTab: 'home',
+
+        show(title, content) {
+            this.lastTab = LocatorX.tabs.current !== 'dynamic' ? LocatorX.tabs.current : 'home';
+
+            const titleEl = document.getElementById('dynamicTitle');
+            const contentEl = document.getElementById('dynamicContent');
+
+            if (titleEl) titleEl.textContent = title;
+            if (contentEl) contentEl.innerHTML = content;
+
+            LocatorX.tabs.switch('dynamic');
+        },
+
+        hide() {
+            LocatorX.tabs.switch(this.lastTab);
         }
     },
 
@@ -477,12 +436,42 @@ const LocatorX = {
     axes: {
         init() {
             const swapBtn = document.getElementById('axesSwapBtn');
-
+            if (swapBtn) {
+                swapBtn.addEventListener('click', () => this.swap());
+            }
         },
 
         swap() {
             const btn = document.getElementById('axesSwapBtn');
             if (btn) btn.style.opacity = '0.5';
+
+            // 1. Swap UI Text Immediately for responsiveness
+            const anchorVal = document.getElementById('axesAnchorValue');
+            const targetVal = document.getElementById('axesTargetValue');
+
+            if (anchorVal && targetVal) {
+                const tempText = anchorVal.textContent;
+                const tempColor = anchorVal.style.color;
+                const tempWeight = anchorVal.style.fontWeight;
+
+                anchorVal.textContent = targetVal.textContent;
+                anchorVal.style.color = targetVal.style.color;
+                anchorVal.style.fontWeight = targetVal.style.fontWeight;
+
+                targetVal.textContent = tempText;
+                targetVal.style.color = tempColor;
+                targetVal.style.fontWeight = tempWeight;
+            }
+
+            // 2. Clear Result during swap
+            const resultVal = document.getElementById('axesResultValue');
+            const matchBadge = document.getElementById('axesMatchCount');
+            if (resultVal) resultVal.textContent = 'Calculating...';
+            if (matchBadge) {
+                matchBadge.textContent = '...';
+                matchBadge.setAttribute('data-count', '...');
+                matchBadge.className = 'match-badge';
+            }
 
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 const tab = tabs[0];
@@ -534,6 +523,424 @@ const LocatorX = {
         }
     },
 
+    // MultiScan Management
+    multiScan: {
+        mode: 'file', // 'file' or 'text'
+
+        show() {
+            const framework = document.getElementById('frameworkSelect') ? document.getElementById('frameworkSelect').value : 'selenium';
+            const commonPatterns = this.getCommonPatterns(framework);
+
+            const content = `
+                <!-- Mode Toggles -->
+                <div class="input-container" style="justify-content: center; margin-bottom: 16px;">
+                    <button class="save-btn" id="msModeFile" style="${this.mode === 'file' ? '' : 'background: var(--secondary-bg); color: var(--primary-text);'}">File Upload</button>
+                    <button class="save-btn" id="msModeText" style="${this.mode === 'text' ? '' : 'background: var(--secondary-bg); color: var(--primary-text); border: 1px solid var(--border-light);'}">Text Input</button>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-container" id="msInputArea" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                    ${this.getInputHtml()}
+                </div>
+
+                <!-- Smart Syntax Input (Custom Dropdown) -->
+                <div class="input-container">
+                    <input type="text" id="msSyntaxInput" class="search-input" placeholder="Select or type pattern (use {type} and {locator})" title="Type pattern with {type} (matches id, xpath, etc) and {locator}" autocomplete="off">
+                    <div id="msSyntaxDropdown" class="search-dropdown"></div>
+                    <button class="save-btn" id="msScanBtn" title="Start Scan">Scan</button>
+                </div>
+
+                <!-- Results Table -->
+                <div class="table-container" style="max-height: calc(100vh - 300px);">
+                    <table class="locator-table" id="msResultsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Type</th>
+                                <th>Locator</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--secondary-text);">Ready to scan...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            LocatorX.dynamicView.show('Multi Locator Scanner', content);
+            this.initListeners();
+        },
+
+        getCommonPatterns(framework) {
+            const patterns = {
+                'selenium-java': {
+                    find: [
+                        { label: 'Standard: driver.findElement(By.{type}("{locator}"))', regex: 'driver\\.findElements?\\(By\\.{type}\\("{locator}"\\)\\)' },
+                        { label: 'Annotation: @FindBy({type}="{locator}")', regex: '@FindBy\\({type}\\s*=\\s*"{locator}"\\)' }
+                    ],
+                    wait: [
+                        { label: 'Explicit Wait', regex: 'WebDriverWait\\(driver.*\\)\\.until\\(ExpectedConditions\\..*By\\.{type}\\("{locator}"\\)\\)' }
+                    ],
+                    assert: [
+                        { label: 'Assert Visible', regex: 'assertTrue\\(driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.isDisplayed\\(\\)\\)' }
+                    ],
+                    interact: [
+                        { label: 'Click', regex: 'driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.click\\(\\)' },
+                        { label: 'SendKeys', regex: 'driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.sendKeys\\(".*"\\)' }
+                    ]
+                },
+                'selenium-python': {
+                    find: [
+                        { label: 'Standard: driver.find_element(By.{type}, "{locator}")', regex: 'driver\\.find_elements?\\(By\\.{type},\\s*"{locator}"\\)' }
+                    ],
+                    wait: [
+                        { label: 'Explicit Wait', regex: 'WebDriverWait\\(driver.*\\)\\.until\\(EC\\..*\\(By\\.{type},\\s*"{locator}"\\)\\)' }
+                    ],
+                    assert: [
+                        { label: 'Assert Visible', regex: 'assert driver\\.find_element\\(By\\.{type},\\s*"{locator}"\\)\\.is_displayed\\(\\)' }
+                    ],
+                    interact: [
+                        { label: 'Click', regex: 'driver\\.find_element\\(By\\.{type},\\s*"{locator}"\\)\\.click\\(\\)' },
+                        { label: 'SendKeys', regex: 'driver\\.find_element\\(By\\.{type},\\s*"{locator}"\\)\\.send_keys\\(".*"\\)' }
+                    ]
+                },
+                'selenium-js': {
+                    find: [
+                        { label: 'Standard: await driver.findElement(By.{type}("{locator}"))', regex: 'await driver\\.findElements?\\(By\\.{type}\\("{locator}"\\)\\)' }
+                    ],
+                    wait: [
+                        { label: 'Explicit Wait', regex: 'await driver\\.wait\\(until\\..*By\\.{type}\\("{locator}"\\)\\)' }
+                    ],
+                    assert: [
+                        { label: 'Assert Visible', regex: 'assert\\(await driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.isDisplayed\\(\\)\\)' }
+                    ],
+                    interact: [
+                        { label: 'Click', regex: 'await driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.click\\(\\)' },
+                        { label: 'SendKeys', regex: 'await driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.sendKeys\\(".*"\\)' }
+                    ]
+                },
+                'playwright-js': {
+                    find: [
+                        { label: 'Locator: page.locator("{type}={locator}")', regex: 'page\\.locator\\("{type}={locator}"\\)' },
+                        { label: 'Async Locator: await page.{type}("{locator}")', regex: 'await page\\.{type}\\("{locator}"\\)' }
+                    ],
+                    wait: [
+                        { label: 'Wait Visible', regex: 'await expect\\(page\\.locator\\(".*"\\)\\)\\.toBeVisible\\(\\)' }
+                    ],
+                    assert: [
+                        { label: 'Assert Text', regex: 'await expect\\(page\\.locator\\(".*"\\)\\)\\.toHaveText\\(".*"\\)' }
+                    ],
+                    interact: [
+                        { label: 'Click', regex: 'await page\\.click\\(".*"\\)' },
+                        { label: 'Fill', regex: 'await page\\.fill\\(".*", ".*"\\)' }
+                    ]
+                },
+                'playwright-python': {
+                    find: [
+                        { label: 'Locator: page.locator("{type}={locator}")', regex: 'page\\.locator\\("{type}={locator}"\\)' },
+                        { label: 'Sync Locator: page.{type}("{locator}")', regex: 'page\\.{type}\\("{locator}"\\)' }
+                    ],
+                    wait: [
+                        { label: 'Wait Visible', regex: 'expect\\(page\\.locator\\(".*"\\)\\)\\.to_be_visible\\(\\)' }
+                    ],
+                    assert: [
+                        { label: 'Assert Text', regex: 'expect\\(page\\.locator\\(".*"\\)\\)\\.to_have_text\\(".*"\\)' }
+                    ],
+                    interact: [
+                        { label: 'Click', regex: 'page\\.click\\(".*"\\)' },
+                        { label: 'Fill', regex: 'page\\.fill\\(".*", ".*"\\)' }
+                    ]
+                },
+                'playwright-java': {
+                    find: [
+                        { label: 'Standard: page.{type}("{locator}")', regex: 'page\\.{type}\\("{locator}"\\)' },
+                        { label: 'Locator: page.locator("{type}={locator}")', regex: 'page\\.locator\\("{type}={locator}"\\)' }
+                    ],
+                    wait: [
+                        { label: 'Wait Visible', regex: 'assertThat\\(page\\.locator\\(".*"\\)\\)\\.isVisible\\(\\)' }
+                    ],
+                    assert: [
+                        { label: 'Assert Text', regex: 'assertThat\\(page\\.locator\\(".*"\\)\\)\\.hasText\\(".*"\\)' }
+                    ],
+                    interact: [
+                        { label: 'Click', regex: 'page\\.locator\\(".*"\\)\\.click\\(\\)' },
+                        { label: 'Fill', regex: 'page\\.locator\\(".*"\\)\\.fill\\(".*"\\)' }
+                    ]
+                },
+                'cypress': {
+                    find: [
+                        { label: 'Standard: cy.{type}("{locator}")', regex: 'cy\\.{type}\\("{locator}"\\)' }
+                    ],
+                    wait: [
+                        { label: 'Should Visible', regex: 'cy\\.get\\(".*"\\)\\.should\\("be\\.visible"\\)' }
+                    ],
+                    assert: [
+                        { label: 'Should Have Text', regex: 'cy\\.get\\(".*"\\)\\.should\\("have\\.text", ".*"\\)' }
+                    ],
+                    interact: [
+                        { label: 'Click', regex: 'cy\\.get\\(".*"\\)\\.click\\(\\)' },
+                        { label: 'Type', regex: 'cy\\.get\\(".*"\\)\\.type\\(".*"\\)' }
+                    ]
+                }
+            };
+            if (framework === 'all') return patterns;
+            return patterns[framework] || patterns['selenium-java'];
+        },
+
+        getInputHtml() {
+            if (this.mode === 'file') {
+                return `<input type="file" id="msFileInput" class="search-input" accept=".html,.htm,.js,.ts,.xml,.txt,.java,.py" style="padding: 8px;">`;
+            } else {
+                return `<textarea id="msTextInput" class="search-input" placeholder="Paste your code or text here..." style="min-height: 100px; resize: vertical; border-radius: 8px; font-family: monospace;"></textarea>`;
+            }
+        },
+
+        initListeners() {
+            const btnFile = document.getElementById('msModeFile');
+            const btnText = document.getElementById('msModeText');
+            const scanBtn = document.getElementById('msScanBtn');
+            const syntaxInput = document.getElementById('msSyntaxInput');
+            const syntaxDropdown = document.getElementById('msSyntaxDropdown');
+
+            if (btnFile) btnFile.addEventListener('click', () => this.toggleMode('file'));
+            if (btnText) btnText.addEventListener('click', () => this.toggleMode('text'));
+            if (scanBtn) scanBtn.addEventListener('click', () => this.performScan());
+
+            if (syntaxInput && syntaxDropdown) {
+                // Focus: Show all or filter
+                syntaxInput.addEventListener('focus', () => this.handleSyntaxInput(syntaxInput, syntaxDropdown));
+
+                // Input: Filter
+                syntaxInput.addEventListener('input', () => this.handleSyntaxInput(syntaxInput, syntaxDropdown));
+
+                // Blur: Delayed hide
+                syntaxInput.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        syntaxDropdown.classList.remove('visible');
+                        setTimeout(() => syntaxDropdown.style.display = 'none', 150);
+                    }, 200);
+                });
+
+                // Keydown: Navigation (Basic for now)
+                syntaxInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        syntaxDropdown.classList.remove('visible');
+                        syntaxDropdown.style.display = 'none';
+                    }
+                });
+            }
+        },
+
+        handleSyntaxInput(input, dropdown) {
+            const query = input.value.trim().toLowerCase();
+            const framework = document.getElementById('frameworkSelect') ? document.getElementById('frameworkSelect').value : 'selenium-java';
+            const categories = this.getCommonPatterns(framework);
+
+            // Logic: If 'all' -> show 'find' from ALL frameworks. If specific -> show only its 'find'.
+            let patterns = [];
+
+            if (framework === 'all') {
+                // categories is the full map of frameworks { 'selenium-java': { find: [...] }, ... }
+                Object.values(categories).forEach(frameworkObj => {
+                    if (frameworkObj && frameworkObj.find) {
+                        patterns = patterns.concat(frameworkObj.find);
+                    }
+                });
+            } else {
+                // categories is a single framework object { find: [...], wait: [...] }
+                if (categories.find) {
+                    patterns = categories.find;
+                } else if (Array.isArray(categories)) {
+                    patterns = categories;
+                }
+            }
+
+            // Filter
+            const matches = patterns.filter(p =>
+                p.label.toLowerCase().includes(query) ||
+                p.regex.toLowerCase().includes(query)
+            );
+
+            if (matches.length > 0) {
+                this.renderSyntaxDropdown(matches, query, dropdown, input);
+                dropdown.style.display = 'block';
+                // Trigger reflow
+                dropdown.offsetHeight;
+                dropdown.classList.add('visible');
+            } else {
+                dropdown.classList.remove('visible');
+                dropdown.style.display = 'none';
+            }
+        },
+
+        renderSyntaxDropdown(matches, query, dropdown, input) {
+            dropdown.innerHTML = '';
+
+            matches.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'dropdown-item';
+
+                // Highlight match in label
+                const text = p.label;
+                let html = text;
+                const idx = text.toLowerCase().indexOf(query);
+                if (query && idx >= 0) {
+                    html = text.substring(0, idx) +
+                        '<strong>' + text.substring(idx, idx + query.length) + '</strong>' +
+                        text.substring(idx + query.length);
+                }
+
+                div.innerHTML = `<span class="item-text">${html}</span>`;
+
+                div.addEventListener('click', () => {
+                    input.value = p.regex; // Set the Smart Pattern
+                    dropdown.classList.remove('visible');
+                    dropdown.style.display = 'none';
+                });
+
+                dropdown.appendChild(div);
+            });
+        },
+
+        toggleMode(newMode) {
+            if (this.mode === newMode) return;
+            this.mode = newMode;
+            this.show(); // Re-render to update UI
+        },
+
+        performScan() {
+            const syntaxInput = document.getElementById('msSyntaxInput');
+            let patternInput = syntaxInput ? syntaxInput.value.trim() : '';
+            let regexPattern = '';
+
+            // Smart Pattern Logic
+            // Smart Pattern Logic
+            if (!patternInput) {
+                // Default fallback
+                regexPattern = '(id|name|class|data-test-id)="([^"]+)"';
+            } else if (patternInput.includes('{locator}') || patternInput.includes('{type}')) {
+                // Convert Smart Pattern to Regex: e.g. driver.findElement(By.{type}("{locator}"))
+
+                // 1. Temporarily replace placeholders so they don't get escaped
+                let safePattern = patternInput
+                    .replace('{type}', '___TYPE_PLACEHOLDER___')
+                    .replace('{locator}', '___LOCATOR_PLACEHOLDER___');
+
+                // 2. Escape valid regex characters in the rest of the string
+                safePattern = safePattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+                // 3. Restore placeholders as Regex Capture Groups
+                // {type} -> ([a-zA-Z0-9_]+)  (Alphanumeric + underscore)
+                // {locator} -> ([^"]+)       (Anything inside quotes)
+                regexPattern = safePattern
+                    .replace('___TYPE_PLACEHOLDER___', '([a-zA-Z0-9_]+)')
+                    .replace('___LOCATOR_PLACEHOLDER___', '([^"]+)');
+            } else {
+                // Assume Raw Regex (Advanced Mode)
+                regexPattern = patternInput;
+            }
+
+            let contentProm;
+
+            if (this.mode === 'file') {
+                const fileInput = document.getElementById('msFileInput');
+                if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                    alert('Please select a file to scan.');
+                    return;
+                }
+                const file = fileInput.files[0];
+                contentProm = new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsText(file);
+                });
+            } else {
+                const textInput = document.getElementById('msTextInput');
+                if (!textInput || !textInput.value.trim()) {
+                    alert('Please enter text to scan.');
+                    return;
+                }
+                contentProm = Promise.resolve(textInput.value);
+            }
+
+            contentProm.then(text => {
+                this.scanContent(text, regexPattern, !!patternInput);
+            }).catch(err => {
+                console.error('Error reading content:', err);
+                alert('Failed to read content.');
+            });
+        },
+
+        scanContent(text, pattern, isCustom) {
+            const tbody = document.querySelector('#msResultsTable tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            try {
+                // Determine if user provided a full regex or just a pattern.
+                // We'll create a RexExp with global flag.
+                const regex = new RegExp(pattern, 'g');
+                const matches = [...text.matchAll(regex)];
+
+                if (matches.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--secondary-text);">No matches found for pattern</td></tr>`;
+                    return;
+                }
+
+                matches.forEach((match, index) => {
+                    const row = document.createElement('tr');
+
+                    // Match extraction logic:
+                    // If default regex (isCustom=false), Group 1 is Type, Group 2 is Locator.
+                    // If smart pattern (isCustom=true), usually Group 1 is the Locator.
+                    // We need to infer 'Type' for smart patterns.
+
+                    let type = 'Custom';
+                    let locator = match[0]; // Fallback to full match
+
+                    if (!isCustom) {
+                        // Default built-in regex logic
+                        if (match.length >= 3) {
+                            type = match[1];
+                            locator = match[2];
+                        }
+                    } else {
+                        // Smart / Custom Pattern
+                        if (match.length >= 2) {
+                            locator = match[1]; // The first capture group is the locator
+                        }
+                        // Try to infer type from full match context if possible, or just say 'Smart Match'
+                        // E.g. if pattern contained 'By.id', type is 'ID'
+                        const inputVal = document.getElementById('msSyntaxInput').value;
+                        if (inputVal.includes('By.id')) type = 'ID';
+                        else if (inputVal.includes('By.name')) type = 'Name';
+                        else if (inputVal.includes('By.xpath')) type = 'XPath';
+                        else if (inputVal.includes('By.className')) type = 'Class';
+                        else if (inputVal.includes('cy.get')) type = 'Cypress';
+                    }
+
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td class="lx-editable" data-target="multiscan-cell" style="color: var(--accent); font-weight: 600;">${type}</td>
+                        <td class="lx-editable" data-target="multiscan-cell">${locator}</td>
+                        <td>
+                            <i class="bi-clipboard" title="Copy" style="cursor: pointer;" onclick="LocatorX.utils.copyToClipboard('${locator}')"></i>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+            } catch (e) {
+                console.error('Regex Error:', e);
+                alert('Invalid Regex Syntax: ' + e.message);
+            }
+        }
+    },
+
     // Theme Management
     theme: {
         current: 'light',
@@ -565,7 +972,6 @@ const LocatorX = {
     // Dropdown Management
     dropdowns: {
         list: [
-            { btn: 'navMultiScan', dropdown: 'multiScanDropdown' },
             { btn: 'navAbout', dropdown: 'aboutDropdown' },
             { btn: 'navHistory', dropdown: 'customDropdown' },
             { btn: 'navSettings', dropdown: 'settingsDropdown' },
@@ -625,14 +1031,14 @@ const LocatorX = {
         lastLocatorTime: 0,
         lastElementInfo: null,
         lastElementType: null,
-        lastElementType: null,
+        lastMetadata: null,
 
         init() {
             this.setupSelectAll();
             this.setupCheckboxes();
             this.setupRelativeXPath();
             this.setupScopeSwitch();
-            this.setupScopeSwitch();
+            this.setupGeneratorSettings();
             this.loadFiltersFromStorage();
             this.saveCurrentFilters('home');
             this.updateTable();
@@ -655,6 +1061,9 @@ const LocatorX = {
                 // 2. Update Visibility
                 if (tab === 'home' || tab === 'pom') {
                     container.classList.remove('hidden');
+                    // Ensure all individual filters are visible (reset potentially hidden ones)
+                    // We can do this by removing display: none from any labels inside
+                    container.querySelectorAll('label').forEach(label => label.style.display = '');
                 } else {
                     container.classList.add('hidden');
                 }
@@ -688,6 +1097,67 @@ const LocatorX = {
                 // Home and Axes share filters (or default)
                 this.homeFilters = filters;
             }
+        },
+
+        setupGeneratorSettings() {
+            const excludeNumbersCfg = document.getElementById('excludeNumbersCfg');
+            if (excludeNumbersCfg) {
+                const updateState = () => {
+                    chrome.storage.local.get(['excludeNumbers', 'user'], (result) => {
+                        const user = result.user || { plan: 'free' };
+                        const plan = user.plan || 'free';
+                        // Use safe fallback if plans not loaded, otherwise check feature
+                        const isAllowed = (typeof LocatorXPlans !== 'undefined') ?
+                            LocatorXPlans.FEATURES[plan].includes('ui.settings.excludeNumbers') || LocatorXPlans.FEATURES[plan] === 'ALL' :
+                            false; // Default to blocked if unknown
+
+                        if (!isAllowed) {
+                            // Enforce default behavior (Exclude = true) and disable
+                            excludeNumbersCfg.checked = true;
+                            excludeNumbersCfg.disabled = true;
+                            excludeNumbersCfg.parentElement.style.opacity = '0.6';
+                            excludeNumbersCfg.parentElement.title = 'Upgrade to Pro to customize this setting';
+                            this.syncConfigToTab({ excludeNumbers: true });
+                        } else {
+                            // User allowed, load stored preference
+                            const val = result.excludeNumbers !== undefined ? result.excludeNumbers : true;
+                            excludeNumbersCfg.checked = val;
+                            excludeNumbersCfg.disabled = false;
+                            excludeNumbersCfg.parentElement.style.opacity = '1';
+                            excludeNumbersCfg.parentElement.title = '';
+                            this.syncConfigToTab({ excludeNumbers: val });
+                        }
+                    });
+                };
+
+                // Initial load
+                updateState();
+
+                // Listen for changes (User toggles)
+                excludeNumbersCfg.addEventListener('change', () => {
+                    const val = excludeNumbersCfg.checked;
+                    chrome.storage.local.set({ excludeNumbers: val });
+                    this.syncConfigToTab({ excludeNumbers: val });
+                });
+
+                // Listen for Auth changes (User upgrades/logs and re-enables feature)
+                chrome.runtime.onMessage.addListener((message) => {
+                    if (message.action === 'AUTH_STATE_CHANGED') {
+                        updateState();
+                    }
+                });
+            }
+        },
+
+        syncConfigToTab(config) {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0] && tabs[0].id) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: 'updateConfig',
+                        config: config
+                    }).catch(() => { });
+                }
+            });
         },
 
         loadFilters(tab) {
@@ -855,26 +1325,7 @@ const LocatorX = {
             });
         },
 
-        updateFilterVisibility(tab) {
-            // Dynamically calculate non-Axes filters using Global Config
-            // Formerly hid filters for Axes. Now simplified to show all filters or custom logic if needed.
-            // For now, per user request, we remove specific Axes filter hiding logic so it behaves like Home.
 
-            // If we wanted to hide specific ones, we would do:
-            // const axesIds = LocatorXConfig.FILTER_GROUPS.AXES;
-            // ...
-
-            // Re-show all if previously hidden?
-            // Since we might have hidden them before, we should ensure they are visible.
-            const allIds = LocatorXConfig.FILTER_GROUPS.CORE;
-            allIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    const label = el.closest('label');
-                    if (label) label.style.display = '';
-                }
-            });
-        },
 
         updateTable() {
             const tbody = document.querySelector('.locator-table tbody');
@@ -1399,16 +1850,6 @@ const LocatorX = {
             });
         },
 
-        setupScopeSwitch() {
-            const switchBtn = document.getElementById('switchScopeBtn');
-            if (switchBtn) {
-                switchBtn.addEventListener('click', () => {
-                    const newTab = LocatorX.tabs.current === 'home' ? 'pom' : 'home';
-                    LocatorX.tabs.switch(newTab);
-                });
-            }
-        },
-
         updateNestedIcon() {
             const icon = document.getElementById('nestedSelectAll');
             const checkboxes = document.querySelectorAll('.nested-loc-type');
@@ -1609,7 +2050,6 @@ const LocatorX = {
                                                 response.locators,
                                                 response.elementInfo,
                                                 response.elementType,
-                                                response.fingerprint,
                                                 response.metadata
                                             );
                                         }
@@ -1873,7 +2313,6 @@ const LocatorX = {
                     }
 
                     if (matchBadge) {
-                        // matchBadge.textContent = message.matchCount; // REMOVED
                         matchBadge.setAttribute('data-count', message.matchCount);
                         if (message.matchCount === 0) matchBadge.classList.add('match-none');
                         else if (message.matchCount === 1) matchBadge.classList.add('match-success');
@@ -1890,6 +2329,11 @@ const LocatorX = {
             if (this.isActive) {
                 this.deactivate();
             } else {
+                // If not in a standard mode, switch to Home first
+                const standardModes = ['home', 'pom', 'axes'];
+                if (!standardModes.includes(LocatorX.tabs.current)) {
+                    LocatorX.tabs.switch('home');
+                }
                 this.activate();
             }
         },
@@ -2352,38 +2796,33 @@ const LocatorX = {
         setupSavedActions() {
             // Use event delegation on the dropdown container
             const dropdown = document.getElementById('aboutDropdown');
-            if (!dropdown) return;
+            if (dropdown) {
+                // Remove existing listener
+                dropdown.removeEventListener('click', this.handleSavedClick);
 
-            // Remove existing listener
-            dropdown.removeEventListener('click', this.handleSavedClick);
+                // Add new listener with proper binding
+                this.handleSavedClick = (e) => {
+                    if (e.target.classList.contains('saved-copy') || e.target.closest('.saved-copy')) {
+                        const item = e.target.closest('.saved-item');
+                        const locator = item.querySelector('.saved-locator-code').textContent;
+                        LocatorX.utils.copyToClipboard(locator).then(success => {
+                            if (success) LocatorX.notifications.success('Copied!');
+                            else LocatorX.notifications.error('Failed to copy');
+                        });
+                    }
 
-            // Add new listener with proper binding
-            this.handleSavedClick = (e) => {
-
-
-
-
-                if (e.target.classList.contains('saved-copy') || e.target.closest('.saved-copy')) {
-                    const item = e.target.closest('.saved-item');
-                    const locator = item.querySelector('.saved-locator-code').textContent;
-                    LocatorX.utils.copyToClipboard(locator).then(success => {
-                        if (success) LocatorX.notifications.success('Copied!');
-                        else LocatorX.notifications.error('Failed to copy');
-                    });
-                }
-
-                if (e.target.classList.contains('saved-delete')) {
-                    const item = e.target.closest('.saved-item');
-                    const index = parseInt(item.dataset.index);
-                    const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
-                    saved.splice(index, 1);
-                    localStorage.setItem('locator-x-saved', JSON.stringify(saved));
-                    this.updateDropdown();
-                    LocatorX.notifications.success('Deleted!');
-                }
-            };
-
-            dropdown.addEventListener('click', this.handleSavedClick);
+                    if (e.target.classList.contains('saved-delete') || e.target.closest('.saved-delete')) {
+                        const item = e.target.closest('.saved-item');
+                        const index = parseInt(item.dataset.index);
+                        const saved = JSON.parse(localStorage.getItem('locator-x-saved') || '[]');
+                        saved.splice(index, 1);
+                        localStorage.setItem('locator-x-saved', JSON.stringify(saved));
+                        this.updateDropdown();
+                        LocatorX.notifications.success('Deleted!');
+                    }
+                };
+                dropdown.addEventListener('click', this.handleSavedClick);
+            }
         },
     },
 
@@ -2457,7 +2896,6 @@ const LocatorX = {
                             name,
                             type,
                             locator,
-                            fingerprint: LocatorX.filters.lastFingerprint,
                             date: new Date().toISOString()
                         });
                         localStorage.setItem('locator-x-saved', JSON.stringify(saved));
@@ -2514,7 +2952,6 @@ const LocatorX = {
                         name: savedName,
                         type,
                         locator,
-                        fingerprint: LocatorX.filters.lastFingerprint,
                         date: new Date().toISOString()
                     });
                     localStorage.setItem('locator-x-saved', JSON.stringify(saved));
@@ -2578,19 +3015,16 @@ const LocatorX = {
                     LocatorX.axes.updateResultMatch(newValue);
                 } else if (targetType === 'pom-cell') {
                     // Start of POM Update Logic
-                    const isStrategy = context.isStrategy === 'true';
-                    const locatorType = context.locatorType;
-
                     // TODO: Implement deep update for POM structure if needed (e.g. updating the underlying page object)
                     // For now, we update the UI match count if possible, or just acknowledge the change.
                     // Since POM is complex, we might just want to trigger a re-scan or update the specific locator object in memory.
-
-                    const row = element.closest('tr');
                     /* 
                        Logic to update the specific locator in LocatorX.pom.pages[activePage] 
                        would go here. For now, just ensuring the edit "sticks" in UI is the first step.
                     */
                     LocatorX.notifications.success('Locator updated locally');
+                } else if (targetType === 'multiscan-cell') {
+                    LocatorX.notifications.success('Updated');
                 }
             });
         },

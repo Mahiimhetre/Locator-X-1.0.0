@@ -67,12 +67,7 @@
                 </ul>
                 <ul class="nav-items">
                     <li class="nav-item" id="navMultiScan" data-feature="module.multiScan">
-                        <i class="bi-file-earmark-break"></i>
-                        <div id="multiScanDropdown" class="navdropdown">
-                            <div class="dropdown-header">
-                                <strong>Scan Multiple Locators</strong>
-                            </div>
-                        </div>
+                        <i class="bi-file-earmark-break" title="MultiScan"></i>
                     </li>
                     <li class="nav-item" id="navAbout">
                         <i class="bi-bookmark"></i>
@@ -105,33 +100,31 @@
                                 <i class="bi-arrow-clockwise reset-settings-btn" id="resetSettingsBtn"
                                     title="Reset to Defaults" data-feature="ui.settings.reset"></i>
                             </div>
-                            <div class="dependencies-section">
-                                <div class="dependencies-header">Dependencies</div>
-                                <div class="dependency-items">
-                                    <div class="dependency-item">
-                                        <span class="dependency-label">Framework:</span>
-                                        <select id="frameworkSelect" title="Select Framework"
-                                            data-feature="ui.settings.framework">
-                                            <option value="unknown">unknown</option>
-                                            <option value="selenium" selected>selenium</option>
-                                            <option value="playwright">playwright</option>
-                                            <option value="cypress">cypress</option>
-                                        </select>
-                                    </div>
+                            <div class="settings-content"
+                                style="padding: 8px; display: flex; flex-direction: column; gap: 12px;">
+                                <div class="setting-group">
+                                    <label class="setting-label"
+                                        style="display: block; font-size: 11px; color: var(--secondary-text); margin-bottom: 4px;">Framework</label>
+                                    <select id="frameworkSelect" title="Select Framework"
+                                        data-feature="ui.settings.framework"
+                                        style="width: 100%; border: 1px solid var(--border-light); border-radius: 4px; padding: 4px; font-size: 11px;">
+                                        <option value="all" selected>Select Framework</option>
+                                        <option value="selenium-java">Selenium (Java)</option>
+                                        <option value="selenium-python">Selenium (Python)</option>
+                                        <option value="selenium-js">Selenium (JavaScript)</option>
+                                        <option value="playwright-js">Playwright (JS/TS)</option>
+                                        <option value="playwright-python">Playwright (Python)</option>
+                                        <option value="playwright-java">Playwright (Java)</option>
+                                        <option value="cypress">Cypress (JS/TS)</option>
+                                    </select>
                                 </div>
-                            </div>
-
-                            <div class="filter-section">
-                                <div class="section-header">
-                                    <div class="scope-info">
-                                        <span>Target:</span>
-                                        <span class="scope-badge" id="currentScope">
-                                            <i id="scopeIcon" class="bi-house"></i>
-                                            <span id="scopeText">Home</span>
-                                        </span>
-                                    </div>
-                                    <i id="switchScopeBtn" class="bi-arrow-left-right scope-switch"
-                                        title="Change Scope Target"></i>
+                                <div class="setting-group">
+                                    <label class="setting-option"
+                                        style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="excludeNumbersCfg" checked>
+                                        <span style="font-size: 11px; color: var(--primary-text);">Exclude Numbers in
+                                            Locators</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -287,6 +280,15 @@
                         <span id="axesMatchCount" class="match-badge" data-count="0"></span>
                     </div>
                 </div>
+            </div>
+            <div class="dynamic-container">
+                <div class="dynamic-header">
+                    <button class="header-icon-button" id="closeDynamicBtn" title="Back">
+                        <i class="bi-arrow-left"></i>
+                    </button>
+                    <span id="dynamicTitle" class="dynamic-title">Result</span>
+                </div>
+                <div id="dynamicContent" class="dynamic-content"></div>
             </div>
         </main>
     </div>

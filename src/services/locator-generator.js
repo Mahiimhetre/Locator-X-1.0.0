@@ -1,10 +1,23 @@
 // Core Locator Generator - Backend Logic
 class LocatorGenerator {
-    constructor() {
+    constructor(config = {}) {
+        this.config = Object.assign({ excludeNumbers: true }, config);
         this.strategies = {
             // Basic locators
-            id: (element) => element.id ? `#${element.id}` : null,
-            name: (element) => element.name ? `[name='${element.name}']` : null,
+            id: (element) => {
+                if (element.id) {
+                    if (this.config.excludeNumbers && /\d/.test(element.id)) return null;
+                    return `#${element.id}`;
+                }
+                return null;
+            },
+            name: (element) => {
+                if (element.name) {
+                    if (this.config.excludeNumbers && /\d/.test(element.name)) return null;
+                    return `[name='${element.name}']`;
+                }
+                return null;
+            },
             className: (element) => {
                 const cleaned = this.cleanClassName(element.className);
                 return cleaned ? `.${cleaned.split(' ').join('.')}` : null;
@@ -26,6 +39,10 @@ class LocatorGenerator {
             // Axes XPath
             axes: (anchor, target) => this.generateAxesXPath(anchor, target)
         };
+    }
+
+    setConfig(config) {
+        this.config = Object.assign(this.config, config);
     }
 
     generateAxesXPath(anchor, target) {
@@ -123,7 +140,11 @@ class LocatorGenerator {
             LocatorXConfig.IDENTIFIERS.HIGHLIGHT_CLASS : 'locator-x-highlight';
 
         return className.split(' ')
-            .filter(cls => cls !== highlightClass && cls.trim() !== '')
+            .filter(cls => {
+                if (cls === highlightClass || cls.trim() === '') return false;
+                if (this.config.excludeNumbers && /\d/.test(cls)) return false;
+                return true;
+            })
             .map(cls => this.escapeSelector(cls))
             .join('.');
     }
@@ -193,7 +214,8 @@ class LocatorGenerator {
     generateCSSSelector(element) {
         console.log('[Locator-X] generateCSSSelector input:', element);
         // 1. ID
-        if (element.id) {
+        const allowId = !this.config.excludeNumbers || !/\d/.test(element.id);
+        if (element.id && allowId) {
             const escapedId = this.escapeSelector(element.id);
             if (this.isUnique(`#${escapedId}`)) {
                 const res = `#${escapedId}`;
@@ -206,7 +228,7 @@ class LocatorGenerator {
         const attributes = LocatorXConfig.IMPORTANT_ATTRIBUTES;
         for (const attr of attributes) {
             const value = element.getAttribute(attr);
-            if (value) {
+            if (value && (!this.config.excludeNumbers || !/\d/.test(value))) {
                 const quote = value.includes("'") ? '"' : "'";
                 const selector = `[${attr}=${quote}${CSS.escape(value)}${quote}]`;
                 if (this.isUnique(selector)) {
@@ -323,7 +345,8 @@ class LocatorGenerator {
     generateRelativeXPath(element) {
         console.log('[Locator-X] generateRelativeXPath input:', element);
         // 1. ID
-        if (element.id) {
+        const allowId = !this.config.excludeNumbers || !/\d/.test(element.id);
+        if (element.id && allowId) {
             const quote = element.id.includes("'") ? '"' : "'";
             const res = `//*[@id=${quote}${element.id}${quote}]`;
             console.log('[Locator-X] generateRelativeXPath result (ID):', res);
@@ -334,7 +357,7 @@ class LocatorGenerator {
         const attributes = LocatorXConfig.IMPORTANT_ATTRIBUTES;
         for (const attr of attributes) {
             const value = element.getAttribute(attr);
-            if (value) {
+            if (value && (!this.config.excludeNumbers || !/\d/.test(value))) {
                 const quote = value.includes("'") ? '"' : "'";
                 const res = `//*[@${attr}=${quote}${value}${quote}]`;
                 console.log('[Locator-X] generateRelativeXPath result (Attr):', res);
@@ -373,7 +396,7 @@ class LocatorGenerator {
         const attrs = ['id', 'class', 'name', 'title', 'placeholder', 'role', 'aria-label'];
         for (const attr of attrs) {
             const val = element.getAttribute(attr);
-            if (val) {
+            if (val && (!this.config.excludeNumbers || !/\d/.test(val))) {
                 if (attr === 'class') {
                     const classPart = this.cleanClassName(val).split(' ')[0];
                     if (classPart) {
@@ -445,7 +468,8 @@ class LocatorGenerator {
     generateAttributeXPath(element) {
         console.log('[Locator-X] generateAttributeXPath input:', element);
         // Explicitly check ID first
-        if (element.id) {
+        const allowId = !this.config.excludeNumbers || !/\d/.test(element.id);
+        if (element.id && allowId) {
             const quote = element.id.includes("'") ? '"' : "'";
             const res = `//*[@id=${quote}${element.id}${quote}]`;
             console.log('[Locator-X] generateAttributeXPath result (ID):', res);
@@ -455,7 +479,7 @@ class LocatorGenerator {
         const attrs = LocatorXConfig.IMPORTANT_ATTRIBUTES;
         for (const attr of attrs) {
             const value = element.getAttribute(attr);
-            if (value) {
+            if (value && (!this.config.excludeNumbers || !/\d/.test(value))) {
                 const quote = value.includes("'") ? '"' : "'";
                 const res = `//*[@${attr}=${quote}${value}${quote}]`;
                 console.log('[Locator-X] generateAttributeXPath result (Attr):', res);

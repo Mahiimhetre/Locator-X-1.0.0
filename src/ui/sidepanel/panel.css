@@ -120,10 +120,6 @@
   position: relative;
 }
 
-.user-profile.hidden {
-  display: none;
-}
-
 .user-avatar {
   width: 24px;
   height: 24px;
@@ -188,10 +184,6 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   pointer-events: none;
   z-index: 5;
-}
-
-.plan-badge-trigger.hidden {
-  display: none;
 }
 
 .logout-btn {
@@ -299,7 +291,7 @@
 
 .nav-options {
   display: flex;
-  width: 40%;
+  width: 60%;
   gap: 8px;
   list-style: none;
   margin: 0;
@@ -372,7 +364,7 @@
 
 .nav-items {
   display: flex;
-  width: 50%;
+  width: autp;
   justify-content: flex-end;
   gap: 8px;
   list-style: none;
@@ -459,11 +451,6 @@
   display: block;
   opacity: 1;
   transition: opacity 0.3s ease;
-}
-
-.element-type-badge.hidden {
-  display: none;
-  opacity: 0;
 }
 
 .element-type-badge[data-type^="Iframe"] {
@@ -998,38 +985,7 @@
   border-bottom: 2px solid var(--border-dark);
 }
 
-.dependencies-section {
-  margin-top: 6px;
-  padding-bottom: 8px;
-}
 
-.dependencies-header {
-  color: var(--status-green-text);
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.dependency-items {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.dependency-item {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.dependency-label {
-  color: var(--secondary-text);
-  font-size: 9px;
-}
-
-.dependency-value {
-  color: var(--accent);
-  font-weight: 600;
-}
 
 .filter-section {
   margin-bottom: 4px;
@@ -1528,7 +1484,7 @@ select:focus {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 10px 16px;
+  padding: 6px;
   border-top: 1px solid var(--border-light);
   background: linear-gradient(135deg, var(--secondary-bg) 0%, var(--surface-2) 100%);
   box-shadow: 0 -2px 8px var(--shadow-light);
@@ -1940,4 +1896,39 @@ select:focus {
 [data-label="RESULT"]::before {
   background: #3498db;
   border-color: #2980b9;
+}
+
+/* Dynamic Container */
+.dynamic-container {
+  display: none;
+  background-color: var(--primary-bg);
+  height: 100%;
+  flex-direction: column;
+}
+
+.dynamic-container.active {
+  display: flex;
+}
+
+.dynamic-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--secondary-bg);
+  position: sticky;
+  top: 0;
+}
+
+.dynamic-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--primary-text);
+}
+
+.dynamic-content {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
 }

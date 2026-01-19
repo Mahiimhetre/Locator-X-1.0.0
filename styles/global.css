@@ -122,6 +122,7 @@ body {
 /* Utility Classes */
 .hidden {
     display: none !important;
+    opacity: 0;
 }
 
 /* Global Scrollbar Styling */
