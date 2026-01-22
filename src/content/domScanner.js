@@ -5,15 +5,11 @@ class DOMScanner {
         this.isLocked = false;
         this.highlightedElement = null;
         this.lastRightClickedElement = null;
-        this.overlay = null; // Lazy init
-        this.matchOverlays = []; // Pool for multi-match highlights
         this.matchedElements = []; // The elements currently matched
-        this.animationFrameId = null;
         this.axesState = { step: 0, anchor: null }; // Axes capture state
-        this.axesOverlays = []; // Persistent overlays for Axes
         this.generator = new LocatorGenerator();
+        this.labelElement = null; // Private label element
         this.setupEventListeners();
-        this.updateOverlayLoop = this.updateOverlayLoop.bind(this);
 
         // Load config from storage logic
         if (chrome.storage && chrome.storage.local) {
@@ -24,53 +20,48 @@ class DOMScanner {
         }
     }
 
-    // Clear specific axes overlays
-    clearAxesOverlays() {
-        if (this.axesOverlays) {
-            this.axesOverlays.forEach(ol => ol.remove());
-            this.axesOverlays = [];
+    // Universal highlight clearing function
+    // Universal highlight clearing function
+    clearHighlights(scope = 'active') {
+        const clearMatches = scope === 'matches' || scope === 'all';
+
+        // 1. Clear Active Hover
+        if ((scope === 'active' || scope === 'all') && this.highlightedElement) {
+            // In Axes mode, preserve anchor highlight unless explicitly told to clear 'axes' or 'all'
+            if (this.currentMode === 'axes' && this.highlightedElement === this.axesState.anchor) {
+                // Skip anchor
+            } else {
+                this.restoreMatchOrClear(this.highlightedElement, clearMatches);
+                this.hideLabel();
+            }
+            this.highlightedElement = null;
+        }
+
+        // 2. Clear Axes
+        if (scope === 'axes' || scope === 'all') {
+            if (this.axesState.anchor) this.restoreMatchOrClear(this.axesState.anchor, clearMatches);
+            if (this.axesState.target) this.restoreMatchOrClear(this.axesState.target, clearMatches);
+        }
+
+        // 3. Clear Matches
+        if (clearMatches) {
+            if (this.matchedElements) {
+                this.matchedElements.forEach(el => {
+                    const currentHigh = el.getAttribute('lx-high');
+                    if (currentHigh === 'match') el.removeAttribute('lx-high');
+                });
+                this.matchedElements = [];
+            }
         }
     }
 
-    createPersistentOverlay(element, type) {
+    restoreMatchOrClear(element, clearMatches) {
         if (!element) return;
-        const rect = element.getBoundingClientRect();
-        const scrollX = window.scrollX || window.pageXOffset;
-        const scrollY = window.scrollY || window.pageYOffset;
-
-        const div = document.createElement('div');
-        div.className = `lx-ovl ${type}`; // 'anchor' or 'target'
-        div.style.position = 'absolute';
-        div.style.left = '0';
-        div.style.top = '0';
-        div.style.transform = `translate3d(${rect.left + scrollX}px, ${rect.top + scrollY}px, 0)`;
-        div.style.width = `${rect.width}px`;
-        div.style.height = `${rect.height}px`;
-        div.style.zIndex = '2147483646'; // Below the main overlay (ends in 7)
-        div.style.pointerEvents = 'none';
-        div.style.display = 'block';
-
-        // Add label ONLY if it's a special type (e.g. Shadow Content)
-        // User requested: "if it has sudo elemtn (label) with that highlight that also should keep"
-        const specialType = this.getElementType(element);
-        if (specialType && specialType !== 'Normal') {
-            div.setAttribute('data-label', specialType);
+        if (!clearMatches && this.matchedElements.includes(element)) {
+            element.setAttribute('lx-high', 'match');
+        } else {
+            element.removeAttribute('lx-high');
         }
-
-        document.body.appendChild(div);
-        this.axesOverlays.push(div);
-    }
-
-    getOverlay() {
-        if (this.overlay) return this.overlay;
-        const ids = LocatorXConfig.IDENTIFIERS;
-        this.overlay = document.createElement('div');
-        this.overlay.className = ids.OVERLAY_CLASS;
-        this.overlay.id = ids.ROOT_ID;
-        this.overlay.style.display = 'none';
-        // Append to documentElement for maximum isolation
-        document.documentElement.appendChild(this.overlay);
-        return this.overlay;
     }
 
     setupEventListeners() {
@@ -82,8 +73,15 @@ class DOMScanner {
                 this.stopScanning(message.force);
                 sendResponse({ success: true });
             } else if (message.action === 'evaluateSelector') {
-                const results = this.evaluateSelector(message.selector, message.type);
-                sendResponse(results);
+                try {
+                    console.log('[DOMScanner] evaluateSelector request:', message.selector, message.type);
+                    const results = this.evaluateSelector(message.selector, message.type, message.enableSmartCorrect);
+                    console.log('[DOMScanner] evaluateSelector results:', results);
+                    sendResponse(results);
+                } catch (e) {
+                    console.error('[DOMScanner] evaluateSelector error:', e);
+                    sendResponse({ error: e.toString() });
+                }
             } else if (message.action === 'getPageStructure') {
                 const structure = this.getPageStructure();
                 sendResponse(structure);
@@ -92,7 +90,7 @@ class DOMScanner {
             } else if (message.action === 'highlightMatches') {
                 this.highlightMatches(message.selector);
             } else if (message.action === 'clearMatchHighlights') {
-                this.clearMatchHighlights();
+                this.clearHighlights('matches');
             } else if (message.action === 'swapAxes') {
                 this.swapAxes();
             } else if (message.action === 'updateConfig') {
@@ -101,38 +99,20 @@ class DOMScanner {
         });
 
         // Global tracker for context menu
-        document.addEventListener('contextmenu', (e) => {
-            const overlay = this.getOverlay();
-            const element = (e.target === overlay) ? this.highlightedElement : e.target;
-            this.lastRightClickedElement = element;
 
-            if (element) {
-                // Defer generation to avoid blocking the menu appearance
-                const defer = window.requestIdleCallback || window.setTimeout;
-                defer(() => {
-                    if (!this.generator) {
-                        this.generator = new LocatorGenerator();
-                    }
-
-                    const values = {};
-                    const strategies = [
-                        'id', 'name', 'className', 'xpath', 'css', 'jsPath', 'absoluteXPath'
-                    ];
-
-                    strategies.forEach(strategy => {
-                        try {
-                            values[strategy] = this.generator.strategies[strategy](element) || 'Not available';
-                        } catch (err) {
-                            values[strategy] = 'Error generating';
-                        }
-                    });
-
-                    chrome.runtime.sendMessage({
-                        action: 'updateContextMenuValues',
-                        values: values
-                    });
-                });
+        // Use mousedown (button 2) to trigger update BEFORE the menu opens
+        document.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { // Right click
+                this.lastRightClickedElement = e.target;
+                this.updateContextMenuForElement(e.target);
             }
+        }, true);
+
+        document.addEventListener('contextmenu', (e) => {
+            const element = e.target;
+            this.lastRightClickedElement = element;
+            // Fallback update in case mousedown didn't catch it
+            this.updateContextMenuForElement(element);
         }, true);
 
         // Throttled mouse move
@@ -140,6 +120,34 @@ class DOMScanner {
         this.handleMouseClick = this.handleMouseClick.bind(this);
         this.handleKeyPress = this.handleKeyPress.bind(this);
         this.handleRightClick = this.handleRightClick.bind(this);
+    }
+
+    updateContextMenuForElement(element) {
+        if (!element) return;
+
+        if (!this.generator) {
+            this.generator = new LocatorGenerator();
+        }
+
+        const values = {};
+        const strategies = [
+            'id', 'name', 'className', 'xpath', 'css', 'jsPath', 'absoluteXPath'
+        ];
+
+        strategies.forEach(strategy => {
+            try {
+                values[strategy] = this.generator.strategies[strategy](element) || 'Not available';
+            } catch (err) {
+                values[strategy] = 'Error generating';
+            }
+        });
+
+        chrome.runtime.sendMessage({
+            action: 'updateContextMenuValues',
+            values: values
+        });
+
+
     }
 
     throttle(func, limit) {
@@ -162,19 +170,10 @@ class DOMScanner {
         this.axesState.anchor = this.axesState.target;
         this.axesState.target = temp;
 
-        // 2. Swap Visual Overlays
-        // We need to find the specific overlays for each element.
-        // Simplified approach: Iterate all axes overlays and toggle their class based on element
-
-        this.axesOverlays.forEach(overlay => {
-            // Check bounding rect matching (approximate solution since we don't store ref map)
-            // Or better, clear and recreate? Recreating is safer and cleaner logic.
-        });
-
-        // Better Approach: Clear and Recreate Overlays with new roles
-        this.clearAxesOverlays();
-        this.createPersistentOverlay(this.axesState.anchor, 'anchor');
-        this.createPersistentOverlay(this.axesState.target, 'target');
+        // 2. Swap Visual Highlights
+        this.clearHighlights('axes');
+        this.axesState.anchor.setAttribute('lx-high', 'anchor');
+        this.axesState.target.setAttribute('lx-high', 'target');
 
         // 3. Regenerate Result
         const result = this.generator.generateAxesXPath(this.axesState.anchor, this.axesState.target);
@@ -202,21 +201,13 @@ class DOMScanner {
             this.axesState = { step: 0, anchor: null };
         }
 
-        // Apply mode-specific class to overlay
-        const overlay = this.getOverlay();
-        overlay.classList.remove('axes', 'pom', 'home', 'anchor', 'target');
-        if (mode && mode !== 'axes') overlay.classList.add(mode);
-        // For axes, classes are added dynamically in highlightElement based on step
-
         document.addEventListener('mousemove', this.handleMouseMove, true);
         document.addEventListener('click', this.handleMouseClick, true);
         document.addEventListener('keydown', this.handleKeyPress, true);
         document.addEventListener('contextmenu', this.handleRightClick, true);
-        // We use requestAnimationFrame instead of scroll/resize events for better stickiness
-        this.startOverlayLoop();
 
-        this.clearHighlight();
-        this.clearAxesOverlays();
+        this.clearHighlights('active');
+        this.clearHighlights('axes');
         this.isLocked = false;
         document.body.style.userSelect = 'none';
         document.body.style.cursor = 'crosshair';
@@ -231,20 +222,14 @@ class DOMScanner {
 
         this.isActive = false;
 
-        // Reset overlay classes
-        const overlay = this.getOverlay();
-        overlay.classList.remove('axes', 'pom');
-
         document.removeEventListener('mousemove', this.handleMouseMove, true);
         document.removeEventListener('click', this.handleMouseClick, true);
         document.removeEventListener('keydown', this.handleKeyPress, true);
         document.removeEventListener('contextmenu', this.handleRightClick, true);
 
-        this.stopOverlayLoop();
-
         if (force) {
-            this.clearHighlight();
-            this.clearAxesOverlays();
+            this.clearHighlights('active');
+            this.clearHighlights('axes');
         }
 
         document.body.style.userSelect = '';
@@ -256,17 +241,9 @@ class DOMScanner {
 
         // Use composedPath to find the real element inside Shadow DOM
         const element = event.composedPath ? event.composedPath()[0] : event.target;
-        const overlay = this.getOverlay();
 
         if (element === this.highlightedElement ||
-            element === overlay ||
             element.closest && element.closest(`#${LocatorXConfig.IDENTIFIERS.ROOT_ID}`)) return;
-
-        if (this.currentMode === 'axes') {
-            overlay.classList.remove('anchor', 'target');
-            if (this.axesState.step === 1) overlay.classList.add('anchor'); // Yellow
-            else if (this.axesState.step === 2) overlay.classList.add('target'); // Purple
-        }
 
         this.highlightElement(element);
     }
@@ -285,13 +262,9 @@ class DOMScanner {
             }, 500);
 
             // Use composedPath to find the real element inside Shadow DOM
-            const target = event.composedPath ? event.composedPath()[0] : event.target;
-            const overlay = this.getOverlay();
-            const element = target === overlay ? this.highlightedElement : target;
+            const element = event.composedPath ? event.composedPath()[0] : event.target;
 
             if (!element) return;
-
-
 
             // Handle Axes Mode Logic
             if (this.currentMode === 'axes') {
@@ -300,24 +273,20 @@ class DOMScanner {
                     this.axesState.anchor = element;
                     this.axesState.step = 2; // Move to Target step
 
-                    // Create persistent overlay for Anchor
-                    this.createPersistentOverlay(element, 'anchor');
+                    // Highlight for Anchor
+                    element.setAttribute('lx-high', 'anchor');
 
                     chrome.runtime.sendMessage({
                         action: 'axesAnchorCaptured',
                         elementInfo: this.getElementDetails(element)
                     });
-                    // Force overlay update for color change immediately
-                    const overlay = this.getOverlay();
-                    overlay.classList.remove('anchor');
-                    overlay.classList.add('target');
                     return;
                 } else if (this.axesState.step === 2) {
                     // Capture Target & Generate Result
                     const anchor = this.axesState.anchor;
 
-                    // Create persistent overlay for Target
-                    this.createPersistentOverlay(element, 'target');
+                    // Highlight for Target
+                    element.setAttribute('lx-high', 'target');
                     this.axesState.target = element; // Store target for swapping
 
                     const result = this.generator.generateAxesXPath(anchor, element);
@@ -338,6 +307,7 @@ class DOMScanner {
 
             const isInIframe = this.detectIframe();
             const isCrossOrigin = this.isCrossOriginIframe();
+            const isDynamic = this.isDynamicElement(element);
             let iframeXPath = null;
 
             if (isInIframe && !isCrossOrigin) {
@@ -351,27 +321,11 @@ class DOMScanner {
                 'idLocator', 'nameLocator', 'classNameLocator', 'tagnameLocator',
                 'cssLocator', 'linkTextLocator', 'pLinkTextLocator', 'absoluteLocator',
                 'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
-                'LinkTextXpathLocator', 'PLinkTextXpathLocator', 'attributeXpathLocator',
+                'linkTextXpathLocator', 'pLinkTextXpathLocator', 'attributeXpathLocator',
                 'cssXpathLocator', 'jsPathLocator'
             ];
 
-
-
             let locators = this.generateLocators(element, targetTypes);
-
-            // If in same-origin iframe, combine XPaths
-            if (isInIframe && !isCrossOrigin && iframeXPath) {
-                locators = locators.map(loc => {
-                    if (loc.type.includes('XPath')) {
-                        return {
-                            ...loc,
-                            locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
-                        };
-                    }
-                    return loc;
-                });
-            }
-
             const info = this.getElementInfo(element);
             const type = this.getElementType(element);
 
@@ -383,6 +337,7 @@ class DOMScanner {
                 metadata: {
                     isInIframe,
                     isCrossOrigin,
+                    isDynamic,
                     iframeXPath
                 }
             });
@@ -409,104 +364,79 @@ class DOMScanner {
 
     highlightElement(element) {
         if (!element || element === document.body || element === document.documentElement) {
-            if (this.isActive) this.clearHighlight(); // Only auto-clear while picking
+            if (this.isActive) this.clearHighlights('active'); // Only auto-clear while picking
             return;
         }
 
-        const overlay = this.getOverlay();
+        // Clean previous
+        if (this.highlightedElement && this.highlightedElement !== element) {
+            this.clearHighlights('active');
+        }
+
         this.highlightedElement = element;
-        overlay.style.display = 'block';
-        this.repositionOverlay();
+        const ids = LocatorXConfig.IDENTIFIERS;
 
-        // Ensure loop is running if we are highlighting
-        if (!this.animationFrameId) {
-            this.startOverlayLoop();
-        }
-    }
+        // Add highlight attribute
+        // Check current mode to set value if needed (default to empty or 'home')
+        const mode = this.currentMode && this.currentMode !== 'axes' ? this.currentMode : 'home';
 
-    startOverlayLoop() {
-        if (this.animationFrameId) return;
-        this.updateOverlayLoop();
-    }
-
-    stopOverlayLoop() {
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-        }
-    }
-
-    updateOverlayLoop() {
-        this.repositionOverlay();
-        this.repositionMatchOverlays();
-        this.animationFrameId = requestAnimationFrame(this.updateOverlayLoop);
-    }
-
-    repositionMatchOverlays() {
-        const scrollX = window.scrollX || window.pageXOffset;
-        const scrollY = window.scrollY || window.pageYOffset;
-
-        // Only show up to 20 matches for performance
-        this.matchOverlays.forEach((overlay, i) => {
-            const el = this.matchedElements[i + 1]; // First match uses primary overlay
-            if (el) {
-                const rect = el.getBoundingClientRect();
-                // Check if element is visible
-                if (rect.width > 0 && rect.height > 0) {
-                    overlay.style.display = 'block';
-                    overlay.style.transform = `translate3d(${rect.left + scrollX}px, ${rect.top + scrollY}px, 0)`;
-                    overlay.style.width = `${rect.width}px`;
-                    overlay.style.height = `${rect.height}px`;
-                } else {
-                    overlay.style.display = 'none';
-                }
-            } else {
-                overlay.style.display = 'none';
-            }
-        });
-    }
-
-    repositionOverlay() {
-        if (!this.highlightedElement || !this.overlay) return;
-
-        const rect = this.highlightedElement.getBoundingClientRect();
-
-        // Hide overlay if element is not in viewport
-        const isInViewport = rect.top < window.innerHeight && rect.bottom > 0 &&
-            rect.left < window.innerWidth && rect.right > 0;
-
-        if (!isInViewport) {
-            // Optional: hide overlay or keep it off-screen
-            // this.overlay.style.display = 'none';
-            // return;
+        // For Axes, we use 'anchor' or 'target', handled by logic above.
+        // But for hover, we just show standard highlight unless strict axes logic prevails.
+        // In Axes mode, hover is essentially "potential target" (step 2) or "potential anchor" (step 1)
+        let highlightValue = (mode === 'home') ? '' : mode;
+        if (this.currentMode === 'axes') {
+            if (element === this.axesState.anchor) {
+                highlightValue = 'anchor';
+            } else { highlightValue = (this.axesState.step === 1) ? 'anchor' : 'target'; }
         }
 
-        this.overlay.style.display = 'block';
+        element.setAttribute('lx-high', highlightValue);
 
-        const scrollX = window.scrollX || window.pageXOffset;
-        const scrollY = window.scrollY || window.pageYOffset;
+        element.setAttribute('lx-high', highlightValue);
 
-        // Use transform for better performance and to avoid layout shifts.
-        // Also more robust against parent element transforms when position is fixed.
-        this.overlay.style.transform = `translate3d(${rect.left + scrollX}px, ${rect.top + scrollY}px, 0)`;
-        this.overlay.style.width = `${rect.width}px`;
-        this.overlay.style.height = `${rect.height}px`;
-
-        const label = this.getOverlayLabel(this.highlightedElement);
-        if (this.overlay.getAttribute('data-label') !== label) {
-            this.overlay.setAttribute('data-label', label);
-        }
+        // Update Label
+        this.updateLabel(element);
     }
 
-    clearHighlight() {
-        this.highlightedElement = null;
-        if (this.overlay) {
-            this.overlay.style.display = 'none';
+    createLabel() {
+        if (this.labelElement) return;
+        this.labelElement = document.createElement('div');
+        this.labelElement.className = 'lx-high-label';
+        this.labelElement.style.display = 'none';
+        document.documentElement.appendChild(this.labelElement);
+    }
+
+    updateLabel(element) {
+        // Only show label for special types
+        const labelText = this.getElementType(element);
+
+        if (!labelText) {
+            this.hideLabel();
+            return;
         }
+
+        if (!this.labelElement) this.createLabel();
+
+        const rect = element.getBoundingClientRect();
+
+        // Calculate position (Fixed)
+        // Check if we have space on top, otherwise show below
+        const labelHeight = 20;
+        let top = rect.top - labelHeight;
+        if (top < 0) top = rect.bottom; // Flip to bottom if out of view
+
+        this.labelElement.textContent = labelText;
+        this.labelElement.style.top = `${top}px`;
+        this.labelElement.style.left = `${rect.left}px`;
+        this.labelElement.style.display = 'block';
+    }
+
+    hideLabel() {
+        if (this.labelElement) this.labelElement.style.display = 'none';
     }
 
     highlightMatches(selector) {
-        this.clearMatchHighlights();
+        this.clearHighlights('matches');
         if (!selector) return;
 
         try {
@@ -530,86 +460,44 @@ class DOMScanner {
                 try {
                     const result = document.evaluate(selector, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
                     const xpathNodes = [];
-                    for (let i = 0; i < Math.min(result.snapshotLength, 21); i++) {
-                        xpathNodes.push(result.snapshotItem(i));
-                    }
+                    for (let i = 0; i < Math.min(result.snapshotLength, 21); i++) { xpathNodes.push(result.snapshotItem(i)); }
 
-                    // If XPath found something and CSS didn't, or if we want to prioritize XPath for these markers
-                    if (xpathNodes.length > 0) {
-                        // Merge or replace? For search bar, usually replace if it's clearly an XPath
-                        matches = Array.from(new Set([...matches, ...xpathNodes])).slice(0, 21);
-                    }
+                    if (xpathNodes.length > 0) { matches = Array.from(new Set([...matches, ...xpathNodes])).slice(0, 21); }
                 } catch (e) { }
             }
 
             this.matchedElements = matches;
 
-            // Focus the first match
+            // Highlight all matches
             if (matches.length > 0) {
                 console.log(`[Locator-X] Highlighting ${matches.length} matches`);
                 const firstMatch = matches[0];
                 if (firstMatch.scrollIntoView) {
                     firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
                 }
-                this.highlightElement(firstMatch);
 
-                // Setup secondary overlays if needed
-                if (matches.length > 1) {
-                    this.ensureMatchOverlays(matches.length - 1);
-                }
-
-                // Force loop ensure
-                this.startOverlayLoop();
+                matches.forEach(el => {
+                    el.setAttribute('lx-high', 'match');
+                });
             } else {
-                this.clearHighlight();
+                this.clearHighlights('active');
             }
         } catch (e) {
-            // Silence common syntax errors during typing
-            if (e.name === 'SyntaxError' || e instanceof DOMException) {
-                return;
-            }
+            if (e.name === 'SyntaxError' || e instanceof DOMException) { return; }
             console.warn(`Error highlighting matches for "${selector}":`, e);
         }
     }
 
-    ensureMatchOverlays(count) {
-        // Pool overlays to avoid constant DOM churn
-        const ids = LocatorXConfig.IDENTIFIERS;
-        while (this.matchOverlays.length < count && this.matchOverlays.length < 20) {
-            const div = document.createElement('div');
-            div.className = ids.MATCH_OVERLAY_CLASS;
-            div.style.display = 'none';
-            document.documentElement.appendChild(div);
-            this.matchOverlays.push(div);
-        }
-    }
-
-    clearMatchHighlights() {
-        this.matchedElements = [];
-        this.clearHighlight();
-        this.matchOverlays.forEach(o => o.style.display = 'none');
-    }
-
-    getOverlayLabel(element) {
-        // Only show label for special types
-        const type = this.getElementType(element);
-        return type ? type : '';
-    }
-
     generateLocators(element, enabledTypes = []) {
         // Use full locator generator
-        if (!this.generator) {
-            this.generator = new LocatorGenerator();
-        }
+        if (!this.generator) { this.generator = new LocatorGenerator(); }
         return this.generator.generateLocators(element, enabledTypes);
     }
 
-    evaluateSelector(selector, type = null) {
+    evaluateSelector(selector, type = null, enableSmartCorrect = false) {
         if (!selector) return { count: 0, status: 'none' };
         try {
-            if (!this.generator) {
-                this.generator = new LocatorGenerator();
-            }
+            if (!this.generator) { this.generator = new LocatorGenerator(); }
 
             // Map UI display name back to strategy key if possible
             const displayToStrategy = {};
@@ -619,9 +507,11 @@ class DOMScanner {
                 });
             }
 
-            const strategy = displayToStrategy[type] || null;
-            const count = this.generator.countMatches(selector, strategy);
+            const strategy = displayToStrategy[type] || (LocatorXConfig.STRATEGY_NAMES[type] ? type : null);
+            const { count, suggestion } = this.generator.validateLocator(selector, strategy, enableSmartCorrect);
+
             const status = { count: count };
+            if (suggestion) status.suggestedLocator = suggestion;
 
             // Fetch extra info if single match (useful for detail panel)
             if (count === 1) {
@@ -653,40 +543,24 @@ class DOMScanner {
                             'idLocator', 'nameLocator', 'classNameLocator', 'tagnameLocator',
                             'cssLocator', 'linkTextLocator', 'pLinkTextLocator', 'absoluteLocator',
                             'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
-                            'LinkTextXpathLocator', 'PLinkTextXpathLocator', 'attributeXpathLocator',
+                            'linkTextXpathLocator', 'pLinkTextXpathLocator', 'attributeXpathLocator',
                             'cssXpathLocator', 'jsPathLocator'
                         ];
                         let locators = this.generateLocators(element, allTypes);
 
-                        // Prepend iframe XPath if in non-cross-origin iframe
-                        if (isInIframe && !isCrossOrigin && iframeXPath) {
-                            locators = locators.map(loc => {
-                                if (loc.type.includes('XPath')) {
-                                    return {
-                                        ...loc,
-                                        locator: `${iframeXPath}/descendant::${loc.locator.replace(/^\/\/+/, '')}`
-                                    };
-                                }
-                                return loc;
-                            });
-                        }
+                        // Prepend iframe XPath if in non-cross-origin iframe - REMOVED
+                        // if (isInIframe && !isCrossOrigin && iframeXPath) { ... }
                         status.locators = locators;
                     }
                 } catch (e) { }
             }
-
             return status;
         } catch (e) {
-            // Silence common syntax errors during typing
-            if (e.name === 'SyntaxError' || e instanceof DOMException) {
-                return { count: 0, status: 'none' };
-            }
+            if (e.name === 'SyntaxError' || e instanceof DOMException) { return { count: 0, status: 'none' }; }
             console.warn(`Error evaluating selector "${selector}":`, e);
             return { count: 0, status: 'none' };
         }
     }
-
-    // Context menu methods removed - using native browser context menu
 
     getPageStructure() {
         const commonTags = [
@@ -782,10 +656,14 @@ class DOMScanner {
 
             // Clean up class attribute
             if (attr.name === 'class') {
-                const highlightClass = LocatorXConfig.IDENTIFIERS.HIGHLIGHT_CLASS;
-                value = value.split(' ')
-                    .filter(cls => !cls.includes(highlightClass))
-                    .join(' ').trim();
+                // Use centralized logic from LocatorGenerator if available
+                if (this.generator && this.generator.filterClassNames) {
+                    value = this.generator.filterClassNames(value).join(' ');
+                } else {
+                    // Fallback if generator not ready (unlikely)
+                    // Fallback if generator not ready (unlikely)
+                    value = value.trim();
+                }
                 if (!value) continue;
             }
 
@@ -874,6 +752,41 @@ class DOMScanner {
     }
 
 
+
+    isDynamicElement(element) {
+        if (!element) return false;
+
+        const id = element.id;
+        const className = element.className;
+
+        // Check ID for dynamic patterns
+        if (id) {
+            // Common dynamic patterns:
+            // 1. Long random strings (e.g. "a1b2c3d4")
+            // 2. Timestamps or sequences (e.g. "input-123456789")
+            // 3. Framework specific (e.g. "j_id_1")
+            if (/\d{4,}/.test(id) || // Contains 4+ digits
+                /[a-f0-9]{8,}/.test(id) || // Long hex string
+                /^ember\d+/.test(id) ||
+                /^j_id/.test(id) ||
+                /^[:.-]/.test(id)) {
+                return true;
+            }
+        }
+
+        // Check Class for dynamic patterns
+        if (className && typeof className === 'string') {
+            const classes = className.split(/\s+/);
+            for (const cls of classes) {
+                if (/\d{4,}/.test(cls) || // Contains 4+ digits
+                    /^[a-z]{1,2}-[a-z0-9]{6,}/i.test(cls)) { // weird framework classes like css-1x2y3z
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     handleContextMenuLocator(menuId) {
         const element = this.lastRightClickedElement;

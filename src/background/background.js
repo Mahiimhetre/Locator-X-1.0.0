@@ -2,51 +2,89 @@ importScripts('../config/plans.js');
 importScripts('../services/plan-service.js');
 
 // Create context menus on installation
-chrome.runtime.onInstalled.addListener(() => {
-    chrome.contextMenus.create({
-        id: "locator-x-parent",
-        title: "Locator-X",
-        contexts: ["all"]
-    });
+// Setup context menus based on plan
+// Setup context menus based on plan
+const setupContextMenus = async () => {
+    await planService.init();
 
-    const categories = [
-        { id: "copy-id", title: "Copy ID" },
-        { id: "copy-name", title: "Copy Name" },
-        { id: "copy-class", title: "Copy Class Name" },
-        { id: "copy-rel-xpath", title: "Copy Relative XPath" },
-        { id: "copy-css", title: "Copy CSS Selector" },
-        { id: "copy-js-path", title: "Copy JS Path" },
-        { id: "copy-abs-xpath", title: "Copy Absolute XPath" }
-    ];
+    // Check if context menu is enabled at all (Free feature)
+    if (!planService.isEnabled('ui.contextMenu')) {
+        chrome.contextMenus.removeAll();
+        return;
+    }
 
-    categories.forEach(cat => {
+    const isNested = planService.isEnabled('ui.contextMenu.nested');
+
+    chrome.contextMenus.removeAll(() => {
         chrome.contextMenus.create({
-            id: cat.id,
-            parentId: "locator-x-parent",
-            title: cat.title,
+            id: "locator-x-parent",
+            title: "Locator-X",
             contexts: ["all"]
         });
 
-        chrome.contextMenus.create({
-            id: `${cat.id}-value`,
-            parentId: cat.id,
-            title: "Scanning...",
-            contexts: ["all"],
-            visible: false
+        const categories = [
+            { id: "copy-id", title: "Copy ID" },
+            { id: "copy-name", title: "Copy Name" },
+            { id: "copy-class", title: "Copy Class Name" },
+            { id: "copy-rel-xpath", title: "Copy Relative XPath" },
+            { id: "copy-css", title: "Copy CSS Selector" },
+            { id: "copy-js-path", title: "Copy JS Path" },
+            { id: "copy-abs-xpath", title: "Copy Absolute XPath" }
+        ];
+
+        categories.forEach(cat => {
+            chrome.contextMenus.create({
+                id: cat.id,
+                parentId: "locator-x-parent",
+                title: cat.title,
+                contexts: ["all"]
+            });
+
+            if (isNested) {
+                chrome.contextMenus.create({
+                    id: `${cat.id}-value`,
+                    parentId: cat.id,
+                    title: "Scanning...",
+                    contexts: ["all"],
+                    visible: false
+                });
+            }
         });
     });
+};
 
+// Create context menus on installation & startup
+chrome.runtime.onInstalled.addListener(() => {
+    setupContextMenus();
     chrome.storage.local.set({ devtoolsActive: false });
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    setupContextMenus();
 });
 
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+    // 1. Deep Nested Click (Pro)
     if (info.menuItemId.endsWith('-value')) {
         const type = info.menuItemId.replace('-value', '');
         chrome.tabs.sendMessage(tab.id, {
             action: 'contextMenuLocator',
             type: type
         }).catch(() => { });
+    }
+    // 2. Direct Category Click (Free - when flattened)
+    else if (info.parentMenuItemId === "locator-x-parent") {
+        // If nested is OFF, these are clickable actions.
+        planService.init().then(() => {
+            if (!planService.isEnabled('ui.contextMenu.nested')) {
+                const type = info.menuItemId.replace('copy-', '');
+                chrome.tabs.sendMessage(tab.id, {
+                    action: 'contextMenuLocator',
+                    type: 'copy-' + type // Ensuring consistency with type expectations
+                }).catch(() => { });
+            }
+        });
     }
 });
 
@@ -61,6 +99,7 @@ const handleAuthSync = (message, sendResponse) => {
                 'locator-x-plan': user.plan || 'free'
             }, () => {
                 chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: user }).catch(() => { });
+                setupContextMenus(); // Rebuild menus
                 sendResponse({ success: true });
             });
             return true;
@@ -79,6 +118,7 @@ const handleAuthSync = (message, sendResponse) => {
                 }
                 chrome.storage.local.set(updates, () => {
                     chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: updatedUser }).catch(() => { });
+                    setupContextMenus(); // Rebuild menus
                     sendResponse({ success: true, plan: plan });
                 });
             });
@@ -98,6 +138,7 @@ const handleAuthSync = (message, sendResponse) => {
                 }
                 chrome.storage.local.set(updates, () => {
                     chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: updatedUser }).catch(() => { });
+                    setupContextMenus(); // Rebuild menus
                     sendResponse({ success: true });
                 });
             });
@@ -106,6 +147,7 @@ const handleAuthSync = (message, sendResponse) => {
     } else if (message.action === 'LOGOUT') {
         chrome.storage.local.remove(['authToken', 'user', 'locator-x-plan'], () => {
             chrome.runtime.sendMessage({ action: 'AUTH_STATE_CHANGED', user: null }).catch(() => { });
+            setupContextMenus(); // Rebuild menus
             sendResponse({ success: true });
         });
         return true;
@@ -121,6 +163,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.action === 'updateContextMenuValues') {
         planService.init().then(() => {
+            const isNested = planService.isEnabled('ui.contextMenu.nested');
+            if (!isNested) {
+                sendResponse({ success: true });
+                return;
+            }
+
             const categories = ['copy-id', 'copy-name', 'copy-class', 'copy-rel-xpath', 'copy-css', 'copy-js-path', 'copy-abs-xpath'];
             categories.forEach(catId => {
                 const shortType = catId.replace('copy-', '');
@@ -129,17 +177,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 if (shortType === 'id') featureKey = 'locator.id';
                 else if (shortType === 'name') featureKey = 'locator.name';
                 else if (shortType === 'class' || shortType === 'css') featureKey = 'locator.css';
-                else if (shortType === 'rel-xpath') featureKey = 'locator.xpath.relative';
-                else if (shortType === 'abs-xpath') featureKey = 'locator.xpath';
-                else if (shortType === 'js-path') featureKey = 'locator.playwright';
+                else if (shortType === 'rel-xpath') featureKey = 'locator.relativeXpath';
+                else if (shortType === 'abs-xpath') featureKey = 'locator.absoluteXpath';
+                else if (shortType === 'js-path') featureKey = 'locator.jsPath';
 
                 const value = message.values[typeMap[shortType]];
                 const isEnabled = featureKey ? planService.isEnabled(featureKey) : true;
 
                 if (isEnabled && value) {
-                    chrome.contextMenus.update(`${catId}-value`, { title: value, visible: true });
+                    chrome.contextMenus.update(`${catId}-value`, { title: value, visible: true }, () => {
+                        if (chrome.runtime.lastError) { /* ignore if item missing */ }
+                    });
                 } else {
-                    chrome.contextMenus.update(`${catId}-value`, { visible: false });
+                    chrome.contextMenus.update(`${catId}-value`, { visible: false }, () => {
+                        if (chrome.runtime.lastError) { /* ignore if item missing */ }
+                    });
                 }
             });
             sendResponse({ success: true });

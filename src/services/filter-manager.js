@@ -4,14 +4,14 @@ class FilterManager {
         this.filterRules = {
             framework: {
                 cypress: {
-                    disabled: ['linkText', 'partialLinkText'],
+                    disabled: ['linkText', 'pLinkText'],
                     enabled: ['css', 'xpath']
                 },
                 playwright: {
                     enabled: ['css', 'xpath', 'id', 'className']
                 },
                 selenium: {
-                    enabled: ['id', 'name', 'className', 'css', 'xpath', 'linkText', 'partialLinkText']
+                    enabled: ['id', 'name', 'className', 'css', 'xpath', 'linkText', 'pLinkText']
                 }
             }
         };
@@ -117,7 +117,7 @@ class FilterManager {
                 css: { enabled: true, disabled: false },
                 xpath: { enabled: true, disabled: false },
                 linkText: { enabled: true, disabled: false },
-                partialLinkText: { enabled: true, disabled: false },
+                pLinkText: { enabled: true, disabled: false },
                 absoluteXPath: { enabled: true, disabled: false }
             };
         }

@@ -38,7 +38,7 @@ const LocatorXPlans = {
             'locator.className',
             'locator.tagname',
             'locator.linkText',
-            'locator.partialLinkText',
+            'locator.pLinkText',
             'locator.jsPath',
             'locator.css',
             'locator.absoluteXpath',
@@ -46,7 +46,7 @@ const LocatorXPlans = {
             'locator.containsXpath',
             'locator.indexedXpath',
             'locator.linkTextXpath',
-            'locator.partialLinkTextXpath',
+            'locator.pLinkTextXpath',
             'locator.attributeXpath',
             'locator.cssXpath',
             'locator.playwright',
@@ -59,7 +59,9 @@ const LocatorXPlans = {
             'module.axes',
             'ui.theme.light',
             'ui.copy',
-            'ui.save'
+            'ui.save',
+            'ui.contextMenu',
+            'ui.settings.excludeNumbers'
         ],
         get pro() {
             return [
@@ -69,8 +71,9 @@ const LocatorXPlans = {
                 'ui.theme.dark',
                 'ui.settings.framework',
                 'ui.settings.reset',
-                'ui.settings.excludeNumbers',
-                'ui.quickEdit'
+                'ui.quickEdit',
+                'module.smartCorrect',
+                'ui.contextMenu.nested'
             ];
         },
         team: 'ALL' // Grants access to everything

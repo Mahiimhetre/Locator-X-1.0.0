@@ -63,7 +63,6 @@
                             <span>Axes</span>
                         </div>
                     </li>
-
                 </ul>
                 <ul class="nav-items">
                     <li class="nav-item" id="navMultiScan" data-feature="module.multiScan">
@@ -119,13 +118,25 @@
                                     </select>
                                 </div>
                                 <div class="setting-group">
-                                    <label class="setting-option"
-                                        style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" id="excludeNumbersCfg" checked>
-                                        <span style="font-size: 11px; color: var(--primary-text);">Exclude Numbers in
-                                            Locators</span>
+                                    <label class="setting-option">
+                                        <span>Smart Correction</span>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="smartCorrectCfg" checked
+                                                data-feature="module.smartCorrect">
+                                            <span class="toggle-slider"></span>
+                                        </div>
                                     </label>
                                 </div>
+                                <div class="setting-group">
+                                    <label class="setting-option">
+                                        <span>Exclude Numbers in Locators</span>
+                                        <div class="toggle-switch">
+                                            <input type="checkbox" id="excludeNumbersCfg" checked>
+                                            <span class="toggle-slider"></span>
+                                        </div>
+                                    </label>
+                                </div>
+
                             </div>
                         </div>
                     </li>
@@ -157,32 +168,32 @@
                     <input type="checkbox" class="loc-type" id="relativeXPath" value="relative" checked>
                     <span>Relative XPath</span>
                     <i class="bi-chevron-down relative-dropdown-arrow" id="relativeDropdownArrow"></i>
-                    <!-- Portal dropdown for Relative XPath (positioned with fixed) -->
-                    <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
-                        <fieldset class="nested-options">
-                            <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll"
-                                    title="Select/Deselect All"></i></legend>
-                            <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath"
-                                    data-feature="locator.relativeXpath" checked>Default</label>
-                            <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator"
-                                    value="contains" data-feature="locator.containsXpath" checked>Contains</label>
-                            <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator"
-                                    value="indexed" data-feature="locator.indexedXpath" checked>Indexed</label>
-                            <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator"
-                                    value="linktext" data-feature="locator.linkTextXpath" checked>Link Text</label>
-                            <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator"
-                                    value="partiallinktext" data-feature="locator.partialLinkTextXpath" checked>PLink
-                                Text</label>
-                            <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator"
-                                    value="attribute" data-feature="locator.attributeXpath" checked>Attribute</label>
-                            <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="cssXpath"
-                                    data-feature="locator.cssXpath" checked>CSS
-                                XPath</label>
-                        </fieldset>
-                    </div>
                 </label>
                 <label data-feature="locator.absoluteXpath"><input type="checkbox" class="loc-type" id="absoluteLocator"
                         value="absolute" checked> Absolute XPath</label>
+            </div>
+            <!-- Portal dropdown for Relative XPath (positioned with fixed) -->
+            <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
+                <fieldset class="nested-options">
+                    <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll"
+                            title="Select/Deselect All"></i></legend>
+                    <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath"
+                            data-feature="locator.relativeXpath" checked>Default</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator" value="contains"
+                            data-feature="locator.containsXpath" checked>Contains</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator" value="indexed"
+                            data-feature="locator.indexedXpath" checked>Indexed</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator" value="linktext"
+                            data-feature="locator.linkTextXpath" checked>Link Text</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator" value="plinktext"
+                            data-feature="locator.pLinkTextXpath" checked>PLink
+                        Text</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator" value="attribute"
+                            data-feature="locator.attributeXpath" checked>Attribute</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="cssXpath"
+                            data-feature="locator.cssXpath" checked>CSS
+                        XPath</label>
+                </fieldset>
             </div>
 
             <div class="home-container active">
@@ -250,7 +261,6 @@
                 </div>
             </div>
             <div class="axes-container">
-                <!-- Anchor/Target Selection -->
                 <!-- Anchor/Target Selection -->
                 <div class="input-container">
                     <!-- Anchor Box -->
@@ -342,7 +352,6 @@
             </div>
         </div>
     </footer>
-    </div>
 
     <script src="../shared/site-support.js"></script>
     <script src="../../config/constants.js"></script>
@@ -354,6 +363,9 @@
     <script src="../shared/modal.js"></script>
     <script src="../../config/plans.js"></script>
     <script src="../../services/plan-service.js"></script>
+    <script src="../../services/evaluator.js"></script>
+    <script src="../../utils/dragDropUtils.js"></script>
+    <script src="../../services/multi-scan-manager.js"></script>
     <script src="../shared/panel-controller.js"></script>
 
 </body>

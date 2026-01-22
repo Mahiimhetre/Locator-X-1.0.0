@@ -103,8 +103,14 @@ class StorageManager {
             timestamp: new Date().toISOString()
         });
 
-        // Keep only last 50 items
-        const max = LocatorXConfig.LIMITS.HISTORY_MAX || 50;
+        // Limit history based on plan
+        let max = 50; // Default fallback
+        if (typeof planService !== 'undefined') {
+            max = planService.getLimit('MAX_HISTORY_ITEMS') || 50;
+        } else if (typeof LocatorXConfig !== 'undefined' && LocatorXConfig.LIMITS) {
+            max = LocatorXConfig.LIMITS.HISTORY_MAX || 50;
+        }
+
         if (history.length > max) {
             history.splice(max);
         }

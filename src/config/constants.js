@@ -19,12 +19,11 @@ const LocatorXConfig = {
 
     IDENTIFIERS: {
         ROOT_ID: 'lxOverlay',
-        OVERLAY_CLASS: 'lx-ovl',
-        MATCH_OVERLAY_CLASS: 'lx-match',
-        HIGHLIGHT_CLASS: 'lx-high',
+        HIGHLIGHT_ATTRIBUTE: 'lx-high',
+        MATCH_ATTRIBUTE: 'lx-match',
         // Generic check that matches any ID beginning with this prefix
         ID_PREFIX: 'locatorx',
-        DATA_ATTRIBUTES: ['data-locator-type', 'data-label']
+        DATA_ATTRIBUTES: ['data-locator-type', 'data-label', 'lx-high', 'lx-match']
     },
 
     // Display names for locator strategies
@@ -35,13 +34,13 @@ const LocatorXConfig = {
         'tagname': 'TagName',
         'css': 'CSS',
         'linkText': 'Link Text',
-        'partialLinkText': 'Partial Link Text',
+        'pLinkText': 'Partial Link Text',
         'absoluteXPath': 'Absolute XPath',
         'xpath': 'Default',
         'containsXpath': 'Contains',
         'indexedXpath': 'Indexed',
         'linkTextXpath': 'Link Text XPath',
-        'partialLinkTextXpath': 'PLink Text',
+        'pLinkTextXpath': 'PLink Text',
         'attributeXpath': 'Attribute',
         'cssXpath': 'CSS XPath',
         'jsPath': 'JS Path'
@@ -68,7 +67,7 @@ const LocatorXConfig = {
             'cssLocator', 'linkTextLocator', 'pLinkTextLocator',
             'relativeXPath', 'absoluteLocator',
             'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
-            'LinkTextXpathLocator', 'PLinkTextXpathLocator', 'attributeXpathLocator',
+            'linkTextXpathLocator', 'pLinkTextXpathLocator', 'attributeXpathLocator',
             'cssXpathLocator'
         ]
     },

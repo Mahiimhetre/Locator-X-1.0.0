@@ -48,6 +48,12 @@ localStorage.removeItem = function (key) {
 
 
 function syncAuthState(providedUser = null) {
+    // Check if extension context is valid
+    if (!chrome.runtime || !chrome.runtime.id) {
+        console.warn('Locator-X Sync: Extension context invalidated, stopping sync.');
+        return;
+    }
+
     try {
         const user = providedUser || JSON.parse(localStorage.getItem(USERS_KEY) || 'null');
 
@@ -55,20 +61,43 @@ function syncAuthState(providedUser = null) {
             console.log('Locator-X Sync: Syncing user', user);
 
             // Send to background using SYNC_PROFILE for safe merging
-            chrome.runtime.sendMessage({
-                action: 'SYNC_PROFILE',
-                payload: {
-                    user: user
-                }
-            });
+            // Use try-catch around sendMessage to capture immediate context errors
+            try {
+                chrome.runtime.sendMessage({
+                    action: 'SYNC_PROFILE',
+                    payload: {
+                        user: user
+                    }
+                }).catch(err => {
+                    // Suppress harmless context invalidated errors
+                    if (err.message && err.message.includes('Extension context invalidated')) return;
+                    console.error('Locator-X Sync: Send error', err);
+                });
+            } catch (err) {
+                if (err.message && err.message.includes('Extension context invalidated')) return;
+                console.error('Locator-X Sync: Runtime error', err);
+            }
         } else {
             console.log('Locator-X Sync: User logged out');
             // Send logout
-            chrome.runtime.sendMessage({
-                action: 'LOGOUT'
-            });
+            try {
+                chrome.runtime.sendMessage({
+                    action: 'LOGOUT'
+                }).catch(err => {
+                    if (err.message && err.message.includes('Extension context invalidated')) return;
+                    console.error('Locator-X Sync: Send error', err);
+                });
+            } catch (err) {
+                if (err.message && err.message.includes('Extension context invalidated')) return;
+                console.error('Locator-X Sync: Runtime error', err);
+            }
         }
     } catch (e) {
+        // Only log if it's NOT a context error
+        if (e.message && e.message.includes('Extension context invalidated')) {
+            console.warn('Locator-X Sync: Extension context invalidated during sync.');
+            return;
+        }
         console.error('Locator-X Sync: Error syncing auth state', e);
     }
 }

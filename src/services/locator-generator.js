@@ -25,7 +25,7 @@ class LocatorGenerator {
             tagname: (element) => element.tagName.toLowerCase(),
             css: (element) => this.generateCSSSelector(element),
             linkText: (element) => element.tagName === 'A' ? element.textContent.trim() : null,
-            partialLinkText: (element) => element.tagName === 'A' ? element.textContent.trim().substring(0, 10) : null,
+            pLinkText: (element) => element.tagName === 'A' ? element.textContent.trim().substring(0, 10) : null,
             absoluteXPath: (element) => this.generateAbsoluteXPath(element),
             jsPath: (element) => `document.querySelector('${this.generateCSSSelector(element)}')`,
 
@@ -34,7 +34,7 @@ class LocatorGenerator {
             containsXpath: (element) => this.generateContainsXPath(element),
             indexedXpath: (element) => this.generateIndexedXPath(element),
             linkTextXpath: (element) => this.generateLinkTextXPath(element),
-            partialLinkTextXpath: (element) => this.generatePartialLinkTextXPath(element),
+            pLinkTextXpath: (element) => this.generatePartialLinkTextXPath(element),
             attributeXpath: (element) => this.generateAttributeXPath(element),
             // Axes XPath
             axes: (anchor, target) => this.generateAxesXPath(anchor, target)
@@ -128,25 +128,38 @@ class LocatorGenerator {
         if (!config) return false;
 
         const ids = config.IDENTIFIERS;
-        return element.classList.contains(ids.OVERLAY_CLASS) ||
-            element.classList.contains(ids.MATCH_OVERLAY_CLASS) ||
-            element.classList.contains(ids.HIGHLIGHT_CLASS) ||
-            (element.id && element.id.toLowerCase().startsWith(ids.ID_PREFIX.toLowerCase()));
+        // Only check for ID prefix. Logic changed: attributes lx-high/lx-match are applied to USER elements now, 
+        // so we cannot use them to identify "Extension Elements".
+        return (element.id && element.id.toLowerCase().startsWith(ids.ID_PREFIX.toLowerCase()));
     }
 
     cleanClassName(className) {
         if (!className || typeof className !== 'string') return '';
-        const highlightClass = (typeof LocatorXConfig !== 'undefined') ?
-            LocatorXConfig.IDENTIFIERS.HIGHLIGHT_CLASS : 'locator-x-highlight';
+        const cleanedClasses = this.filterClassNames(className);
+        return cleanedClasses.map(cls => this.escapeSelector(cls)).join('.');
+    }
+
+    filterClassNames(className) {
+        if (!className || typeof className !== 'string') return [];
+
+        let highlightClass = 'lx-high'; // fallback
+        let matchClass = 'lx-match';
+
+        if (typeof LocatorXConfig !== 'undefined') {
+            highlightClass = LocatorXConfig.IDENTIFIERS.HIGHLIGHT_ATTRIBUTE;
+            matchClass = LocatorXConfig.IDENTIFIERS.MATCH_ATTRIBUTE;
+        }
 
         return className.split(' ')
             .filter(cls => {
-                if (cls === highlightClass || cls.trim() === '') return false;
-                if (this.config.excludeNumbers && /\d/.test(cls)) return false;
+                const trimmed = cls.trim();
+                if (!trimmed) return false;
+                // Even though we use attributes, keep this if for some reason it's in class
+                if (trimmed === highlightClass || trimmed === matchClass) return false;
+
+                if (this.config.excludeNumbers && /\d/.test(trimmed)) return false;
                 return true;
-            })
-            .map(cls => this.escapeSelector(cls))
-            .join('.');
+            });
     }
 
     escapeSelector(str) {
@@ -170,13 +183,13 @@ class LocatorGenerator {
             'tagnameLocator': 'tagname',
             'cssLocator': 'css',
             'linkTextLocator': 'linkText',
-            'pLinkTextLocator': 'partialLinkText',
+            'pLinkTextLocator': 'pLinkText',
             'absoluteLocator': 'absoluteXPath',
             'xpathLocator': 'xpath',
             'containsXpathLocator': 'containsXpath',
             'indexedXpathLocator': 'indexedXpath',
-            'LinkTextXpathLocator': 'linkTextXpath',
-            'PLinkTextXpathLocator': 'partialLinkTextXpath',
+            'linkTextXpathLocator': 'linkTextXpath',
+            'pLinkTextXpathLocator': 'pLinkTextXpath',
             'attributeXpathLocator': 'attributeXpath',
             'cssXpathLocator': 'cssXpath'
         };
@@ -523,12 +536,18 @@ class LocatorGenerator {
                     } catch (e) { return 0; }
                 }
                 if (lowerStrategy === 'linktext') {
-                    const xpath = selector.includes("'") ? `//a[text()="${selector}"]` : `//a[text()='${selector}']`;
-                    return this.evaluateXPathDeep(xpath).length;
+                    const links = this.querySelectorAllDeep('a');
+                    const target = selector.trim().toLowerCase();
+                    return Array.from(links).filter(link =>
+                        link.textContent.trim().toLowerCase() === target
+                    ).length;
                 }
                 if (lowerStrategy === 'partiallinktext') {
-                    const xpath = selector.includes("'") ? `//a[contains(text(),"${selector}")]` : `//a[contains(text(),'${selector}')]`;
-                    return this.evaluateXPathDeep(xpath).length;
+                    const links = this.querySelectorAllDeep('a');
+                    const target = selector.trim().toLowerCase();
+                    return Array.from(links).filter(link =>
+                        link.textContent.toLowerCase().includes(target)
+                    ).length;
                 }
                 if (lowerStrategy === 'jspath') {
                     try {
@@ -536,7 +555,21 @@ class LocatorGenerator {
                         return res ? (res.length || 1) : 0;
                     } catch (e) { return 0; }
                 }
-                return this.querySelectorAllDeep(selector).length;
+
+                // Handle basic non-CSS locators by converting them
+                let css = selector;
+                if (lowerStrategy === 'id') {
+                    // Ensure ID selector
+                    if (!selector.startsWith('#')) css = `#${this.escapeSelector(selector)}`;
+                } else if (lowerStrategy === 'classname') {
+                    // Ensure Class selector
+                    if (!selector.startsWith('.')) css = `.${this.escapeSelector(selector)}`;
+                } else if (lowerStrategy === 'name') {
+                    // Ensure Name selector
+                    css = `[name="${this.escapeSelector(selector)}"]`;
+                }
+
+                return this.querySelectorAllDeep(css).length;
             }
 
             // 2. SMART DISCOVERY MODE (Used by Search Bar)
@@ -659,6 +692,135 @@ class LocatorGenerator {
             }
         }
         return null;
+    }
+
+    validateLocator(selector, strategy, shouldFuzzyMatch = false) {
+        // 1. Strict Count First
+        const strictCount = this.countMatches(selector, strategy);
+        if (strictCount > 0) return { count: strictCount, suggestion: null };
+
+        // 2. Fuzzy Match (Feature Gated)
+        // If strict failed matches count is 0, try fuzzy
+        if (!shouldFuzzyMatch) return { count: 0, suggestion: null };
+
+        let count = 0;
+        let suggestion = null;
+        const lowerStrategy = (strategy || '').toLowerCase();
+        // Helpers
+        const clean = (str) => (str || '').replace(/\s+/g, '').toLowerCase();
+        const target = clean(selector);
+
+        // --- Link Text & Partial Link Text ---
+        if (lowerStrategy === 'linktext' || lowerStrategy === 'partiallinktext') {
+            const links = this.querySelectorAllDeep('a');
+            const matches = Array.from(links).filter(link => {
+                const cleanLink = clean(link.textContent);
+
+                // Direct Fuzzy Match (Case/Space)
+                if (lowerStrategy === 'linktext' && cleanLink === target) return true;
+                if (lowerStrategy === 'partiallinktext' && cleanLink.includes(target)) return true;
+
+                // Spelling Check (Levenshtein) - ONLY for explicit Link Text
+                if (lowerStrategy === 'linktext' && Math.abs(cleanLink.length - target.length) < 4) {
+                    const dist = this.levenshtein(cleanLink, target);
+                    const threshold = Math.max(1, Math.min(3, Math.floor(target.length / 4)));
+                    return dist <= threshold;
+                }
+                return false;
+            });
+            count = matches.length;
+            if (count > 0) suggestion = matches[0].textContent.trim();
+        }
+
+        // --- ID ---
+        else if (lowerStrategy === 'id') {
+            // Try to find ANY element with an ID that is fuzzily close
+            const elements = this.document.querySelectorAll('[id]');
+            const matches = Array.from(elements).filter(el => {
+                const cleanId = clean(el.id);
+                if (cleanId === target) return true; // Case/Space match
+                const dist = this.levenshtein(cleanId, target);
+                return dist <= Math.max(1, Math.min(3, Math.floor(target.length / 4)));
+            });
+            count = matches.length;
+            if (count > 0) suggestion = matches[0].id;
+        }
+
+        // --- Name ---
+        else if (lowerStrategy === 'name') {
+            const elements = this.document.querySelectorAll('[name]');
+            const matches = Array.from(elements).filter(el => {
+                const cleanName = clean(el.getAttribute('name'));
+                if (cleanName === target) return true;
+                const dist = this.levenshtein(cleanName, target);
+                return dist <= Math.max(1, Math.min(3, Math.floor(target.length / 4)));
+            });
+            count = matches.length;
+            if (count > 0) suggestion = matches[0].getAttribute('name');
+        }
+
+        // --- ClassName ---
+        else if (lowerStrategy === 'classname') {
+            const elements = this.document.querySelectorAll('[class]');
+            const matches = Array.from(elements).filter(el => {
+                const classes = (el.getAttribute('class') || '').split(/\s+/);
+                return classes.some(cls => {
+                    const cleanCls = clean(cls);
+                    if (cleanCls === target) return true;
+                    const dist = this.levenshtein(cleanCls, target);
+                    return dist <= Math.max(1, Math.min(3, Math.floor(target.length / 4)));
+                });
+            });
+            count = matches.length;
+            // Note: ClassName suggestion is tricky because multiple elements might match different fuzzy classes.
+            // We'll return the first confident match.
+            if (count > 0) {
+                // Find the specific class that matched
+                const matchedEl = matches[0];
+                const classes = (matchedEl.getAttribute('class') || '').split(/\s+/);
+                const matchedClass = classes.find(cls => {
+                    const cleanCls = clean(cls);
+                    const dist = this.levenshtein(cleanCls, target);
+                    return cleanCls === target || dist <= Math.max(1, Math.min(3, Math.floor(target.length / 4)));
+                });
+                if (matchedClass) suggestion = matchedClass;
+            }
+        }
+
+        // --- TagName ---
+        else if (lowerStrategy === 'tagname') {
+            const elements = this.document.getElementsByTagName('*');
+            const matches = Array.from(elements).filter(el => {
+                const cleanTag = clean(el.tagName);
+                if (cleanTag === target) return true;
+                const dist = this.levenshtein(cleanTag, target);
+                return dist <= 1; // Strict threshold for tags (div vs dav)
+            });
+            count = matches.length;
+            if (count > 0) suggestion = matches[0].tagName.toLowerCase();
+        }
+
+        return { count, suggestion };
+    }
+
+    levenshtein(a, b) {
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    );
+                }
+            }
+        }
+        return matrix[b.length][a.length];
     }
 }
 
