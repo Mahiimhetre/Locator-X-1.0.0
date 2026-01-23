@@ -5,13 +5,13 @@ class FilterManager {
             framework: {
                 cypress: {
                     disabled: ['linkText', 'pLinkText'],
-                    enabled: ['css', 'xpath']
+                    enabled: ['css', 'relativeXpath']
                 },
                 playwright: {
-                    enabled: ['css', 'xpath', 'id', 'className']
+                    enabled: ['css', 'relativeXpath', 'id', 'className']
                 },
                 selenium: {
-                    enabled: ['id', 'name', 'className', 'css', 'xpath', 'linkText', 'pLinkText']
+                    enabled: ['id', 'name', 'className', 'css', 'relativeXpath', 'linkText', 'pLinkText']
                 }
             }
         };
@@ -84,7 +84,7 @@ class FilterManager {
             recommended = [...frameworkRules.enabled];
         } else {
             // Default set
-            recommended = ['id', 'className', 'css', 'xpath'];
+            recommended = ['id', 'className', 'css', 'relativeXpath'];
         }
 
         // Remove framework disabled filters
@@ -104,8 +104,8 @@ class FilterManager {
                 defaults[key] = { enabled: true, disabled: false };
             });
             // Ensure absolute is there if not in strategy names (it's usually separate)
-            if (!defaults['absoluteXPath']) {
-                defaults['absoluteXPath'] = { enabled: true, disabled: false };
+            if (!defaults['absoluteXpath']) {
+                defaults['absoluteXpath'] = { enabled: true, disabled: false };
             }
         } else {
             // Fallback
@@ -115,10 +115,11 @@ class FilterManager {
                 className: { enabled: true, disabled: false },
                 tagname: { enabled: true, disabled: false },
                 css: { enabled: true, disabled: false },
-                xpath: { enabled: true, disabled: false },
+                jquery: { enabled: true, disabled: false },
+                relativeXpath: { enabled: true, disabled: false },
                 linkText: { enabled: true, disabled: false },
                 pLinkText: { enabled: true, disabled: false },
-                absoluteXPath: { enabled: true, disabled: false }
+                absoluteXpath: { enabled: true, disabled: false }
             };
         }
         return defaults;

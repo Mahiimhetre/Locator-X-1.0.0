@@ -22,6 +22,7 @@ class Evaluator {
             badge: null,
             highlight: true,
             callback: null,
+            mode: 'home',
             ...options
         };
 
@@ -92,7 +93,7 @@ class Evaluator {
                                 this._updateBadge(settings.badge, totalCount);
 
                                 if (settings.highlight && totalCount > 0) {
-                                    this.highlight(locator);
+                                    this.highlight(locator, 'highlightMatches', settings.mode);
                                 }
 
                                 if (settings.callback) settings.callback(totalCount, primaryResponse || response);
@@ -105,7 +106,7 @@ class Evaluator {
         });
     }
 
-    async highlight(selector, action = 'highlightMatches') {
+    async highlight(selector, action = 'highlightMatches', mode = 'home') {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const tab = tabs[0];
             if (tab && tab.id) {
@@ -113,7 +114,8 @@ class Evaluator {
                     frames.forEach(frame => {
                         chrome.tabs.sendMessage(tab.id, {
                             action: action,
-                            selector: selector
+                            selector: selector,
+                            mode: mode
                         }, { frameId: frame.frameId }).catch(() => { });
                     });
                 });

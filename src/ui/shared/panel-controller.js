@@ -36,12 +36,12 @@ const LocatorX = {
 
         async evaluate(source, options = {}) {
             if (!LocatorX.evaluator) return 0;
-            return LocatorX.evaluator.evaluate(source, options);
+            return LocatorX.evaluator.evaluate(source, { ...options, mode: LocatorX.tabs.current });
         },
 
         async highlight(selector, action = 'highlightMatches') {
             if (!LocatorX.evaluator) return;
-            LocatorX.evaluator.highlight(selector, action);
+            LocatorX.evaluator.highlight(selector, action, LocatorX.tabs.current);
         },
 
         _updateBadge(badge, count) {
@@ -389,7 +389,7 @@ const LocatorX = {
             // Update UI
             // Update UI
             document.querySelectorAll('.nav-option').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.home-container, .pom-container, .axes-container, .dynamic-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
 
             // Handle MultiScan Active State
             const navMultiScan = document.getElementById('navMultiScan');
@@ -400,18 +400,15 @@ const LocatorX = {
                 LocatorX.filters.loadFilters('home');
                 document.getElementById('navHome').classList.add('active');
                 document.querySelector('.home-container').classList.add('active');
-                document.querySelector('.home-container').classList.add('active');
                 LocatorX.filters.updateTable();
             } else if (tab === 'axes') {
                 // Axes Tab
                 document.getElementById('navAxes').classList.add('active');
                 document.querySelector('.axes-container').classList.add('active');
-                document.querySelector('.axes-container').classList.add('active');
             } else if (tab === 'pom') {
                 LocatorX.filters.saveCurrentFilters('home');
                 LocatorX.filters.loadFilters('pom');
                 document.getElementById('navPOM').classList.add('active');
-                document.querySelector('.pom-container').classList.add('active');
                 document.querySelector('.pom-container').classList.add('active');
                 LocatorX.filters.updatePOMTable();
 
@@ -1276,7 +1273,7 @@ const LocatorX = {
             if (relativeXPath) {
                 relativeXPath.addEventListener('change', () => {
                     if (relativeXPath.checked) {
-                        const defaultXpath = document.getElementById('xpathLocator');
+                        const defaultXpath = document.getElementById('relativeXpathLocator');
                         if (defaultXpath && !defaultXpath.checked) defaultXpath.checked = true;
                     }
                     this.updateNestedIcon();
@@ -1319,11 +1316,11 @@ const LocatorX = {
             tbody.innerHTML = '';
 
             const groupedTypes = [
-                LocatorXConfig.STRATEGY_NAMES.xpath,
+                LocatorXConfig.STRATEGY_NAMES.relativeXpath,
                 LocatorXConfig.STRATEGY_NAMES.containsXpath,
                 LocatorXConfig.STRATEGY_NAMES.indexedXpath,
                 LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
-                LocatorXConfig.STRATEGY_NAMES.partialLinkTextXpath,
+                LocatorXConfig.STRATEGY_NAMES.pLinkTextXpath,
                 LocatorXConfig.STRATEGY_NAMES.attributeXpath,
                 LocatorXConfig.STRATEGY_NAMES.cssXpath
             ];
@@ -1493,7 +1490,7 @@ const LocatorX = {
             row.innerHTML = `
                 ${this._createMatchCell(matchCount, 'strategyMatchCount')}
                 <td class="strategy-cell">
-                    <select class="strategy-dropdown" id="strategySelect">
+                    <select id="strategySelect">
                         ${options}
                     </select>
                 </td>
@@ -1718,11 +1715,11 @@ const LocatorX = {
 
             const checkedTypes = this.getCheckedTypes();
             const groupedTypes = [
-                LocatorXConfig.STRATEGY_NAMES.xpath,
+                LocatorXConfig.STRATEGY_NAMES.relativeXpath,
                 LocatorXConfig.STRATEGY_NAMES.containsXpath,
                 LocatorXConfig.STRATEGY_NAMES.indexedXpath,
                 LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
-                LocatorXConfig.STRATEGY_NAMES.partialLinkTextXpath,
+                LocatorXConfig.STRATEGY_NAMES.pLinkTextXpath,
                 LocatorXConfig.STRATEGY_NAMES.attributeXpath,
                 LocatorXConfig.STRATEGY_NAMES.cssXpath
             ];
@@ -1783,7 +1780,7 @@ const LocatorX = {
             const relativeXPath = document.getElementById('relativeXPath');
             if (relativeXPath && relativeXPath.checked) {
                 const nestedTypes = {
-                    'xpathLocator': LocatorXConfig.STRATEGY_NAMES.xpath,
+                    'relativeXpathLocator': LocatorXConfig.STRATEGY_NAMES.relativeXpath,
                     'containsXpathLocator': LocatorXConfig.STRATEGY_NAMES.containsXpath,
                     'indexedXpathLocator': LocatorXConfig.STRATEGY_NAMES.indexedXpath,
                     'linkTextXpathLocator': LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
@@ -2109,12 +2106,12 @@ const LocatorX = {
 
                 // Show match count BEFORE the locator as requested
                 // Show category if it's not a standard one
-                const categoryInfo = ['Tag', 'ID', 'Class'].includes(match.category)
+                const categoryInfo = ['Tag', 'ID', 'Class', 'Name'].includes(match.category)
                     ? ''
                     : `<span class="category-tag">(${match.category})</span> `;
 
                 div.innerHTML = `
-                    <div class="match-badge">${match.count}</div>
+                    <div class="match-badge" data-count="${match.count}"></div>
                     <span class="item-text">${categoryInfo}${html}</span>
                 `;
 
@@ -3032,13 +3029,9 @@ const LocatorX = {
                 } else if (targetType === 'axes-result') {
                     LocatorX.axes.updateResultMatch(newValue);
                 } else if (targetType === 'pom-cell') {
-                    // Start of POM Update Logic
-                    // TODO: Implement deep update for POM structure if needed (e.g. updating the underlying page object)
-                    // For now, we update the UI match count if possible, or just acknowledge the change.
-                    // Since POM is complex, we might just want to trigger a re-scan or update the specific locator object in memory.
                     /* 
-                       Logic to update the specific locator in LocatorX.pom.pages[activePage] 
-                       would go here. For now, just ensuring the edit "sticks" in UI is the first step.
+                        Logic to update the specific locator in LocatorX.pom.pages[activePage] 
+                        would go here. For now, just ensuring the edit "sticks" in UI is the first step.
                     */
                     LocatorX.notifications.success('Locator updated locally');
                 } else if (targetType === 'multiscan-cell') {

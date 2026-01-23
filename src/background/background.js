@@ -28,6 +28,7 @@ const setupContextMenus = async () => {
             { id: "copy-class", title: "Copy Class Name" },
             { id: "copy-rel-xpath", title: "Copy Relative XPath" },
             { id: "copy-css", title: "Copy CSS Selector" },
+            { id: "copy-jquery", title: "Copy jQuery" },
             { id: "copy-js-path", title: "Copy JS Path" },
             { id: "copy-abs-xpath", title: "Copy Absolute XPath" }
         ];
@@ -169,14 +170,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return;
             }
 
-            const categories = ['copy-id', 'copy-name', 'copy-class', 'copy-rel-xpath', 'copy-css', 'copy-js-path', 'copy-abs-xpath'];
+            const categories = ['copy-id', 'copy-name', 'copy-class', 'copy-rel-xpath', 'copy-css', 'copy-jquery', 'copy-js-path', 'copy-abs-xpath'];
             categories.forEach(catId => {
                 const shortType = catId.replace('copy-', '');
-                const typeMap = { 'id': 'id', 'name': 'name', 'class': 'className', 'rel-xpath': 'xpath', 'css': 'css', 'js-path': 'jsPath', 'abs-xpath': 'absoluteXPath' };
+                const typeMap = { 'id': 'id', 'name': 'name', 'class': 'className', 'rel-xpath': 'relativeXpath', 'css': 'css', 'jquery': 'jquery', 'js-path': 'jsPath', 'abs-xpath': 'absoluteXpath' };
                 let featureKey = null;
                 if (shortType === 'id') featureKey = 'locator.id';
                 else if (shortType === 'name') featureKey = 'locator.name';
                 else if (shortType === 'class' || shortType === 'css') featureKey = 'locator.css';
+                else if (shortType === 'jquery') featureKey = 'locator.jquery';
                 else if (shortType === 'rel-xpath') featureKey = 'locator.relativeXpath';
                 else if (shortType === 'abs-xpath') featureKey = 'locator.absoluteXpath';
                 else if (shortType === 'js-path') featureKey = 'locator.jsPath';

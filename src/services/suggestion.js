@@ -63,7 +63,8 @@ class SuggestionManager {
         // Attributes
         if (this.context.attributes) {
             Object.entries(this.context.attributes).forEach(([attr, values]) => {
-                this._processCategory(values, 'Attribute', `[@${attr}='`, lowerQuery, add, "']");
+                const category = attr === 'name' ? 'Name' : 'Attribute';
+                this._processCategory(values, category, `[@${attr}='`, lowerQuery, add, "']");
             });
         }
 
@@ -77,7 +78,7 @@ class SuggestionManager {
                 if (text.toLowerCase().includes(lowerQuery) || xpath.toLowerCase().includes(lowerQuery)) {
                     add(xpath, 'Text', count);
                     // Also generate framework wrappers for text
-                    this._generateFrameworkWrappers(xpath, 'Text', count, lowerQuery, add);
+                    // this._generateFrameworkWrappers(xpath, 'Text', count, lowerQuery, add);
                 }
             });
         }
@@ -129,13 +130,11 @@ class SuggestionManager {
             if (rawValue.toLowerCase().includes(query)) {
                 addFn(rawValue, category, count);
             }
-
-            // 2. Generate and Check Framework Wrappers
-            // We pass the rawValue (e.g. #myId or .myClass) to the generator
-            this._generateFrameworkWrappers(rawValue, category, count, query, addFn);
+            // this._generateFrameworkWrappers(rawValue, category, count, query, addFn);
         });
     }
 
+    /*
     _generateFrameworkWrappers(rawValue, category, count, query, addFn) {
         // Selenium
         let seleniumStr = '';
@@ -194,6 +193,7 @@ class SuggestionManager {
             }
         }
     }
+    */
 }
 
 // Export for use

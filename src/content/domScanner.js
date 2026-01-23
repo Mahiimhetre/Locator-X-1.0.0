@@ -88,7 +88,8 @@ class DOMScanner {
             } else if (message.action === 'contextMenuLocator') {
                 this.handleContextMenuLocator(message.type);
             } else if (message.action === 'highlightMatches') {
-                this.highlightMatches(message.selector);
+                if (message.mode === 'home') { this.highlightMatches(message.selector); }
+                else { this.clearHighlights('matches'); }
             } else if (message.action === 'clearMatchHighlights') {
                 this.clearHighlights('matches');
             } else if (message.action === 'swapAxes') {
@@ -131,7 +132,7 @@ class DOMScanner {
 
         const values = {};
         const strategies = [
-            'id', 'name', 'className', 'xpath', 'css', 'jsPath', 'absoluteXPath'
+            'id', 'name', 'className', 'relativeXpath', 'css', 'jquery', 'jsPath', 'absoluteXpath'
         ];
 
         strategies.forEach(strategy => {
@@ -317,13 +318,7 @@ class DOMScanner {
             // Always generate ALL supported locator types
             // This decouples generation from visibility (which is handled in the UI)
             // Determine types based on mode
-            let targetTypes = [
-                'idLocator', 'nameLocator', 'classNameLocator', 'tagnameLocator',
-                'cssLocator', 'linkTextLocator', 'pLinkTextLocator', 'absoluteLocator',
-                'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
-                'linkTextXpathLocator', 'pLinkTextXpathLocator', 'attributeXpathLocator',
-                'cssXpathLocator', 'jsPathLocator'
-            ];
+            const targetTypes = LocatorXConfig.FILTER_GROUPS.CORE;
 
             let locators = this.generateLocators(element, targetTypes);
             const info = this.getElementInfo(element);
@@ -539,13 +534,7 @@ class DOMScanner {
                         };
 
                         // Restore locator generation for the search bar detail view
-                        const allTypes = [
-                            'idLocator', 'nameLocator', 'classNameLocator', 'tagnameLocator',
-                            'cssLocator', 'linkTextLocator', 'pLinkTextLocator', 'absoluteLocator',
-                            'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
-                            'linkTextXpathLocator', 'pLinkTextXpathLocator', 'attributeXpathLocator',
-                            'cssXpathLocator', 'jsPathLocator'
-                        ];
+                        const allTypes = LocatorXConfig.FILTER_GROUPS.CORE;
                         let locators = this.generateLocators(element, allTypes);
 
                         // Prepend iframe XPath if in non-cross-origin iframe - REMOVED
@@ -802,6 +791,7 @@ class DOMScanner {
             'copy-class': 'className',
             'copy-rel-xpath': 'xpath',
             'copy-css': 'css',
+            'copy-jquery': 'jquery',
             'copy-js-path': 'jsPath',
             'copy-abs-xpath': 'absoluteXPath'
         };

@@ -40,6 +40,7 @@ const LocatorXPlans = {
             'locator.linkText',
             'locator.pLinkText',
             'locator.jsPath',
+            'locator.jquery',
             'locator.css',
             'locator.absoluteXpath',
             'locator.relativeXpath',

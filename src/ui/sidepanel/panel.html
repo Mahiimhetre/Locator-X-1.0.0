@@ -172,31 +172,30 @@
                 <label data-feature="locator.absoluteXpath"><input type="checkbox" class="loc-type" id="absoluteLocator"
                         value="absolute" checked> Absolute XPath</label>
             </div>
+
             <!-- Portal dropdown for Relative XPath (positioned with fixed) -->
             <div class="relative-xpath-nested" id="relativeXPathNested" hidden>
                 <fieldset class="nested-options">
                     <legend>Strategies <i class="bi-check2-square nested-select-all" id="nestedSelectAll"
                             title="Select/Deselect All"></i></legend>
-                    <label><input type="checkbox" class="nested-loc-type" id="xpathLocator" value="xpath"
-                            data-feature="locator.relativeXpath" checked>Default</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="relativeXpathLocator" value="xpath"
+                            data-feature="locator.relativeXpath" checked>relative</label>
                     <label><input type="checkbox" class="nested-loc-type" id="containsXpathLocator" value="contains"
                             data-feature="locator.containsXpath" checked>Contains</label>
                     <label><input type="checkbox" class="nested-loc-type" id="indexedXpathLocator" value="indexed"
                             data-feature="locator.indexedXpath" checked>Indexed</label>
-                    <label><input type="checkbox" class="nested-loc-type" id="LinkTextXpathLocator" value="linktext"
-                            data-feature="locator.linkTextXpath" checked>Link Text</label>
-                    <label><input type="checkbox" class="nested-loc-type" id="PLinkTextXpathLocator" value="plinktext"
-                            data-feature="locator.pLinkTextXpath" checked>PLink
-                        Text</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="linkTextXpathLocator" value="linktext"
+                            data-feature="locator.linkTextXpath" checked>LinkText</label>
+                    <label><input type="checkbox" class="nested-loc-type" id="pLinkTextXpathLocator" value="plinktext"
+                            data-feature="locator.pLinkTextXpath" checked>PLink Text</label>
                     <label><input type="checkbox" class="nested-loc-type" id="attributeXpathLocator" value="attribute"
                             data-feature="locator.attributeXpath" checked>Attribute</label>
                     <label><input type="checkbox" class="nested-loc-type" id="cssXpathLocator" value="cssXpath"
-                            data-feature="locator.cssXpath" checked>CSS
-                        XPath</label>
+                            data-feature="locator.cssXpath" checked>CSS XPath</label>
                 </fieldset>
             </div>
 
-            <div class="home-container active">
+            <div class="home-container view-container active">
                 <div class="input-container">
                     <div id="elementTypeBadge" class="element-type-badge hidden"></div>
                     <input type="text" class="search-input" id="searchInput" placeholder="Enter selector or element..."
@@ -229,7 +228,7 @@
                     <span id="homeElementDetail" class="element-detail-text"></span>
                 </div>
             </div>
-            <div class="pom-container">
+            <div class="pom-container view-container">
                 <div class="pom-navigation">
                     <div class="pom-selector-group">
                         <i class="bi-file-earmark-richtext pom-icon"></i>
@@ -260,7 +259,7 @@
                     </table>
                 </div>
             </div>
-            <div class="axes-container">
+            <div class="axes-container view-container">
                 <!-- Anchor/Target Selection -->
                 <div class="input-container">
                     <!-- Anchor Box -->
@@ -291,7 +290,7 @@
                     </div>
                 </div>
             </div>
-            <div class="dynamic-container">
+            <div class="dynamic-container view-container">
                 <div class="dynamic-header">
                     <button class="header-icon-button" id="closeDynamicBtn" title="Back">
                         <i class="bi-arrow-left"></i>

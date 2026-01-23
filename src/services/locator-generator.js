@@ -26,16 +26,18 @@ class LocatorGenerator {
             css: (element) => this.generateCSSSelector(element),
             linkText: (element) => element.tagName === 'A' ? element.textContent.trim() : null,
             pLinkText: (element) => element.tagName === 'A' ? element.textContent.trim().substring(0, 10) : null,
-            absoluteXPath: (element) => this.generateAbsoluteXPath(element),
+            absoluteXpath: (element) => this.generateAbsoluteXPath(element),
             jsPath: (element) => `document.querySelector('${this.generateCSSSelector(element)}')`,
+            jquery: (element) => `$('${this.generateCSSSelector(element)}')`,
 
             // Relative XPath variants
-            xpath: (element) => this.generateRelativeXPath(element),
+            relativeXpath: (element) => this.generateRelativeXPath(element),
             containsXpath: (element) => this.generateContainsXPath(element),
             indexedXpath: (element) => this.generateIndexedXPath(element),
             linkTextXpath: (element) => this.generateLinkTextXPath(element),
             pLinkTextXpath: (element) => this.generatePartialLinkTextXPath(element),
             attributeXpath: (element) => this.generateAttributeXPath(element),
+            cssXpath: (element) => this.generateCSSXPath(element),
             // Axes XPath
             axes: (anchor, target) => this.generateAxesXPath(anchor, target)
         };
@@ -176,26 +178,11 @@ class LocatorGenerator {
         if (this.isExtensionElement(element)) return [];
         console.log('[Locator-X] Starting generateLocators for element:', element);
         const locators = [];
-        const typeMap = {
-            'idLocator': 'id',
-            'nameLocator': 'name',
-            'classNameLocator': 'className',
-            'tagnameLocator': 'tagname',
-            'cssLocator': 'css',
-            'linkTextLocator': 'linkText',
-            'pLinkTextLocator': 'pLinkText',
-            'absoluteLocator': 'absoluteXPath',
-            'xpathLocator': 'xpath',
-            'containsXpathLocator': 'containsXpath',
-            'indexedXpathLocator': 'indexedXpath',
-            'linkTextXpathLocator': 'linkTextXpath',
-            'pLinkTextXpathLocator': 'pLinkTextXpath',
-            'attributeXpathLocator': 'attributeXpath',
-            'cssXpathLocator': 'cssXpath'
-        };
 
-        enabledTypes.forEach(type => {
-            const strategy = typeMap[type];
+
+        enabledTypes.forEach(strategy => {
+            // Direct use of strategy key
+
             if (strategy && this.strategies[strategy]) {
                 try {
                     console.log(`[Locator-X] Executing strategy: ${strategy}`);
@@ -553,6 +540,12 @@ class LocatorGenerator {
                     try {
                         const res = eval(selector);
                         return res ? (res.length || 1) : 0;
+                    } catch (e) { return 0; }
+                }
+                if (lowerStrategy === 'jquery') {
+                    try {
+                        const selectorContent = selector.slice(3, -2); // Remove $(' and ')
+                        return this.querySelectorAllDeep(selectorContent).length;
                     } catch (e) { return 0; }
                 }
 

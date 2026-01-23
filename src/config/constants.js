@@ -35,15 +35,16 @@ const LocatorXConfig = {
         'css': 'CSS',
         'linkText': 'Link Text',
         'pLinkText': 'Partial Link Text',
-        'absoluteXPath': 'Absolute XPath',
-        'xpath': 'Default',
         'containsXpath': 'Contains',
         'indexedXpath': 'Indexed',
         'linkTextXpath': 'Link Text XPath',
         'pLinkTextXpath': 'PLink Text',
         'attributeXpath': 'Attribute',
         'cssXpath': 'CSS XPath',
-        'jsPath': 'JS Path'
+        'jsPath': 'JS Path',
+        'jquery': 'jQuery',
+        'absoluteXpath': 'Absolute XPath',
+        'relativeXpath': 'Relative XPath'
     },
 
     // Attributes prioritized during CSS and XPath generation
@@ -63,12 +64,12 @@ const LocatorXConfig = {
     FILTER_GROUPS: {
         // All core locator IDs
         CORE: [
-            'idLocator', 'nameLocator', 'tagnameLocator', 'classNameLocator',
-            'cssLocator', 'linkTextLocator', 'pLinkTextLocator',
-            'relativeXPath', 'absoluteLocator',
-            'xpathLocator', 'containsXpathLocator', 'indexedXpathLocator',
-            'linkTextXpathLocator', 'pLinkTextXpathLocator', 'attributeXpathLocator',
-            'cssXpathLocator'
+            'id', 'name', 'tagname', 'className',
+            'css', 'linkText', 'pLinkText',
+            'relativeXpath', 'absoluteXpath',
+            'containsXpath', 'indexedXpath',
+            'linkTextXpath', 'pLinkTextXpath', 'attributeXpath',
+            'cssXpath', 'jsPath', 'jquery'
         ]
     },
 
