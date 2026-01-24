@@ -36,6 +36,7 @@ const LocatorXConfig = {
         'linkText': 'Link Text',
         'pLinkText': 'Partial Link Text',
         'containsXpath': 'Contains',
+        'startsWithXpath': 'Starts With',
         'indexedXpath': 'Indexed',
         'linkTextXpath': 'Link Text XPath',
         'pLinkTextXpath': 'PLink Text',
@@ -67,7 +68,7 @@ const LocatorXConfig = {
             'id', 'name', 'tagname', 'className',
             'css', 'linkText', 'pLinkText',
             'relativeXpath', 'absoluteXpath',
-            'containsXpath', 'indexedXpath',
+            'containsXpath', 'startsWithXpath', 'indexedXpath',
             'linkTextXpath', 'pLinkTextXpath', 'attributeXpath',
             'cssXpath', 'jsPath', 'jquery'
         ]

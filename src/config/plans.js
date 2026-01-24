@@ -74,7 +74,9 @@ const LocatorXPlans = {
                 'ui.settings.reset',
                 'ui.quickEdit',
                 'module.smartCorrect',
-                'ui.contextMenu.nested'
+                'ui.contextMenu.nested',
+                'locator.startsWithXpath',
+                'locator.orXpath'
             ];
         },
         team: 'ALL' // Grants access to everything

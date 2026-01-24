@@ -35,6 +35,8 @@
       ],
       "js": [
         "src/config/constants.js",
+        "src/config/plans.js",
+        "src/services/plan-service.js",
         "src/services/locator-generator.js",
         "src/content/domScanner.js"
       ],

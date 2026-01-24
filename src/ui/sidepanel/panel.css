@@ -1987,3 +1987,36 @@ input:checked+.toggle-slider:before {
   transform: scale(1.02);
   box-shadow: 0 4px 12px var(--shadow-medium);
 }
+
+/* Locator Cell with Flex Layout for Warnings */
+.locator-cell {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.locator-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  /* Flexbox text-overflow fix */
+}
+
+/* Warning Icon */
+.warning-icon {
+  font-size: 12px;
+  color: #f39c12;
+  /* Amber/Orange */
+  cursor: help;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.warning-icon:hover {
+  transform: scale(1.2);
+  color: #e67e22;
+  /* darker orange */
+}

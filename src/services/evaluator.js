@@ -179,8 +179,10 @@ class Evaluator {
 }
 
 // Global Export
+if (typeof window !== 'undefined') {
+    window.Evaluator = Evaluator;
+    console.log('[Locator-X] Evaluator service loaded');
+}
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Evaluator;
-} else {
-    window.Evaluator = Evaluator;
 }

@@ -126,6 +126,11 @@ class PlanService {
         // Disable interactive elements
         if (['BUTTON', 'INPUT', 'SELECT'].includes(el.tagName)) {
             el.disabled = true;
+            if ((el.type === 'checkbox' || el.type === 'radio') && el.checked) {
+                el.checked = false;
+                // Trigger change event so listeners (like filter manager) know it's off
+                el.dispatchEvent(new Event('change'));
+            }
         }
 
         // Add upgrade badge if not present
@@ -144,9 +149,12 @@ class PlanService {
             `;
             // Append to label or text content if possible
             if (el.tagName === 'LABEL') {
-                el.appendChild(badge);
+                if (!el.querySelector('.upgrade-badge')) el.appendChild(badge);
             } else if (el.parentElement && el.parentElement.tagName === 'LABEL') {
-                el.parentElement.appendChild(badge);
+                // Check if parent already has it
+                if (!el.parentElement.querySelector('.upgrade-badge')) {
+                    el.parentElement.appendChild(badge);
+                }
             }
         }
 

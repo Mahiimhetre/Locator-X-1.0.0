@@ -1,10 +1,12 @@
 // Core Locator Generator - Backend Logic
 class LocatorGenerator {
-    constructor(config = {}) {
+    constructor(planService = null, config = {}) {
+        this.planService = planService;
         this.config = Object.assign({ excludeNumbers: true }, config);
         this.strategies = {
             // Basic locators
             id: (element) => {
+                if (!this._isFeatureEnabled('locator.id')) return null;
                 if (element.id) {
                     if (this.config.excludeNumbers && /\d/.test(element.id)) return null;
                     return `#${element.id}`;
@@ -12,6 +14,7 @@ class LocatorGenerator {
                 return null;
             },
             name: (element) => {
+                if (!this._isFeatureEnabled('locator.name')) return null;
                 if (element.name) {
                     if (this.config.excludeNumbers && /\d/.test(element.name)) return null;
                     return `[name='${element.name}']`;
@@ -19,28 +22,36 @@ class LocatorGenerator {
                 return null;
             },
             className: (element) => {
+                if (!this._isFeatureEnabled('locator.className')) return null;
                 const cleaned = this.cleanClassName(element.className);
                 return cleaned ? `.${cleaned.split(' ').join('.')}` : null;
             },
-            tagname: (element) => element.tagName.toLowerCase(),
-            css: (element) => this.generateCSSSelector(element),
-            linkText: (element) => element.tagName === 'A' ? element.textContent.trim() : null,
-            pLinkText: (element) => element.tagName === 'A' ? element.textContent.trim().substring(0, 10) : null,
-            absoluteXpath: (element) => this.generateAbsoluteXPath(element),
-            jsPath: (element) => `document.querySelector('${this.generateCSSSelector(element)}')`,
-            jquery: (element) => `$('${this.generateCSSSelector(element)}')`,
+            tagname: (element) => this._isFeatureEnabled('locator.tagname') ? element.tagName.toLowerCase() : null,
+            css: (element) => this._isFeatureEnabled('locator.css') ? this.generateCSSSelector(element) : null,
+            linkText: (element) => this._isFeatureEnabled('locator.linkText') && element.tagName === 'A' ? element.textContent.trim() : null,
+            pLinkText: (element) => this._isFeatureEnabled('locator.pLinkText') && element.tagName === 'A' ? element.textContent.trim().substring(0, 10) : null,
+            absoluteXpath: (element) => this._isFeatureEnabled('locator.absoluteXpath') ? this.generateAbsoluteXPath(element) : null,
+            jsPath: (element) => this._isFeatureEnabled('locator.jsPath') ? `document.querySelector('${this.generateCSSSelector(element)}')` : null,
+            jquery: (element) => this._isFeatureEnabled('locator.jquery') ? `$('${this.generateCSSSelector(element)}')` : null,
 
             // Relative XPath variants
-            relativeXpath: (element) => this.generateRelativeXPath(element),
-            containsXpath: (element) => this.generateContainsXPath(element),
-            indexedXpath: (element) => this.generateIndexedXPath(element),
-            linkTextXpath: (element) => this.generateLinkTextXPath(element),
-            pLinkTextXpath: (element) => this.generatePartialLinkTextXPath(element),
-            attributeXpath: (element) => this.generateAttributeXPath(element),
-            cssXpath: (element) => this.generateCSSXPath(element),
+            relativeXpath: (element) => this._isFeatureEnabled('locator.relativeXpath') ? this.generateRelativeXPath(element) : null,
+            containsXpath: (element) => this._isFeatureEnabled('locator.containsXpath') ? this.generateContainsXPath(element) : null,
+            startsWithXpath: (element) => this._isFeatureEnabled('locator.startsWithXpath') ? this.generateStartsWithXPath(element) : null,
+            orXpath: (element) => null, // Deprecated: Now handled automatically
+            indexedXpath: (element) => this._isFeatureEnabled('locator.indexedXpath') ? this.generateIndexedXPath(element) : null,
+            linkTextXpath: (element) => this._isFeatureEnabled('locator.linkTextXpath') ? this.generateLinkTextXPath(element) : null,
+            pLinkTextXpath: (element) => this._isFeatureEnabled('locator.pLinkTextXpath') ? this.generatePartialLinkTextXPath(element) : null,
+            attributeXpath: (element) => this._isFeatureEnabled('locator.attributeXpath') ? this.generateAttributeXPath(element) : null,
+            cssXpath: (element) => this._isFeatureEnabled('locator.cssXpath') ? this.generateCSSXPath(element) : null,
             // Axes XPath
-            axes: (anchor, target) => this.generateAxesXPath(anchor, target)
+            axes: (anchor, target) => this._isFeatureEnabled('module.axes') ? this.generateAxesXPath(anchor, target) : null
         };
+    }
+
+    _isFeatureEnabled(featureId) {
+        if (!this.planService) return true; // Default to allow if service missing (or fallback logic)
+        return this.planService.isEnabled(featureId);
     }
 
     setConfig(config) {
@@ -182,6 +193,7 @@ class LocatorGenerator {
 
         enabledTypes.forEach(strategy => {
             // Direct use of strategy key
+            if (strategy === 'orXpath') return; // Skip deprecated manual OR
 
             if (strategy && this.strategies[strategy]) {
                 try {
@@ -203,8 +215,108 @@ class LocatorGenerator {
             }
         });
 
+        // AUTOMATIC OR LOGIC (Smart Fallback)
+        // If Relative XPath is enabled, we check if the element feels dynamic or hard to locate.
+        // If so, we append an OR-based locator.
+        if (enabledTypes.includes('relativeXpath') && this._isFeatureEnabled('locator.orXpath')) {
+            if (this.isDynamicElement(element)) {
+                const orLocator = this.generateOrXPath(element);
+                if (orLocator) {
+                    // OR locators are by definition "smart" and handling dynamic cases, 
+                    // so we might not want to warn about them, OR we warn that the element itself is dynamic.
+                    // For now, let's treat the OR locator as the "solution" to the warning.
+                    locators.push({
+                        type: 'Smart OR',
+                        locator: orLocator,
+                        matches: this.countMatches(orLocator, 'xpath'),
+                        warnings: []
+                    });
+                }
+            }
+        }
+
+        // Add warnings to all locators
+        locators.forEach(loc => {
+            if (!loc.warnings) {
+                loc.warnings = this.getLocatorWarnings(loc.locator, loc.type, element);
+            }
+        });
+
         console.log('[Locator-X] generateLocators completed. Result:', locators);
         return locators;
+    }
+
+    getLocatorWarnings(locator, type, element) {
+        const warnings = [];
+        if (!locator) return warnings;
+
+        // 1. Check for Dynamic IDs/Classes in the locator string itself
+        // If the locator uses an ID that looks dynamic, warn.
+        if (type === 'ID' || type === 'CSS' || type.includes('XPath')) {
+            // 1. Check for Attribute style ID: @id='...' or [id='...']
+            const attrMatch = locator.match(/@?id=['"]?([^'"\]]+)['"]?/);
+            if (attrMatch && attrMatch[1] && this.looksDynamic(attrMatch[1])) {
+                warnings.push('Contains dynamic ID');
+            }
+            // 2. Check for CSS Hash style ID: #...
+            // We split by space/modificators to get the ID part
+            if (locator.includes('#')) {
+                const idPart = locator.split('#')[1].split(/[ .[:] /)[0];
+                if (idPart && this.looksDynamic(idPart)) {
+                    // deduplicate warning if already added
+                    if (!warnings.includes('Contains dynamic ID')) {
+                        warnings.push('Contains dynamic ID');
+                    }
+                }
+            }
+        }
+
+        // 2. Length check (Brittle)
+        if (locator.length > 120) {
+            warnings.push('Locator is very long (brittle)');
+        }
+
+        // 3. Absolute XPath warning
+        if (type === 'Absolute XPath') {
+            warnings.push('Absolute XPaths are brittle');
+        }
+
+        return warnings;
+    }
+
+    isDynamicElement(element) {
+        // Heuristic: Check if ID or Name looks dynamic
+        const attrs = ['id', 'name', 'data-testid'];
+        for (const attr of attrs) {
+            const val = element.getAttribute(attr);
+            if (val && this.looksDynamic(val)) return true;
+        }
+        // Also if no ID/Name, it might be worth trying OR if class is present
+        if (!element.id && !element.name && element.className) return true;
+
+        return false;
+    }
+
+    looksDynamic(value) {
+        if (!value) return false;
+
+        // 1. Contains numbers (existing logic)
+        if (/\d/.test(value)) {
+            if (/[-_:]\d+/.test(value)) return true; // user-123
+            if (/^\d+$/.test(value)) return true; // pure numbers
+        }
+
+        // 2. High Entropy / Long Strings (Non-numeric dynamic)
+        // e.g. "a8f9e2b1", "xy-zw-ab", UUIDs
+        if (value.length > 30) return true; // Very long IDs are usually generated
+
+        // 3. Hexadecimal patterns (often UUIDs or hashes)
+        if (value.length > 8 && /^[a-f0-9-]+$/i.test(value)) {
+            // If it's pure hex/dash and fairly long, likely a hash
+            return true;
+        }
+
+        return false;
     }
 
     getDisplayName(strategy) {
@@ -496,6 +608,103 @@ class LocatorGenerator {
         const res = css ? `//*[self::${css.replace(/[#.]/g, '')}]` : null;
         console.log('[Locator-X] generateCSSXPath result:', res);
         return res;
+    }
+
+    generateStartsWithXPath(element) {
+        console.log('[Locator-X] generateStartsWithXPath input:', element);
+        const attrs = ['id', 'class', 'name', 'data-testid', 'aria-label'];
+
+        for (const attr of attrs) {
+            const val = element.getAttribute(attr);
+            if (!val) continue;
+
+            // Heuristic: Look for separator followed by numbers/random string
+            // e.g. "user-123", "btn_abc", "item:99"
+            const separators = ['-', '_', ':'];
+            for (const sep of separators) {
+                if (val.includes(sep)) {
+                    const parts = val.split(sep);
+                    // Check if last part is "dynamic looking" (digits)
+                    const lastPart = parts[parts.length - 1];
+                    const prefix = val.substring(0, val.lastIndexOf(sep) + 1);
+
+                    // If prefix is reasonably long and last part looks dynamic
+                    if (prefix.length > 2 && (/\d/.test(lastPart) || lastPart.length > 8)) {
+                        const quote = prefix.includes("'") ? '"' : "'";
+                        const tag = element.tagName.toLowerCase();
+                        const xpath = `//${tag}[starts-with(@${attr}, ${quote}${prefix}${quote})]`;
+
+                        // Validate uniqueness
+                        if (this.isUnique(xpath)) {
+                            console.log('[Locator-X] generateStartsWithXPath result:', xpath);
+                            return xpath;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: If it starts with text but ends with numbers
+            if (/^[a-zA-Z]+.?\d+$/.test(val)) {
+                const prefix = val.replace(/\d+$/, '');
+                if (prefix.length > 3) {
+                    const quote = prefix.includes("'") ? '"' : "'";
+                    const tag = element.tagName.toLowerCase();
+                    const xpath = `//${tag}[starts-with(@${attr}, ${quote}${prefix}${quote})]`;
+                    if (this.isUnique(xpath)) return xpath;
+                }
+            }
+        }
+        return null;
+    }
+
+    generateOrXPath(element) {
+        console.log('[Locator-X] generateOrXPath input:', element);
+        // We want to combine two strong, but perhaps non-unique or semi-stable attributes
+        // OR simply provide two strong ways to find it suitable for 'OR' logic.
+
+        const candidates = [];
+        const tag = element.tagName.toLowerCase();
+
+        // 1. ID
+        if (element.id) {
+            const quote = element.id.includes("'") ? '"' : "'";
+            candidates.push(`@id=${quote}${element.id}${quote}`);
+        }
+
+        // 2. Name
+        if (element.name) {
+            const quote = element.name.includes("'") ? '"' : "'";
+            candidates.push(`@name=${quote}${element.name}${quote}`);
+        }
+
+        // 3. Text
+        const text = element.textContent?.trim();
+        if (text && text.length > 0 && text.length < 30) {
+            const quote = text.includes("'") ? '"' : "'";
+            candidates.push(`text()=${quote}${text}${quote}`);
+        }
+
+        // 4. Class (Primary only)
+        if (element.className && typeof element.className === 'string') {
+            const primary = element.className.split(' ')[0];
+            if (primary) {
+                const quote = primary.includes("'") ? '"' : "'";
+                candidates.push(`contains(@class, ${quote}${primary}${quote})`);
+            }
+        }
+
+        // Need at least 2 candidates to make an OR clause
+        if (candidates.length >= 2) {
+            // Take the top 2
+            const part1 = candidates[0];
+            const part2 = candidates[1];
+            const xpath = `//${tag}[${part1} or ${part2}]`;
+
+            console.log('[Locator-X] generateOrXPath result:', xpath);
+            return xpath;
+        }
+
+        return null;
     }
 
     getImportantAttributes(element) {

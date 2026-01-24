@@ -1322,6 +1322,8 @@ const LocatorX = {
                 LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
                 LocatorXConfig.STRATEGY_NAMES.pLinkTextXpath,
                 LocatorXConfig.STRATEGY_NAMES.attributeXpath,
+                LocatorXConfig.STRATEGY_NAMES.startsWithXpath,
+                LocatorXConfig.STRATEGY_NAMES.orXpath,
                 LocatorXConfig.STRATEGY_NAMES.cssXpath
             ];
 
@@ -1396,7 +1398,8 @@ const LocatorX = {
                 if (locator) {
                     matchCell.setAttribute('data-count', locator.matches);
 
-                    valCell.textContent = locator.locator;
+                    valCell.innerHTML = `<span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}`;
+                    valCell.classList.add('locator-cell');
                     valCell.style.color = '';
                     valCell.style.opacity = '1';
 
@@ -1404,6 +1407,7 @@ const LocatorX = {
                 } else {
                     matchCell.setAttribute('data-count', '0');
                     valCell.textContent = '-';
+                    valCell.classList.remove('locator-cell');
                     valCell.style.color = 'var(--secondary-text)';
                     valCell.style.opacity = '0.5';
                     actions.forEach(btn => btn.classList.add('disabled'));
@@ -1454,18 +1458,27 @@ const LocatorX = {
                 row.innerHTML = `
                     ${this._createMatchCell(locator.matches)}
                     <td>${locator.type}</td>
-                    <td class="lx-editable" data-target="table-cell">${locator.locator}</td>
+                    <td class="lx-editable locator-cell" data-target="table-cell">
+                        <span class="locator-text">${locator.locator}</span>
+                        ${this._createWarningIcon(locator.warnings)}
+                    </td>
                     ${this._createActionCell(false)}
                 `;
             } else {
                 row.innerHTML = `
                     ${this._createMatchCell(0)}
                     <td>${type}</td>
-                    <td class="lx-editable" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;"></td>
+                    <td class="lx-editable locator-cell" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;"></td>
                     ${this._createActionCell(true)}
                 `;
             }
             tbody.appendChild(row);
+        },
+
+        _createWarningIcon(warnings) {
+            if (!warnings || warnings.length === 0) return '';
+            const title = warnings.join('\n');
+            return `<i class="bi bi-exclamation-triangle-fill warning-icon" title="${title}"></i>`;
         },
 
         renderGroupRow(tbody, availableTypes, currentType, allLocators) {
@@ -1483,8 +1496,9 @@ const LocatorX = {
                 return `<option value="${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}>${type}</option>`;
             }).join('');
 
-            const locatorValue = locator ? locator.locator : '-';
+            const locatorValue = locator ? `<span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}` : '-';
             const locatorStyle = locator ? '' : 'style="color: var(--secondary-text); opacity: 0.5;"';
+            const locatorClass = locator ? 'locator-cell' : '';
             const actionClass = locator ? '' : 'disabled';
 
             row.innerHTML = `
@@ -1494,7 +1508,7 @@ const LocatorX = {
                         ${options}
                     </select>
                 </td>
-                <td class="lx-editable" id="strategyLocator" data-target="table-cell" ${locatorStyle}>${locatorValue}</td>
+                <td class="lx-editable ${locatorClass}" id="strategyLocator" data-target="table-cell" ${locatorStyle}>${locatorValue}</td>
                 ${this._createActionCell(!locator)}
             `;
 
@@ -1522,7 +1536,8 @@ const LocatorX = {
             if (locator) {
                 matchBadge.setAttribute('data-count', locator.matches);
 
-                locatorCell.textContent = locator.locator;
+                locatorCell.innerHTML = `<span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}`;
+                locatorCell.classList.add('locator-cell');
                 locatorCell.style.color = '';
                 locatorCell.style.opacity = '1';
 
@@ -1530,6 +1545,7 @@ const LocatorX = {
             } else {
                 matchBadge.setAttribute('data-count', '0');
                 locatorCell.textContent = '-';
+                locatorCell.classList.remove('locator-cell');
                 locatorCell.style.color = 'var(--secondary-text)';
                 locatorCell.style.opacity = '0.5';
 
@@ -1721,6 +1737,8 @@ const LocatorX = {
                 LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
                 LocatorXConfig.STRATEGY_NAMES.pLinkTextXpath,
                 LocatorXConfig.STRATEGY_NAMES.attributeXpath,
+                LocatorXConfig.STRATEGY_NAMES.startsWithXpath,
+                LocatorXConfig.STRATEGY_NAMES.orXpath,
                 LocatorXConfig.STRATEGY_NAMES.cssXpath
             ];
 
@@ -1786,6 +1804,8 @@ const LocatorX = {
                     'linkTextXpathLocator': LocatorXConfig.STRATEGY_NAMES.linkTextXpath,
                     'pLinkTextXpathLocator': LocatorXConfig.STRATEGY_NAMES.pLinkTextXpath,
                     'attributeXpathLocator': LocatorXConfig.STRATEGY_NAMES.attributeXpath,
+                    'startsWithXpathLocator': LocatorXConfig.STRATEGY_NAMES.startsWithXpath,
+                    'orXpathLocator': LocatorXConfig.STRATEGY_NAMES.orXpath,
                     'cssXpathLocator': LocatorXConfig.STRATEGY_NAMES.cssXpath
                 };
 
@@ -2374,8 +2394,6 @@ const LocatorX = {
                 inspectBtn.style.color = 'var(--secondary-text)';
             }
         },
-
-
     },
 
     // Authentication Management
@@ -2648,6 +2666,7 @@ const LocatorX = {
         this.savedLocators.init();
         this.notifications.init();
         this.inspect.init();
+
         this.auth.init();
         this.conflict.init();
 

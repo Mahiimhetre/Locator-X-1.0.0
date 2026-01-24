@@ -7,7 +7,12 @@ class DOMScanner {
         this.lastRightClickedElement = null;
         this.matchedElements = []; // The elements currently matched
         this.axesState = { step: 0, anchor: null }; // Axes capture state
-        this.generator = new LocatorGenerator();
+
+        // Init plan service for logic usage
+        this.planService = typeof PlanService !== 'undefined' ? new PlanService() : null;
+        if (this.planService) this.planService.init();
+
+        this.generator = new LocatorGenerator(this.planService);
         this.labelElement = null; // Private label element
         this.setupEventListeners();
 
@@ -72,6 +77,9 @@ class DOMScanner {
             } else if (message.action === 'stopScanning') {
                 this.stopScanning(message.force);
                 sendResponse({ success: true });
+            } else if (message.action === 'getPageStructure') {
+                const structure = this.getPageStructure();
+                sendResponse(structure);
             } else if (message.action === 'evaluateSelector') {
                 try {
                     console.log('[DOMScanner] evaluateSelector request:', message.selector, message.type);
@@ -82,9 +90,6 @@ class DOMScanner {
                     console.error('[DOMScanner] evaluateSelector error:', e);
                     sendResponse({ error: e.toString() });
                 }
-            } else if (message.action === 'getPageStructure') {
-                const structure = this.getPageStructure();
-                sendResponse(structure);
             } else if (message.action === 'contextMenuLocator') {
                 this.handleContextMenuLocator(message.type);
             } else if (message.action === 'highlightMatches') {
@@ -817,8 +822,73 @@ class DOMScanner {
         }
     }
 
+    getPageStructure() {
+        const commonTags = [
+            'div', 'span', 'a', 'button', 'input', 'form', 'img', 'label',
+            'select', 'option', 'textarea', 'ul', 'li', 'ol', 'table',
+            'tr', 'td', 'th', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p',
+            'nav', 'header', 'footer', 'section', 'article', 'aside', 'main'
+        ];
 
+        const structure = {
+            tags: {},
+            ids: {},
+            classes: {},
+            attributes: {
+                name: {},
+                role: {},
+                'data-testid': {},
+                placeholder: {}
+            },
+            textFragments: new Set()
+        };
 
+        // Scan all elements for a comprehensive map
+        const allElements = document.getElementsByTagName('*');
+        for (let i = 0; i < allElements.length; i++) {
+            const el = allElements[i];
+            const tag = el.tagName.toLowerCase();
+
+            // Tags
+            if (commonTags.includes(tag)) {
+                structure.tags[tag] = (structure.tags[tag] || 0) + 1;
+            }
+
+            // IDs
+            const ids = LocatorXConfig.IDENTIFIERS;
+            if (el.id && !el.id.toLowerCase().startsWith(ids.ID_PREFIX.toLowerCase())) {
+                structure.ids[el.id] = (structure.ids[el.id] || 0) + 1;
+            }
+
+            // Classes
+            if (el.classList.length > 0) {
+                el.classList.forEach(cls => {
+                    if (!cls.startsWith(ids.ID_PREFIX)) { // Using prefix for broad exclusion
+                        structure.classes[cls] = (structure.classes[cls] || 0) + 1;
+                    }
+                });
+            }
+
+            // Attributes
+            ['name', 'role', 'data-testid', 'placeholder'].forEach(attr => {
+                const val = el.getAttribute(attr);
+                if (val) {
+                    structure.attributes[attr][val] = (structure.attributes[attr][val] || 0) + 1;
+                }
+            });
+
+            // Text fragments (minimal threshold)
+            if (el.children.length === 0 && el.textContent.trim().length > 2 && el.textContent.trim().length < 50) {
+                const text = el.textContent.trim();
+                structure.textFragments.add(text);
+            }
+        }
+
+        // Convert Set to Array for JSON transmission
+        structure.textFragments = Array.from(structure.textFragments).slice(0, 50);
+
+        return structure;
+    }
 }
 
 // Initialize scanner
