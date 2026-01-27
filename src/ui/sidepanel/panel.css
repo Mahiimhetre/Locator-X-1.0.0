@@ -424,8 +424,8 @@
   display: block;
 }
 
-/* Input Container & Dropdown Enhancements */
-.input-container {
+/* Control Group & Dropdown Enhancements */
+.control-group {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -518,10 +518,22 @@
   padding-top: 0px;
 }
 
-.search-dropdown.visible {
+.search-dropdown.visible,
+.search-dropdown.drop-up.visible {
   display: block;
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+.search-dropdown.drop-up {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: -1px;
+  border-radius: 12px 12px 0 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: none;
+  transform: translateX(-50%) translateY(8px);
 }
 
 .dropdown-item {
@@ -696,6 +708,12 @@
   font-size: 10px;
 }
 
+/* Fix for horizontal scrollbar: enforce fixed layout for Home table */
+.locator-table:not(.pom-table) {
+  table-layout: fixed;
+}
+
+
 .locator-table th {
   background: var(--surface-2);
   color: var(--primary-text);
@@ -706,7 +724,7 @@
 }
 
 .locator-table td {
-  padding: 4px 8px;
+  padding: 4px 5px;
   border-bottom: 1px solid var(--border-light);
   color: var(--primary-text);
 }
@@ -912,18 +930,25 @@
 .locator-table th:first-child,
 .locator-table td:first-child {
   width: 20px;
-  min-width: 20px;
-  max-width: 32px;
   text-align: center;
 }
 
-.locator-table th:last-child,
-.locator-table td:last-child {
-  width: 40px;
-  min-width: 40px;
-  max-width: 50px;
-  border-right: none;
+.locator-table:not(.pom-table) th:nth-child(2),
+.locator-table:not(.pom-table) td:nth-child(2) {
+  width: 60px;
+}
+
+.locator-table:not(.pom-table) th:nth-child(3),
+.locator-table:not(.pom-table) td:nth-child(3) {
+  width: auto;
+  /* Expand to fill */
+}
+
+.locator-table:not(.pom-table) th:last-child,
+.locator-table:not(.pom-table) td:last-child {
+  width: 30px;
   text-align: center;
+  border-right: none;
 }
 
 /* POM table column borders */
@@ -1956,44 +1981,17 @@ input:checked+.toggle-slider:before {
   transform: translateX(12px);
 }
 
-/* Drag & Drop Zone */
-.drag-drop-zone {
-  border: 1px dashed var(--accent);
-  border-radius: 50px;
-  padding: 8px 16px;
-  text-align: center;
-  background-color: var(--secondary-bg);
-  transition: all 0.2s ease;
-  cursor: pointer;
-  display: flex !important;
-  flex-direction: row !important;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-  margin: 0 auto;
-  width: 90%;
-  box-sizing: border-box;
-}
-
-.drag-drop-zone:hover {
-  border-color: var(--accent);
-  background-color: var(--surface-2);
-}
-
-.drag-drop-zone.drag-over {
-  border-color: var(--accent);
-  background-color: rgba(52, 152, 219, 0.1);
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px var(--shadow-medium);
-}
-
 /* Locator Cell with Flex Layout for Warnings */
 .locator-cell {
-  display: flex !important;
+  vertical-align: middle;
+}
+
+.locator-wrapper {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
 }
 
 .locator-text {
@@ -2019,4 +2017,74 @@ input:checked+.toggle-slider:before {
   transform: scale(1.2);
   color: #e67e22;
   /* darker orange */
+}
+
+/* Refactored Utility Classes (from Inline Styles) */
+.settings-content {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-label {
+  display: block;
+  font-size: 11px;
+  color: var(--secondary-text);
+  margin-bottom: 4px;
+}
+
+.settings-select {
+  width: 100%;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  padding: 4px;
+  font-size: 11px;
+}
+
+.user-dropdown-panel {
+  min-width: 180px;
+  padding: 0;
+}
+
+.user-dropdown-header {
+  margin: 0;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.user-dropdown-header-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar-wrapper {
+  position: relative;
+}
+
+.user-avatar-large {
+  width: 32px;
+  height: 32px;
+}
+
+.user-info-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+
+.user-info-name {
+  font-size: 13px;
+  color: var(--primary-text);
+}
+
+.lx-text-disabled {
+  color: var(--secondary-text);
+  opacity: 0.5;
+}
+
+.user-dropdown-items {
+  padding: 4px;
 }

@@ -7,112 +7,55 @@ class MultiScanManager {
         const patterns = {
             'selenium-java': {
                 find: [
-                    { label: 'Standard: driver.findElement(By.{type}("{locator}"))', regex: 'driver\\.findElements?\\(By\\.{type}\\("{locator}"\\)\\)' },
-                    { label: 'Annotation: @FindBy({type}="{locator}")', regex: '@FindBy\\({type}\\s*=\\s*"{locator}"\\)' },
-                    { label: 'Annotation Regex: @FindBy({type}="{locator}")', regex: '@FindBy\\(\\{type\\}\\s*=\\s*"{locator}"\\)' }
+                    { label: 'Standard', template: 'driver.findElement(By.{type}("{locator}"))' },
+                    { label: 'Elements (Plural)', template: 'driver.findElements(By.{type}("{locator}"))' },
+                    { label: 'Annotation', template: '@FindBy({type}="{locator}")' }
                 ],
                 wait: [
-                    { label: 'Explicit Wait', regex: 'WebDriverWait\\(driver.*\\)\\.until\\(ExpectedConditions\\..*By\\.{type}\\("{locator}"\\)\\)' }
+                    { label: 'Explicit Wait', template: 'ExpectedConditions.{type}("{locator}")' }
                 ],
                 assert: [
-                    { label: 'Assert Visible', regex: 'assertTrue\\(driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.isDisplayed\\(\\)\\)' }
-                ],
-                interact: [
-                    { label: 'Click', regex: 'driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.click\\(\\)' },
-                    { label: 'SendKeys', regex: 'driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.sendKeys\\(".*"\\)' }
+                    { label: 'Assert True', template: 'assertTrue(driver.findElement(By.{type}("{locator}")))' }
                 ]
             },
             'selenium-python': {
                 find: [
-                    { label: 'Standard: driver.find_element(By.{type}, "{locator}")', regex: 'driver\\.find_elements?\\(By\\.{type},\\s*"{locator}"\\)' }
-                ],
-                wait: [
-                    { label: 'Explicit Wait', regex: 'WebDriverWait\\(driver.*\\)\\.until\\(EC\\..*\\(By\\.{type},\\s*"{locator}"\\)\\)' }
-                ],
-                assert: [
-                    { label: 'Assert Visible', regex: 'assert driver\\.find_element\\(By\\.{type},\\s*"{locator}"\\)\\.is_displayed\\(\\)' }
-                ],
-                interact: [
-                    { label: 'Click', regex: 'driver\\.find_element\\(By\\.{type},\\s*"{locator}"\\)\\.click\\(\\)' },
-                    { label: 'SendKeys', regex: 'driver\\.find_element\\(By\\.{type},\\s*"{locator}"\\)\\.send_keys\\(".*"\\)' }
+                    { label: 'Standard', template: 'driver.find_element(By.{type}, "{locator}")' },
+                    { label: 'Elements (Plural)', template: 'driver.find_elements(By.{type}, "{locator}")' }
                 ]
             },
             'selenium-js': {
                 find: [
-                    { label: 'Standard: await driver.findElement(By.{type}("{locator}"))', regex: 'await driver\\.findElements?\\(By\\.{type}\\("{locator}"\\)\\)' }
-                ],
-                wait: [
-                    { label: 'Explicit Wait', regex: 'await driver\\.wait\\(until\\..*By\\.{type}\\("{locator}"\\)\\)' }
-                ],
-                assert: [
-                    { label: 'Assert Visible', regex: 'assert\\(await driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.isDisplayed\\(\\)\\)' }
-                ],
-                interact: [
-                    { label: 'Click', regex: 'await driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.click\\(\\)' },
-                    { label: 'SendKeys', regex: 'await driver\\.findElement\\(By\\.{type}\\("{locator}"\\)\\)\\.sendKeys\\(".*"\\)' }
+                    { label: 'Standard', template: 'await driver.findElement(By.{type}("{locator}"))' }
                 ]
             },
             'playwright-js': {
                 find: [
-                    { label: 'Locator: page.locator("{type}={locator}")', regex: 'page\\.locator\\("{type}={locator}"\\)' },
-                    { label: 'Async Locator: await page.{type}("{locator}")', regex: 'await page\\.{type}\\("{locator}"\\)' }
-                ],
-                wait: [
-                    { label: 'Wait Visible', regex: 'await expect\\(page\\.locator\\(".*"\\)\\)\\.toBeVisible\\(\\)' }
-                ],
-                assert: [
-                    { label: 'Assert Text', regex: 'await expect\\(page\\.locator\\(".*"\\)\\)\\.toHaveText\\(".*"\\)' }
+                    { label: 'Locator', template: 'page.locator("{type}={locator}")' },
+                    { label: 'Role/Label', template: 'page.getBy{type}("{locator}")' },
+                    { label: 'Async Type', template: 'await page.{type}("{locator}")' }
                 ],
                 interact: [
-                    { label: 'Click', regex: 'await page\\.click\\(".*"\\)' },
-                    { label: 'Fill', regex: 'await page\\.fill\\(".*", ".*"\\)' }
+                    { label: 'Click', template: 'await page.click("{locator}")' }, // Simple case
+                    { label: 'Fill', template: 'await page.fill("{locator}", "value")' }
                 ]
             },
             'playwright-python': {
                 find: [
-                    { label: 'Locator: page.locator("{type}={locator}")', regex: 'page\\.locator\\("{type}={locator}"\\)' },
-                    { label: 'Sync Locator: page.{type}("{locator}")', regex: 'page\\.{type}\\("{locator}"\\)' }
-                ],
-                wait: [
-                    { label: 'Wait Visible', regex: 'expect\\(page\\.locator\\(".*"\\)\\)\\.to_be_visible\\(\\)' }
-                ],
-                assert: [
-                    { label: 'Assert Text', regex: 'expect\\(page\\.locator\\(".*"\\)\\)\\.to_have_text\\(".*"\\)' }
-                ],
-                interact: [
-                    { label: 'Click', regex: 'page\\.click\\(".*"\\)' },
-                    { label: 'Fill', regex: 'page\\.fill\\(".*", ".*"\\)' }
+                    { label: 'Locator', template: 'page.locator("{type}={locator}")' },
+                    { label: 'Sync Type', template: 'page.{type}("{locator}")' }
                 ]
             },
             'playwright-java': {
                 find: [
-                    { label: 'Standard: page.{type}("{locator}")', regex: 'page\\.{type}\\("{locator}"\\)' },
-                    { label: 'Locator: page.locator("{type}={locator}")', regex: 'page\\.locator\\("{type}={locator}"\\)' }
-                ],
-                wait: [
-                    { label: 'Wait Visible', regex: 'assertThat\\(page\\.locator\\(".*"\\)\\)\\.isVisible\\(\\)' }
-                ],
-                assert: [
-                    { label: 'Assert Text', regex: 'assertThat\\(page\\.locator\\(".*"\\)\\)\\.hasText\\(".*"\\)' }
-                ],
-                interact: [
-                    { label: 'Click', regex: 'page\\.locator\\(".*"\\)\\.click\\(\\)' },
-                    { label: 'Fill', regex: 'page\\.locator\\(".*"\\)\\.fill\\(".*"\\)' }
+                    { label: 'Locator', template: 'page.locator("{type}={locator}")' },
+                    { label: 'Standard', template: 'page.{type}("{locator}")' }
                 ]
             },
             'cypress': {
                 find: [
-                    { label: 'Standard: cy.{type}("{locator}")', regex: 'cy\\.{type}\\("{locator}"\\)' }
-                ],
-                wait: [
-                    { label: 'Should Visible', regex: 'cy\\.get\\(".*"\\)\\.should\\("be\\.visible"\\)' }
-                ],
-                assert: [
-                    { label: 'Should Have Text', regex: 'cy\\.get\\(".*"\\)\\.should\\("have\\.text", ".*"\\)' }
-                ],
-                interact: [
-                    { label: 'Click', regex: 'cy\\.get\\(".*"\\)\\.click\\(\\)' },
-                    { label: 'Type', regex: 'cy\\.get\\(".*"\\)\\.type\\(".*"\\)' }
+                    { label: 'Standard', template: 'cy.{type}("{locator}")' }, // Covers cy.get, cy.contains
+                    { label: 'Find', template: 'cy.get("{locator}")' }
                 ]
             }
         };
@@ -141,35 +84,31 @@ class MultiScanManager {
 
         return patterns.filter(p =>
             p.label.toLowerCase().includes(query) ||
-            p.regex.toLowerCase().includes(query)
+            p.template.toLowerCase().includes(query)
         );
     }
 
     convertSmartPatternToRegex(patternInput) {
         if (!patternInput) {
-            // Default fallback
+            // Default regex fallback if empty
             return '(id|name|class|data-test-id)="([^"]+)"';
         }
 
-        if (patternInput.includes('{locator}') || patternInput.includes('{type}')) {
-            // 1. Temporarily replace placeholders
-            let safePattern = patternInput
-                .replace('{type}', '___TYPE_PLACEHOLDER___')
-                .replace('{locator}', '___LOCATOR_PLACEHOLDER___');
+        // 1. Escape special characters to treat input as literal text first
+        let safePattern = patternInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-            // 2. Escape valid regex characters if it looks like a plain string
-            if (!patternInput.includes('\\')) {
-                safePattern = safePattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
-
-            // 3. Restore placeholders as Regex Capture Groups
-            return safePattern
-                .replace('___TYPE_PLACEHOLDER___', '([a-zA-Z0-9_]+)')
-                .replace('___LOCATOR_PLACEHOLDER___', '([^"]+)');
+        // 2. Restore placeholders ({type}, {locator}) -> Regex Groups
+        // We escaped the {} so we need to look for \{type\} etc
+        if (safePattern.includes('\\{type\\}')) {
+            safePattern = safePattern.replace('\\{type\\}', '([a-zA-Z0-9_.]+)');
+        }
+        if (safePattern.includes('\\{locator\\}')) {
+            // Locator is tricky, it might contain quotes.
+            // If the original template had quotes around {locator}, they are now escaped \"
+            safePattern = safePattern.replace('\\{locator\\}', '([^"]+)');
         }
 
-        // Assume Raw Regex
-        return patternInput;
+        return safePattern;
     }
 
     readFile(file) {
@@ -234,6 +173,49 @@ class MultiScanManager {
 
             return { index, type, locator };
         });
+    }
+
+    autoScan(text, framework) {
+        const patternsObj = this.getCommonPatterns(framework);
+        let allPatterns = [];
+
+        // Recursive flattening of patterns (handles framework-specific or 'all' framework structure)
+        const flatten = (obj) => {
+            if (Array.isArray(obj)) {
+                allPatterns = allPatterns.concat(obj);
+            } else if (obj && typeof obj === 'object') {
+                Object.values(obj).forEach(val => flatten(val));
+            }
+        };
+
+        if (patternsObj) flatten(patternsObj);
+
+        let allMatches = [];
+        const uniqueLocators = new Set();
+
+        allPatterns.forEach(p => {
+            // Convert to regex if needed
+            try {
+                // If template exists, convert it. If regex exists (legacy/fallback), use it.
+                const patternStr = p.template || p.regex;
+                const compiledRegex = this.convertSmartPatternToRegex(patternStr);
+                let matches = this.findMatches(text, compiledRegex, false, '');
+
+                matches.forEach(m => {
+                    const key = `${m.type}:${m.locator}`;
+                    if (!uniqueLocators.has(key)) {
+                        uniqueLocators.add(key);
+                        // Re-index locally later
+                        allMatches.push(m);
+                    }
+                });
+            } catch (e) {
+                console.warn('Regex error for pattern:', p.label, e);
+            }
+        });
+
+        // Re-index
+        return allMatches.map((m, i) => ({ ...m, index: i }));
     }
 }
 

@@ -937,7 +937,7 @@ class LocatorGenerator {
         // --- ID ---
         else if (lowerStrategy === 'id') {
             // Try to find ANY element with an ID that is fuzzily close
-            const elements = this.document.querySelectorAll('[id]');
+            const elements = this.querySelectorAllDeep('[id]');
             const matches = Array.from(elements).filter(el => {
                 const cleanId = clean(el.id);
                 if (cleanId === target) return true; // Case/Space match
@@ -950,7 +950,7 @@ class LocatorGenerator {
 
         // --- Name ---
         else if (lowerStrategy === 'name') {
-            const elements = this.document.querySelectorAll('[name]');
+            const elements = this.querySelectorAllDeep('[name]');
             const matches = Array.from(elements).filter(el => {
                 const cleanName = clean(el.getAttribute('name'));
                 if (cleanName === target) return true;
@@ -963,7 +963,7 @@ class LocatorGenerator {
 
         // --- ClassName ---
         else if (lowerStrategy === 'classname') {
-            const elements = this.document.querySelectorAll('[class]');
+            const elements = this.querySelectorAllDeep('[class]');
             const matches = Array.from(elements).filter(el => {
                 const classes = (el.getAttribute('class') || '').split(/\s+/);
                 return classes.some(cls => {
@@ -991,7 +991,7 @@ class LocatorGenerator {
 
         // --- TagName ---
         else if (lowerStrategy === 'tagname') {
-            const elements = this.document.getElementsByTagName('*');
+            const elements = this.querySelectorAllDeep('*');
             const matches = Array.from(elements).filter(el => {
                 const cleanTag = clean(el.tagName);
                 if (cleanTag === target) return true;

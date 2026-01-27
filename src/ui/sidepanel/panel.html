@@ -100,14 +100,11 @@
                                 <i class="bi-arrow-clockwise reset-settings-btn" id="resetSettingsBtn"
                                     title="Reset to Defaults" data-feature="ui.settings.reset"></i>
                             </div>
-                            <div class="settings-content"
-                                style="padding: 8px; display: flex; flex-direction: column; gap: 12px;">
+                            <div class="settings-content">
                                 <div class="setting-group">
-                                    <label class="setting-label"
-                                        style="display: block; font-size: 11px; color: var(--secondary-text); margin-bottom: 4px;">Framework</label>
+                                    <label class="setting-label">Framework</label>
                                     <select id="frameworkSelect" title="Select Framework"
-                                        data-feature="ui.settings.framework"
-                                        style="width: 100%; border: 1px solid var(--border-light); border-radius: 4px; padding: 4px; font-size: 11px;">
+                                        data-feature="ui.settings.framework" class="settings-select">
                                         <option value="all" selected>Select Framework</option>
                                         <option value="selenium-java">Selenium (Java)</option>
                                         <option value="selenium-python">Selenium (Python)</option>
@@ -199,7 +196,7 @@
             </div>
 
             <div class="home-container view-container active">
-                <div class="input-container">
+                <div class="control-group">
                     <div id="elementTypeBadge" class="element-type-badge hidden"></div>
                     <input type="text" class="search-input" id="searchInput" placeholder="Enter selector or element..."
                         autocomplete="off">
@@ -264,7 +261,7 @@
             </div>
             <div class="axes-container view-container">
                 <!-- Anchor/Target Selection -->
-                <div class="input-container">
+                <div class="control-group">
                     <!-- Anchor Box -->
                     <div class="search-input" id="axesAnchorBox" title="Anchor Element, Click to Inspect"
                         style="cursor: pointer;" data-label="ANCHOR">
@@ -284,7 +281,7 @@
                 </div>
 
                 <!-- Result Section -->
-                <div class="input-container">
+                <div class="control-group">
                     <div class="search-input" id="axesResultBox" title="Result Locator (Double-click to edit)"
                         data-label="RESULT">
                         <span class="item-text lx-editable" id="axesResultValue" data-target="axes-result">capture
@@ -320,26 +317,24 @@
                     </div>
 
                     <!-- Dropdown -->
-                    <div id="userDropdown" class="navdropdown footer-dropdown" style="min-width: 180px; padding: 0;">
-                        <div class="dropdown-header"
-                            style="margin:0; padding: 12px; border-bottom: 1px solid var(--border-light);">
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <div style="position:relative;">
-                                    <img id="dropdownUserAvatar" src="" alt="User" class="user-avatar"
-                                        style="width:32px; height:32px;">
+                    <div id="userDropdown" class="navdropdown footer-dropdown user-dropdown-panel">
+                        <div class="dropdown-header user-dropdown-header">
+                            <div class="user-dropdown-header-content">
+                                <div class="user-avatar-wrapper">
+                                    <img id="dropdownUserAvatar" src="" alt="User"
+                                        class="user-avatar user-avatar-large">
                                     <div id="dropdownUserInitials" class="user-avatar-initials hidden"
                                         style="width:32px; height:32px; font-size:14px;"></div>
                                 </div>
-                                <div style="display:flex; flex-direction:column; gap:2px;">
-                                    <strong id="userName" class="user-name"
-                                        style="font-size:13px; color:var(--primary-text);"></strong>
+                                <div class="user-info-column">
+                                    <strong id="userName" class="user-name user-info-name"></strong>
                                     <div style="display:flex;">
                                         <span id="userPlan" class="user-plan-badge"></span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="dropdown-content" style="padding: 4px;">
+                        <div class="dropdown-content user-dropdown-items">
                             <div class="dropdown-item" id="logoutBtn">
                                 <i class="bi-box-arrow-right item-icon"></i>
                                 <span class="item-text">Logout</span>

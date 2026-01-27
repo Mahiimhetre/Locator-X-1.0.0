@@ -1,6 +1,18 @@
 (function (window) {
     const UniversalDragDrop = {
         /**
+         * Gets a standardized HTML template for a drag-and-drop zone.
+         */
+        getTemplate(id = 'dropZone', inputId = 'fileInput', accept = '.html,.htm,.js,.ts,.py,.java,.csv,.json,.txt,.xml', text = 'Click to Upload or Drag File') {
+            return `
+                <label class="drop-zone" id="${id}">
+                    <i class="bi-cloud-upload drop-icon"></i>
+                    <span class="drop-text">${text}</span>
+                    <input type="file" id="${inputId}" accept="${accept}" style="display: none;">
+                </label>`;
+        },
+
+        /**
          * Sets up drag and drop functionality for a container and a hidden file input.
          * @param {HTMLElement} dropZone - The container element to accept drops.
          * @param {HTMLInputElement} fileInput - The file input element to sync with.
@@ -18,7 +30,6 @@
                 e.stopPropagation();
                 e.dataTransfer.dropEffect = 'copy';
                 highlight();
-                // console.log('Drag over'); // Too noisy
             };
 
             const handleDragEnter = (e) => {

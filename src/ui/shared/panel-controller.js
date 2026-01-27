@@ -51,6 +51,53 @@ const LocatorX = {
                 el.classList.remove('hidden');
             }
         },
+
+        autoFlip(input, dropdown, estimatedHeight = null) {
+            if (!input || !dropdown) return;
+            const rect = input.getBoundingClientRect();
+
+            // Detect threshold dynamically from CSS (max-height, height, or min-height)
+            const style = window.getComputedStyle(dropdown);
+
+            const parseSize = (val) => {
+                if (!val || val === 'none') return 0;
+                const parsed = parseInt(val);
+                return Number.isNaN(parsed) ? 0 : parsed;
+            };
+
+            const maxHeight = parseSize(style.maxHeight);
+            const height = parseSize(style.height);
+            const minHeight = parseSize(style.minHeight);
+
+            // Use the largest of the defined heights as the threshold
+            const threshold = estimatedHeight || maxHeight || height || minHeight || 200;
+
+            // Initial space relative to viewport
+            let spaceBelow = window.innerHeight - rect.bottom;
+            let spaceAbove = rect.top;
+
+            // Check if any parent container (like a modal) is clipping us
+            let parent = input.parentElement;
+            while (parent && parent !== document.body) {
+                const pStyle = window.getComputedStyle(parent);
+                const overflow = pStyle.overflow + pStyle.overflowY;
+                if (overflow.includes('hidden') || overflow.includes('auto') || overflow.includes('scroll')) {
+                    const parentRect = parent.getBoundingClientRect();
+                    // How much space is left inside THIS container
+                    spaceBelow = Math.min(spaceBelow, parentRect.bottom - rect.bottom);
+                    spaceAbove = Math.min(spaceAbove, rect.top - parentRect.top);
+                    break;
+                }
+                parent = parent.parentElement;
+            }
+
+            // Flip if space below is too small AND space above is better
+            if (spaceBelow < threshold && spaceAbove > spaceBelow) {
+                dropdown.classList.add('drop-up');
+            } else {
+                dropdown.classList.remove('drop-up');
+            }
+        }
     },
 
     // POM Management
@@ -187,7 +234,7 @@ const LocatorX = {
         addLocatorToPage(locator) {
             const page = this.getCurrentPage();
             if (!page) {
-                alert('Please select or create a page first.');
+                LocatorX.notifications.warning('Please select or create a page first.');
                 return;
             }
 
@@ -519,37 +566,311 @@ const LocatorX = {
     multiScan: {
         mode: 'file', // 'file' or 'text'
         manager: null,
+        overlay: null,
+        detectionMode: 'auto', // 'auto', 'manual', 'hybrid'
+        currentMatches: [],
+        currentFile: null,
 
         init() {
             if (!this.manager && typeof MultiScanManager !== 'undefined') {
                 this.manager = new MultiScanManager();
             }
+            this.createModal();
+        },
+
+        createModal() {
+            // Reuse existing modal if available
+            if (this.overlay) return;
+
+            // Use the shared modal structure
+            if (!document.querySelector('.locator-x-modal-overlay')) {
+                // Initialize shared modal if not already present
+                new LocatorXModal();
+            }
+
+            this.overlay = document.querySelector('.locator-x-modal-overlay');
+            if (!this.overlay) {
+                const modal = new LocatorXModal();
+                this.overlay = modal.overlay;
+            }
+        },
+
+        close() {
+            if (this.overlay) this.overlay.classList.remove('active');
         },
 
         show() {
+            this.createModal();
+            this.renderInputState();
+            this.overlay.classList.add('active');
+
+            // Custom Close Hander for Multiscan specific state cleanup if needed
+            const closeBtn = this.overlay.querySelector('.modal-close');
+
+        },
+
+        renderInputState() {
+            const title = this.overlay.querySelector('.modal-title');
+            const body = this.overlay.querySelector('.modal-body');
+            const footer = this.overlay.querySelector('.modal-footer');
+
+            title.textContent = 'Multi-Locator Scan';
+            footer.classList.add('hidden');
+
             const framework = document.getElementById('frameworkSelect') ? document.getElementById('frameworkSelect').value : 'selenium';
 
-            const content = `
-                <!-- Mode Toggles -->
-                <div class="input-container" style="justify-content: center; margin-bottom: 16px;">
-                    <button class="save-btn" id="msModeFile" style="${this.mode === 'file' ? '' : 'background: var(--secondary-bg); color: var(--primary-text);'}">File Upload</button>
-                    <button class="save-btn" id="msModeText" style="${this.mode === 'text' ? '' : 'background: var(--secondary-bg); color: var(--primary-text); border: 1px solid var(--border-light);'}">Text Input</button>
+            body.innerHTML = `
+                <!-- Tabs -->
+                <div class="control-group ms-control-group">
+                    <button class="save-btn ms-tab-btn ${this.mode === 'text' ? '' : 'ms-btn-inactive'}" id="msModeText">
+                        <span>📝</span> Text
+                    </button>
+                    <button class="save-btn ms-tab-btn ${this.mode === 'file' ? '' : 'ms-btn-inactive'}" id="msModeFile">
+                        <span>📁</span> File
+                    </button>
                 </div>
 
                 <!-- Input Area -->
-                <div class="input-container" id="msInputArea" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                <div class="control-group ms-input-area" id="msInputArea">
                     ${this.getInputHtml()}
                 </div>
 
-                <!-- Smart Syntax Input (Custom Dropdown) -->
-                <div class="input-container">
-                    <input type="text" id="msSyntaxInput" class="search-input" placeholder="Select or type pattern (use {type} and {locator})" title="Type pattern with {type} (matches id, xpath, etc) and {locator}" autocomplete="off">
-                    <div id="msSyntaxDropdown" class="search-dropdown"></div>
-                    <button class="save-btn" id="msScanBtn" title="Start Scan">Scan</button>
+                <!-- Options -->
+                <div class="setting-group ms-setting-group">
+                    <label class="setting-label">Pattern Detection Strategy</label>
+                    <select id="msDetectionMode" class="ms-mode-select">
+                        <option value="auto" ${this.detectionMode === 'auto' ? 'selected' : ''}>Auto-Analyse (Fast)</option>
+                        <option value="manual" ${this.detectionMode === 'manual' ? 'selected' : ''}>Manual Pattern</option>
+                        <option value="hybrid" ${this.detectionMode === 'hybrid' ? 'selected' : ''}>Hybrid (Auto + Manual)</option>
+                    </select>
+                    <div class="ms-setting-note">
+                        ${this.getModeNote(framework)}
+                    </div>
                 </div>
 
-                <!-- Results Table -->
-                <div class="table-container" style="max-height: calc(100vh - 300px);">
+                <!-- Manual Pattern Input (Hidden if Auto) -->
+                <div class="control-group ${this.detectionMode === 'auto' ? 'hidden' : ''}" id="msPatternContainer">
+                    <input type="text" id="msSyntaxInput" class="search-input" placeholder="Select or type pattern ({type}, {locator})..." autocomplete="off">
+                    <div id="msSyntaxDropdown" class="search-dropdown"></div>
+                </div>
+
+                <!-- Action -->
+                <div class="modal-footer ms-modal-footer">
+                    <button class="modal-btn primary ms-scan-btn" id="msScanBtn">Scan</button>
+                </div>
+            `;
+
+            this.bindInputEvents();
+        },
+
+        getModeNote(framework) {
+            if (this.detectionMode === 'auto') return `Automatically detect locators for ${framework}.`;
+            if (this.detectionMode === 'manual') return `Use a custom pattern to find locators.`;
+            return `Auto-detect ${framework} patterns AND apply your custom pattern.`;
+        },
+
+        getInputHtml() {
+            if (this.mode === 'file') {
+                if (this.currentFile) {
+                    const size = this.currentFile.size > 1024 * 1024
+                        ? (this.currentFile.size / (1024 * 1024)).toFixed(1) + ' MB'
+                        : (this.currentFile.size / 1024).toFixed(1) + ' KB';
+                    return `
+                        <div class="ms-file-name">
+                            <i class="bi-check-circle-fill ms-file-success-icon"></i>
+                            <span>${this.currentFile.name}</span>
+                            <span class="ms-file-size">(${size})</span>
+                            <i class="bi-x-lg ms-remove-file" id="msRemoveFile"></i>
+                        </div>`;
+                }
+                return UniversalDragDrop.getTemplate('msDropZone', 'msFileInput');
+            } else {
+                return `<textarea id="msTextInput" class="search-input ms-text-input" placeholder="Paste your code or text here..."></textarea>`;
+            }
+        },
+
+        bindInputEvents() {
+            document.getElementById('msModeFile').addEventListener('click', () => { this.mode = 'file'; this.renderInputState(); });
+            document.getElementById('msModeText').addEventListener('click', () => { this.mode = 'text'; this.renderInputState(); });
+
+            const modeSelect = document.getElementById('msDetectionMode');
+            const patternContainer = document.getElementById('msPatternContainer');
+            if (modeSelect) {
+                modeSelect.addEventListener('change', (e) => {
+                    this.detectionMode = e.target.value;
+                    this.renderInputState();
+                });
+            }
+
+            const scanBtn = document.getElementById('msScanBtn');
+            scanBtn.addEventListener('click', () => this.performScan());
+
+            if (this.mode === 'file') {
+                const dropZone = document.getElementById('msDropZone');
+                const fileInput = document.getElementById('msFileInput');
+                const removeBtn = document.getElementById('msRemoveFile');
+
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', () => {
+                        this.currentFile = null;
+                        this.renderInputState();
+                    });
+                }
+
+                if (dropZone && fileInput && typeof UniversalDragDrop !== 'undefined') {
+                    UniversalDragDrop.setup(dropZone, fileInput, (files) => {
+                        if (files && files.length > 0) {
+                            this.currentFile = files[0];
+                            this.renderInputState();
+                        }
+                    });
+                }
+            }
+
+            // Pattern Input Logic
+            const syntaxInput = document.getElementById('msSyntaxInput');
+            const syntaxDropdown = document.getElementById('msSyntaxDropdown');
+            if (syntaxInput && syntaxDropdown) {
+                const handler = () => this.handleSyntaxInput(syntaxInput, syntaxDropdown);
+                syntaxInput.addEventListener('focus', handler);
+                syntaxInput.addEventListener('input', handler);
+                syntaxInput.addEventListener('blur', () => setTimeout(() => syntaxDropdown.style.display = 'none', 200));
+            }
+        },
+
+        // Reusing existing helper for syntax dropdown
+        handleSyntaxInput(input, dropdown) {
+            const query = input.value;
+            const framework = document.getElementById('frameworkSelect') ? document.getElementById('frameworkSelect').value : 'selenium-java';
+            const matches = this.manager.filterPatterns(query, framework);
+
+            if (matches.length > 0) {
+                dropdown.innerHTML = '';
+                matches.forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'dropdown-item';
+                    div.innerHTML = `<span class="item-text">${p.label}</span>`;
+                    div.addEventListener('click', () => {
+                        input.value = p.template;
+                        dropdown.style.display = 'none';
+                    });
+                    dropdown.appendChild(div);
+                });
+                dropdown.style.display = 'block';
+                dropdown.classList.add('visible');
+
+                LocatorX.utils.autoFlip(input, dropdown);
+            } else {
+                dropdown.style.display = 'none';
+                dropdown.classList.remove('drop-up');
+            }
+        },
+
+        performScan() {
+            const scanBtn = document.getElementById('msScanBtn');
+            const originalText = scanBtn.textContent;
+
+            // UI Feedback
+            scanBtn.classList.add('scanning');
+            scanBtn.innerHTML = `<span class="ms-spinner"></span> Scanning...`;
+
+            // READ INPUT
+            let contentProm;
+            let sourceName = 'Text Input';
+
+            if (this.mode === 'file') {
+                if (!this.currentFile) {
+                    LocatorX.notifications.warning('Please select a file to scan.');
+                    this.resetScanBtn(scanBtn, originalText);
+                    return;
+                }
+                sourceName = this.currentFile.name;
+                contentProm = this.manager.readFile(this.currentFile);
+            } else {
+                const textInput = document.getElementById('msTextInput');
+                if (!textInput || !textInput.value.trim()) {
+                    LocatorX.notifications.warning('Please enter text to scan.');
+                    this.resetScanBtn(scanBtn, originalText);
+                    return;
+                }
+                contentProm = Promise.resolve(textInput.value);
+            }
+
+            // EXECUTE SCAN
+            contentProm.then(text => {
+                const framework = document.getElementById('frameworkSelect') ? document.getElementById('frameworkSelect').value : 'all';
+                let matches = [];
+
+                const performAuto = () => this.manager.autoScan(text, framework);
+                const performManual = () => {
+                    const pattern = document.getElementById('msSyntaxInput').value;
+                    if (!pattern) return [];
+                    const regex = this.manager.convertSmartPatternToRegex(pattern);
+                    return this.manager.findMatches(text, regex, true, pattern);
+                };
+
+                if (this.detectionMode === 'auto') {
+                    matches = performAuto();
+                } else if (this.detectionMode === 'manual') {
+                    matches = performManual();
+                    if (matches.length === 0) LocatorX.notifications.warning('No matches found for custom pattern.');
+                } else if (this.detectionMode === 'hybrid') {
+                    const autoMatches = performAuto();
+                    const manualMatches = performManual();
+                    // Merge and deduplicate by locator
+                    const map = new Map();
+                    [...autoMatches, ...manualMatches].forEach(m => map.set(m.locator, m));
+                    matches = Array.from(map.values());
+                }
+
+                this.currentMatches = matches;
+
+                // Final Button State
+                scanBtn.textContent = 'Scan Again';
+                scanBtn.classList.remove('scanning');
+
+                setTimeout(() => this.renderResultState(matches.length, sourceName), 300);
+
+            }).catch(err => {
+                console.error(err);
+                LocatorX.notifications.error('Scan Failed: ' + err.message);
+                this.resetScanBtn(scanBtn, originalText);
+            });
+        },
+
+        resetScanBtn(btn, text) {
+            btn.classList.remove('scanning');
+            btn.textContent = text;
+        },
+
+        renderResultState(count, sourceName) {
+            const body = document.getElementById('msModalBody');
+
+            body.innerHTML = `
+                <div class="ms-result-container">
+                    <i class="bi-check-circle-fill ms-success-icon"></i>
+                    <h3 class="ms-result-title">Scan Complete</h3>
+                    <p class="ms-result-desc">
+                        Found <strong class="ms-result-count">${count}</strong> locators in <br>"${sourceName}"
+                    </p>
+                    
+                    <div class="ms-result-actions">
+                        <button class="modal-btn secondary" id="msResultRescan">Rescan</button>
+                        <button class="modal-btn primary" id="msSeeResult">See Result</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('msResultRescan').addEventListener('click', () => this.renderInputState());
+            document.getElementById('msSeeResult').addEventListener('click', () => this.openResultsInTable());
+        },
+
+        openResultsInTable() {
+            this.close(); // Close Modal
+
+            // Build Dynamic View Content
+            const content = `
+                <div class="table-container ms-table-container">
                     <table class="locator-table" id="msResultsTable">
                         <thead>
                             <tr>
@@ -560,277 +881,117 @@ const LocatorX = {
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="5" style="text-align: center; color: var(--secondary-text);">Ready to scan...</td>
-                            </tr>
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
             `;
 
-            LocatorX.dynamicView.show('Multi Locator Scanner', content);
-            this.initListeners();
-        },
+            LocatorX.dynamicView.show('Scan Results', content);
 
-        getInputHtml() {
-            if (this.mode === 'file') {
-                const accept = ".html,.htm,.js,.ts,.xml,.txt,.java,.py";
-                return `
-                    <label class="drag-drop-zone" id="msDropZone" style="flex-direction: row; gap: 12px; padding: 4px 16px;">
-                        <i class="bi-cloud-upload" style="font-size: 16px; color: var(--accent);"></i>
-                        <span style="font-size: 11px; color: var(--secondary-text);">Drag & Drop file or Click to Browse</span>
-                        <div id="msFileName" style="font-size: 11px; color: var(--accent); font-weight: 600; margin-left: auto;"></div>
-                        <input type="file" id="msFileInput" accept="${accept}" style="display: none;">
-                    </label>`;
-            } else {
-                return `<textarea id="msTextInput" class="search-input" placeholder="Paste your code or text here..." style="min-height: 100px; resize: vertical; border-radius: 8px; font-family: monospace;"></textarea>`;
-            }
-        },
+            // Add Rescan Button to Header (Injecting into dynamic header)
+            const header = document.querySelector('.dynamic-header');
+            if (header && !document.getElementById('headerRescanBtn')) {
+                const rescanBtn = document.createElement('button');
+                rescanBtn.id = 'headerRescanBtn';
+                rescanBtn.className = 'save-btn ms-header-rescan';
+                rescanBtn.textContent = 'Rescan';
 
-        initListeners() {
-            const btnFile = document.getElementById('msModeFile');
-            const btnText = document.getElementById('msModeText');
-            const scanBtn = document.getElementById('msScanBtn');
-            const syntaxInput = document.getElementById('msSyntaxInput');
-            const syntaxDropdown = document.getElementById('msSyntaxDropdown');
-
-            if (btnFile) btnFile.addEventListener('click', () => this.toggleMode('file'));
-            if (btnText) btnText.addEventListener('click', () => this.toggleMode('text'));
-            if (scanBtn) scanBtn.addEventListener('click', () => this.performScan());
-
-            // Drag & Drop Setup
-            if (this.mode === 'file') {
-                const dropZone = document.getElementById('msDropZone');
-                const fileInput = document.getElementById('msFileInput');
-                const fileName = document.getElementById('msFileName');
-
-                if (dropZone && fileInput && typeof UniversalDragDrop !== 'undefined') {
-                    // No need to store teardown as Elements are destroyed on re-render
-                    UniversalDragDrop.setup(dropZone, fileInput, (files) => {
-                        if (files && files.length > 0) {
-                            if (fileName) {
-                                fileName.textContent = 'Reading file...';
-                                fileName.style.color = 'var(--secondary-text)';
-
-                                // Small delay to show loading state
-                                setTimeout(() => {
-                                    fileName.innerHTML = `<i class="bi-check-circle-fill" style="color: var(--success); margin-right: 4px;"></i>${files[0].name}`;
-                                    fileName.style.color = 'var(--primary-text)';
-                                }, 300);
-                            }
-                        }
-                    });
-                }
-            }
-
-            if (syntaxInput && syntaxDropdown) {
-                // Focus: Show all or filter
-                syntaxInput.addEventListener('focus', () => this.handleSyntaxInput(syntaxInput, syntaxDropdown));
-
-                // Input: Filter
-                syntaxInput.addEventListener('input', () => this.handleSyntaxInput(syntaxInput, syntaxDropdown));
-
-                // Blur: Delayed hide
-                syntaxInput.addEventListener('blur', () => {
-                    setTimeout(() => {
-                        syntaxDropdown.classList.remove('visible');
-                        setTimeout(() => syntaxDropdown.style.display = 'none', 150);
-                    }, 200);
+                rescanBtn.addEventListener('click', () => {
+                    LocatorX.dynamicView.hide(); // Go back? or just open modal?
+                    this.show();
                 });
 
-                // Keydown: Navigation (Basic for now)
-                syntaxInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') {
-                        syntaxDropdown.classList.remove('visible');
-                        syntaxDropdown.style.display = 'none';
-                    }
-                });
-            }
-        },
-
-        handleSyntaxInput(input, dropdown) {
-            const query = input.value; // Pass full value, manager handles trim/lower
-            const framework = document.getElementById('frameworkSelect') ? document.getElementById('frameworkSelect').value : 'selenium-java';
-
-            const matches = this.manager.filterPatterns(query, framework);
-
-            if (matches.length > 0) {
-                this.renderSyntaxDropdown(matches, query.trim().toLowerCase(), dropdown, input);
-                dropdown.style.display = 'block';
-                // Trigger reflow
-                dropdown.offsetHeight;
-                dropdown.classList.add('visible');
-            } else {
-                dropdown.classList.remove('visible');
-                dropdown.style.display = 'none';
-            }
-        },
-
-        renderSyntaxDropdown(matches, query, dropdown, input) {
-            dropdown.innerHTML = '';
-
-            matches.forEach(p => {
-                const div = document.createElement('div');
-                div.className = 'dropdown-item';
-
-                // Highlight match in label
-                const text = p.label;
-                let html = text;
-                const idx = text.toLowerCase().indexOf(query);
-                if (query && idx >= 0) {
-                    html = text.substring(0, idx) +
-                        '<strong>' + text.substring(idx, idx + query.length) + '</strong>' +
-                        text.substring(idx + query.length);
-                }
-
-                div.innerHTML = `<span class="item-text">${html}</span>`;
-
-                div.addEventListener('click', () => {
-                    input.value = p.regex; // Set the Smart Pattern
-                    dropdown.classList.remove('visible');
-                    dropdown.style.display = 'none';
-                });
-
-                dropdown.appendChild(div);
-            });
-        },
-
-        toggleMode(newMode) {
-            if (this.mode === newMode) return;
-            this.mode = newMode;
-            this.show(); // Re-render to update UI
-        },
-
-        performScan() {
-            // FEATURE GATE: Check for MultiScan permission
-            if (typeof planService !== 'undefined' && !planService.isEnabled('module.multiScan')) {
-                planService._showUpgradePrompt('MultiScan');
-                return;
+                header.appendChild(rescanBtn);
             }
 
-            const syntaxInput = document.getElementById('msSyntaxInput');
-            let patternInput = syntaxInput ? syntaxInput.value.trim() : '';
-
-            // Delegate logic to Manager
-            const regexPattern = this.manager.convertSmartPatternToRegex(patternInput);
-
-            let contentProm;
-
-            if (this.mode === 'file') {
-                const fileInput = document.getElementById('msFileInput');
-                if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-                    alert('Please select a file to scan.');
-                    return;
-                }
-                contentProm = this.manager.readFile(fileInput.files[0]);
-            } else {
-                const textInput = document.getElementById('msTextInput');
-                if (!textInput || !textInput.value.trim()) {
-                    alert('Please enter text to scan.');
-                    return;
-                }
-                contentProm = Promise.resolve(textInput.value);
-            }
-
-            contentProm.then(text => {
-                const matches = this.manager.findMatches(text, regexPattern, !!patternInput, patternInput);
-                this.renderResults(matches);
-            }).catch(err => {
-                console.error('Error reading content:', err);
-                alert('Failed to read content: ' + err.message);
-            });
+            this.renderTableRows(this.currentMatches);
         },
 
-        renderResults(matches) {
+        renderTableRows(matches) {
             const tbody = document.querySelector('#msResultsTable tbody');
             if (!tbody) return;
             tbody.innerHTML = '';
 
             if (matches.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--secondary-text);">No matches found for pattern</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="ms-empty-row">No matches found.</td></tr>`;
                 return;
             }
 
             matches.forEach((match) => {
                 const { index, type, locator } = match;
                 const row = document.createElement('tr');
-                const matchId = `ms-match-${index}`;
+                const matchId = `ms-match-${index}`; // Ensure unique ID per scan
 
                 row.innerHTML = `
                     <td>${index + 1}</td>
                     <td><span class="match-count" id="${matchId}" data-count="..."></span></td>
-                    <td class="lx-editable" data-target="multiscan-cell" style="color: var(--accent); font-weight: 600;">${type}</td>
-                    <td class="lx-editable" data-target="multiscan-cell">${locator}</td>
+                    <td class="lx-editable ms-type-cell">${type}</td>
+                    <td class="lx-editable">${locator}</td>
                     <td>
-                        <i class="bi-clipboard" title="Copy" style="cursor: pointer;"></i>
+                        <i class="bi-clipboard ms-copy-icon" title="Copy"></i>
                     </td>
                 `;
                 tbody.appendChild(row);
 
-                // Validation logic (Communication) remains in controller as it's a side effect
+                // Copy Action
+                row.querySelector('.bi-clipboard').addEventListener('click', () => {
+                    LocatorX.utils.copyToClipboard(locator);
+                    LocatorX.notifications.success('Locator copied!');
+                });
+
+                // Validate
                 this.validateMatch(locator, type, matchId);
             });
         },
 
         validateMatch(locator, type, matchId) {
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                const tab = tabs[0];
-                if (tab && tab.id) {
-                    // Use webNavigation to find all frames (requires permission)
-                    chrome.webNavigation.getAllFrames({ tabId: tab.id }, (frames) => {
-                        if (!frames || frames.length === 0) {
-                            // Fallback to simple message if no frames found (unlikely)
-                            this._sendValidateMessage(tab.id, null, locator, type, matchId, (c) => this._updateBadge(matchId, c));
-                            return;
-                        }
+            let totalCount = 0;
+            let suggestion = null;
+            let updated = false;
 
-                        let totalCount = 0;
-                        let pending = frames.length;
-                        let updated = false;
-                        let suggestion = null;
+            chrome.storage.local.get(['smartCorrectEnabled'], (result) => {
+                const enableSmartCorrect = result.smartCorrectEnabled !== undefined ? result.smartCorrectEnabled : true;
 
-                        // Check Feature status using PlanService
-                        const enableSmartCorrect = typeof planService !== 'undefined'
-                            ? planService.isEnabled('module.smartCorrect')
-                            : false;
-
-                        frames.forEach(frame => {
-                            chrome.tabs.sendMessage(tab.id, {
-                                action: 'evaluateSelector',
-                                selector: locator,
-                                type: type,
-                                enableSmartCorrect: enableSmartCorrect
-                            }, { frameId: frame.frameId }, (status) => {
-                                // Accumulate success responses
-                                if (!chrome.runtime.lastError && status) {
-                                    if (status.count) totalCount += status.count;
-                                    if (status.suggestedLocator) suggestion = status.suggestedLocator;
-                                }
-
-                                pending--;
-                                if (pending <= 0 && !updated) {
-                                    updated = true;
-                                    this._updateBadge(matchId, totalCount);
-
-                                    // Handle Auto-Correction (UI Update)
-                                    if (suggestion && suggestion !== locator) {
-                                        this._applyAutoCorrection(matchId, suggestion);
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    const tab = tabs[0];
+                    if (tab && tab.id) {
+                        chrome.webNavigation.getAllFrames({ tabId: tab.id }, (frames) => {
+                            let pending = frames ? frames.length : 0;
+                            if (!frames || frames.length === 0) {
+                                this._sendValidateMessage(tab.id, null, locator, type, matchId, (c) => LocatorX.utils._updateBadge(matchId, c));
+                                return;
+                            }
+                            frames.forEach(frame => {
+                                chrome.tabs.sendMessage(tab.id, {
+                                    action: 'evaluateSelector',
+                                    selector: locator,
+                                    type: type,
+                                    enableSmartCorrect: enableSmartCorrect
+                                }, { frameId: frame.frameId }, (status) => {
+                                    // Accumulate success responses
+                                    if (!chrome.runtime.lastError && status) {
+                                        if (status.count) totalCount += status.count;
+                                        if (status.suggestedLocator) suggestion = status.suggestedLocator;
                                     }
-                                }
+
+                                    pending--;
+                                    if (pending <= 0 && !updated) {
+                                        updated = true;
+                                        LocatorX.utils._updateBadge(matchId, totalCount);
+
+                                        // Handle Auto-Correction (UI Update)
+                                        if (suggestion && suggestion !== locator) {
+                                            this._applyAutoCorrection(matchId, suggestion);
+                                        }
+                                    }
+                                });
                             });
                         });
-                    });
-                }
+                    }
+                });
             });
         },
 
-        _updateBadge(matchId, count) {
-            const badge = document.getElementById(matchId);
-            if (badge) {
-                badge.dataset.count = count;
-            }
-        },
 
         _applyAutoCorrection(matchId, suggestion) {
             const badge = document.getElementById(matchId);
@@ -895,7 +1056,6 @@ const LocatorX = {
         }
     },
 
-    // Dropdown Management
     dropdowns: {
         list: [
             { btn: 'navAbout', dropdown: 'aboutDropdown' },
@@ -1398,7 +1558,7 @@ const LocatorX = {
                 if (locator) {
                     matchCell.setAttribute('data-count', locator.matches);
 
-                    valCell.innerHTML = `<span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}`;
+                    valCell.innerHTML = `<span class="locator-wrapper"><span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span>`;
                     valCell.classList.add('locator-cell');
                     valCell.style.color = '';
                     valCell.style.opacity = '1';
@@ -1459,8 +1619,10 @@ const LocatorX = {
                     ${this._createMatchCell(locator.matches)}
                     <td>${locator.type}</td>
                     <td class="lx-editable locator-cell" data-target="table-cell">
-                        <span class="locator-text">${locator.locator}</span>
-                        ${this._createWarningIcon(locator.warnings)}
+                        <span class="locator-wrapper">
+                            <span class="locator-text">${locator.locator}</span>
+                            ${this._createWarningIcon(locator.warnings)}
+                        </span>
                     </td>
                     ${this._createActionCell(false)}
                 `;
@@ -1468,7 +1630,7 @@ const LocatorX = {
                 row.innerHTML = `
                     ${this._createMatchCell(0)}
                     <td>${type}</td>
-                    <td class="lx-editable locator-cell" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;"></td>
+                    <td class="lx-editable locator-cell lx-text-disabled" data-target="table-cell"></td>
                     ${this._createActionCell(true)}
                 `;
             }
@@ -1478,7 +1640,7 @@ const LocatorX = {
         _createWarningIcon(warnings) {
             if (!warnings || warnings.length === 0) return '';
             const title = warnings.join('\n');
-            return `<i class="bi bi-exclamation-triangle-fill warning-icon" title="${title}"></i>`;
+            return `<i class="bi bi-exclamation-circle-fill warning-icon" title="${title}"></i>`;
         },
 
         renderGroupRow(tbody, availableTypes, currentType, allLocators) {
@@ -1496,9 +1658,9 @@ const LocatorX = {
                 return `<option value="${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}>${type}</option>`;
             }).join('');
 
-            const locatorValue = locator ? `<span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}` : '-';
-            const locatorStyle = locator ? '' : 'style="color: var(--secondary-text); opacity: 0.5;"';
-            const locatorClass = locator ? 'locator-cell' : '';
+            const locatorValue = locator ? `<span class="locator-wrapper"><span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span>` : '-';
+            const locatorStyle = locator ? '' : '';
+            const locatorClass = locator ? 'locator-cell' : 'lx-text-disabled';
             const actionClass = locator ? '' : 'disabled';
 
             row.innerHTML = `
@@ -1536,18 +1698,20 @@ const LocatorX = {
             if (locator) {
                 matchBadge.setAttribute('data-count', locator.matches);
 
-                locatorCell.innerHTML = `<span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}`;
+                locatorCell.innerHTML = `<span class="locator-wrapper"><span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span>`;
                 locatorCell.classList.add('locator-cell');
+                locatorCell.classList.remove('lx-text-disabled');
                 locatorCell.style.color = '';
-                locatorCell.style.opacity = '1';
+                locatorCell.style.opacity = '';
 
                 actions.forEach(btn => btn.classList.remove('disabled'));
             } else {
                 matchBadge.setAttribute('data-count', '0');
                 locatorCell.textContent = '-';
                 locatorCell.classList.remove('locator-cell');
-                locatorCell.style.color = 'var(--secondary-text)';
-                locatorCell.style.opacity = '0.5';
+                locatorCell.classList.add('lx-text-disabled');
+                locatorCell.style.color = '';
+                locatorCell.style.opacity = '';
 
                 actions.forEach(btn => btn.classList.add('disabled'));
             }
@@ -2020,6 +2184,8 @@ const LocatorX = {
             dropdown.style.display = 'block';
             dropdown.offsetHeight;
             dropdown.classList.add('visible');
+
+            LocatorX.utils.autoFlip(input, dropdown);
 
             this.selectedIndex = -1;
         },
@@ -2591,8 +2757,8 @@ const LocatorX = {
         },
 
         login() {
-            // Updated to point to the correct website port
-            window.open('http://localhost:3000/auth/login', '_blank');
+            const baseUrl = LocatorXConfig.AUTH_DOMAIN || 'http://localhost:3000';
+            window.open(`${baseUrl}/auth/login`, '_blank');
         },
 
         logout() {

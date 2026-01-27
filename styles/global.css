@@ -143,3 +143,44 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--secondary-text);
 }
+
+/* Drag & Drop Zone */
+.drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    border: 2px dashed var(--border-dark);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    background: var(--surface-1);
+    margin: 8px 0;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 80px;
+}
+
+.drop-zone:hover {
+    border-color: var(--accent);
+    background: var(--surface-2);
+}
+
+.drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-muted);
+    transform: scale(1.01);
+}
+
+.drop-icon {
+    font-size: 24px;
+    color: var(--accent);
+}
+
+.drop-text {
+    font-size: 11px;
+    color: var(--secondary-text);
+}
