@@ -7,9 +7,27 @@ class MultiScanManager {
         const patterns = {
             'selenium-java': {
                 find: [
-                    { label: 'Standard', template: 'driver.findElement(By.{type}("{locator}"))' },
-                    { label: 'Elements (Plural)', template: 'driver.findElements(By.{type}("{locator}"))' },
-                    { label: 'Annotation', template: '@FindBy({type}="{locator}")' }
+                    // Standard @FindBy with flexible whitespace: @FindBy( type = "locator" )
+                    // Captures: Group 1 (Type), Group 2 (Locator)
+                    {
+                        label: 'Standard Annotation',
+                        regex: '@FindBy\\s*\\(\\s*([a-zA-Z0-9_.]+)\\s*=\\s*"([^"]+)"'
+                    },
+                    // How style: @FindBy(how = How.ID, using = "foo")
+                    {
+                        label: 'How Annotation',
+                        regex: '@FindBy\\s*\\(\\s*how\\s*=\\s*How\\.([A-Z_]+)\\s*,\\s*using\\s*=\\s*"([^"]+)"'
+                    },
+                    // driver.findElement/s with flexible whitespace
+                    // Captures: Group 1 (Type), Group 2 (Locator)
+                    {
+                        label: 'Driver Find',
+                        regex: 'driver\\.findElements?\\s*\\(\\s*By\\.([a-zA-Z]+)\\s*\\(\\s*"([^"]+)"\\s*\\)\\s*\\)'
+                    },
+                    {
+                        label: 'Generic By',
+                        regex: 'By\\.([a-zA-Z]+)\\s*\\(\\s*"([^"]+)"\\s*\\)'
+                    }
                 ],
                 wait: [
                     { label: 'Explicit Wait', template: 'ExpectedConditions.{type}("{locator}")' }
@@ -20,42 +38,53 @@ class MultiScanManager {
             },
             'selenium-python': {
                 find: [
-                    { label: 'Standard', template: 'driver.find_element(By.{type}, "{locator}")' },
-                    { label: 'Elements (Plural)', template: 'driver.find_elements(By.{type}, "{locator}")' }
+                    {
+                        label: 'Standard',
+                        regex: 'driver\\.find_element\\s*\\(\\s*By\\.([a-zA-Z_]+)\\s*,\\s*"([^"]+)"\\s*\\)'
+                    },
+                    {
+                        label: 'Elements (Plural)',
+                        regex: 'driver\\.find_elements\\s*\\(\\s*By\\.([a-zA-Z_]+)\\s*,\\s*"([^"]+)"\\s*\\)'
+                    },
+                    {
+                        label: 'Generic By',
+                        regex: 'By\\.([a-zA-Z_]+)\\s*,\\s*"([^"]+)"'
+                    }
                 ]
             },
             'selenium-js': {
                 find: [
-                    { label: 'Standard', template: 'await driver.findElement(By.{type}("{locator}"))' }
+                    {
+                        label: 'Standard',
+                        regex: 'await\\s+driver\\.findElement\\s*\\(\\s*By\\.([a-zA-Z]+)\\s*\\(\\s*"([^"]+)"\\s*\\)\\s*\\)'
+                    }
                 ]
             },
             'playwright-js': {
                 find: [
-                    { label: 'Locator', template: 'page.locator("{type}={locator}")' },
-                    { label: 'Role/Label', template: 'page.getBy{type}("{locator}")' },
-                    { label: 'Async Type', template: 'await page.{type}("{locator}")' }
+                    { label: 'Locator', regex: 'page\\.locator\\s*\\(\\s*"([a-zA-Z-]+)=([^"]+)"\\s*\\)' },
+                    { label: 'Generic Locator', regex: '(page\\.locator)\\s*\\(\\s*"(?![a-zA-Z-]+=[^"]+")([^"]+)"\\s*\\)' },
+                    { label: 'Frame Locator', regex: '(page\\.frameLocator)\\s*\\(\\s*"([^"]+)"\\s*\\)' },
+                    { label: 'Role/Label', regex: 'page\\.getBy([a-zA-Z]+)\\s*\\(\\s*"([^"]+)"' },
+                    { label: 'Async Type', regex: 'await\\s+page\\.(?!locator|frameLocator|getBy)([a-zA-Z]+)\\s*\\(\\s*"([^"]+)"' }
                 ],
-                interact: [
-                    { label: 'Click', template: 'await page.click("{locator}")' }, // Simple case
-                    { label: 'Fill', template: 'await page.fill("{locator}", "value")' }
-                ]
+                interact: []
             },
             'playwright-python': {
                 find: [
-                    { label: 'Locator', template: 'page.locator("{type}={locator}")' },
-                    { label: 'Sync Type', template: 'page.{type}("{locator}")' }
+                    { label: 'Locator', regex: 'page\\.locator\\s*\\(\\s*"([a-zA-Z-]+)=([^"]+)"\\s*\\)' },
+                    { label: 'Sync Type', regex: 'page\\.(?!locator)([a-zA-Z]+)\\s*\\(\\s*"([^"]+)"' }
                 ]
             },
             'playwright-java': {
                 find: [
-                    { label: 'Locator', template: 'page.locator("{type}={locator}")' },
-                    { label: 'Standard', template: 'page.{type}("{locator}")' }
+                    { label: 'Locator', regex: 'page\\.locator\\s*\\(\\s*"([a-zA-Z-]+)=([^"]+)"\\s*\\)' },
+                    { label: 'Standard', regex: 'page\\.(?!locator)([a-zA-Z]+)\\s*\\(\\s*"([^"]+)"' }
                 ]
             },
             'cypress': {
                 find: [
-                    { label: 'Standard', template: 'cy.{type}("{locator}")' }, // Covers cy.get, cy.contains
-                    { label: 'Find', template: 'cy.get("{locator}")' }
+                    { label: 'Standard', regex: 'cy\\.([a-zA-Z]+)\\s*\\(\\s*"([^"]+)"' }
                 ]
             }
         };
@@ -84,7 +113,8 @@ class MultiScanManager {
 
         return patterns.filter(p =>
             p.label.toLowerCase().includes(query) ||
-            p.template.toLowerCase().includes(query)
+            (p.template && p.template.toLowerCase().includes(query)) ||
+            (p.regex && p.regex.toLowerCase().includes(query))
         );
     }
 
@@ -196,9 +226,14 @@ class MultiScanManager {
         allPatterns.forEach(p => {
             // Convert to regex if needed
             try {
-                // If template exists, convert it. If regex exists (legacy/fallback), use it.
-                const patternStr = p.template || p.regex;
-                const compiledRegex = this.convertSmartPatternToRegex(patternStr);
+                // If template exists, convert it. If regex exists, use it directly.
+                let compiledRegex;
+                if (p.regex) {
+                    compiledRegex = p.regex;
+                } else {
+                    compiledRegex = this.convertSmartPatternToRegex(p.template);
+                }
+
                 let matches = this.findMatches(text, compiledRegex, false, '');
 
                 matches.forEach(m => {

@@ -663,6 +663,9 @@ const LocatorX = {
                 <div class="modal-footer ms-modal-footer">
                     <button class="modal-btn primary ms-scan-btn" id="msScanBtn">Scan</button>
                 </div>
+                
+                <!-- Result Area -->
+                <div id="msResultContainer" class="ms-result-area hidden"></div>
             `;
 
             this.bindInputEvents();
@@ -849,25 +852,23 @@ const LocatorX = {
         },
 
         renderResultState(count, sourceName) {
-            const body = document.getElementById('msModalBody');
+            const container = document.getElementById('msResultContainer');
+            if (!container) return;
 
-            body.innerHTML = `
-                <div class="ms-result-container">
-                    <i class="bi-check-circle-fill ms-success-icon"></i>
-                    <h3 class="ms-result-title">Scan Complete</h3>
-                    <p class="ms-result-desc">
-                        Found <strong class="ms-result-count">${count}</strong> locators in <br>"${sourceName}"
-                    </p>
-                    
-                    <div class="ms-result-actions">
-                        <button class="modal-btn secondary" id="msResultRescan">Rescan</button>
-                        <button class="modal-btn primary" id="msSeeResult">See Result</button>
+            container.innerHTML = `
+                <div class="ms-result-compact">
+                    <div class="ms-result-info">
+                        <i class="bi-check-circle-fill ms-success-icon-small"></i>
+                        <span class="ms-result-text">Found <strong class="ms-result-count">${count}</strong> in "${sourceName}"</span>
                     </div>
-                </div>
-            `;
+                    <button class="modal-btn secondary small ms-compact-btn" id="msSeeResult">See Result</button>
+                </div >
+    `;
 
-            document.getElementById('msResultRescan').addEventListener('click', () => this.renderInputState());
-            document.getElementById('msSeeResult').addEventListener('click', () => this.openResultsInTable());
+            container.classList.remove('hidden');
+
+            const seeResult = document.getElementById('msSeeResult');
+            if (seeResult) seeResult.addEventListener('click', () => this.openResultsInTable());
         },
 
         openResultsInTable() {
@@ -1015,7 +1016,7 @@ const LocatorX = {
                         row.cells[3].style.backgroundColor = '';
                     }, 1500);
 
-                    LocatorX.notifications.info(`Auto-corrected to "${suggestion}"`);
+                    LocatorX.notifications.info(`Auto - corrected to "${suggestion}"`);
                 }
             }
         },
@@ -1534,7 +1535,7 @@ const LocatorX = {
                 const row = document.createElement('tr');
                 row.setAttribute('data-type', type);
                 row.innerHTML = `
-                        <td><span class="match-count" data-count="0"></span></td>
+    < td > <span class="match-count" data-count="0"></span></td >
                         <td>${type}</td>
                         <td class="lx-editable" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;"></td>
                         <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">-</td>
@@ -1542,7 +1543,7 @@ const LocatorX = {
                             <i class="bi-clipboard disabled" title="Copy"></i>
                             <i class="bi-bookmark-plus disabled" title="Save"></i>
                         </td>
-                    `;
+`;
                 tbody.appendChild(row);
             });
 
@@ -1598,7 +1599,7 @@ const LocatorX = {
                 if (locator) {
                     matchCell.setAttribute('data-count', locator.matches);
 
-                    valCell.innerHTML = `<span class="locator-wrapper"><span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span>`;
+                    valCell.innerHTML = `< span class="locator-wrapper" > <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > `;
                     valCell.classList.add('locator-cell');
                     valCell.style.color = '';
                     valCell.style.opacity = '1';
@@ -1674,7 +1675,7 @@ const LocatorX = {
                     </td>
                     <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">${this.lastMetadata?.timestamp || '-'}</td>
                     ${this._createActionCell(false)}
-                `;
+`;
             } else {
                 row.innerHTML = `
                     ${this._createMatchCell(0)}
@@ -1682,7 +1683,7 @@ const LocatorX = {
                     <td class="lx-editable locator-cell lx-text-disabled" data-target="table-cell"></td>
                     <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">-</td>
                     ${this._createActionCell(true)}
-                `;
+`;
             }
             tbody.appendChild(row);
         },
@@ -1690,7 +1691,7 @@ const LocatorX = {
         _createWarningIcon(warnings) {
             if (!warnings || warnings.length === 0) return '';
             const title = warnings.join('\n');
-            return `<i class="bi bi-exclamation-circle-fill warning-icon" title="${title}"></i>`;
+            return `< i class="bi bi-exclamation-circle-fill warning-icon" title = "${title}" ></i > `;
         },
 
         renderGroupRow(tbody, availableTypes, currentType, allLocators) {
@@ -1705,10 +1706,10 @@ const LocatorX = {
             const options = availableTypes.map(type => {
                 const typeLocator = allLocators.find(l => l.type === type);
                 const isDisabled = false; // Always enabled per user request
-                return `<option value="${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}>${type}</option>`;
+                return `< option value = "${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}> ${type}</option > `;
             }).join('');
 
-            const locatorValue = locator ? `<span class="locator-wrapper"><span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span>` : '-';
+            const locatorValue = locator ? `< span class="locator-wrapper" > <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > ` : '-';
             const locatorStyle = locator ? '' : '';
             const locatorClass = locator ? 'locator-cell' : 'lx-text-disabled';
             const actionClass = locator ? '' : 'disabled';
@@ -1723,7 +1724,7 @@ const LocatorX = {
                 <td class="lx-editable ${locatorClass}" id="strategyLocator" data-target="table-cell" ${locatorStyle}>${locatorValue}</td>
                 <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">${this.lastMetadata?.timestamp || '-'}</td>
                 ${this._createActionCell(!locator)}
-            `;
+`;
 
             tbody.appendChild(row);
 
@@ -1749,7 +1750,7 @@ const LocatorX = {
             if (locator) {
                 matchBadge.setAttribute('data-count', locator.matches);
 
-                locatorCell.innerHTML = `<span class="locator-wrapper"><span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span>`;
+                locatorCell.innerHTML = `< span class="locator-wrapper" > <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > `;
                 locatorCell.classList.add('locator-cell');
                 locatorCell.classList.remove('lx-text-disabled');
                 locatorCell.style.color = '';
@@ -1769,18 +1770,18 @@ const LocatorX = {
         },
 
         _createMatchCell(count, id = '') {
-            const idAttr = id ? `id="${id}"` : '';
-            return `<td><span class="match-count" data-count="${count}" ${idAttr}></span></td>`;
+            const idAttr = id ? `id = "${id}"` : '';
+            return `< td > <span class="match-count" data-count="${count}" ${idAttr}></span></td > `;
         },
 
         _createActionCell(isDisabled) {
             const cls = isDisabled ? 'disabled' : '';
             return `
-                <td>
+    < td >
                     <i class="bi-clipboard ${cls}" title="Copy"></i>
                     <i class="bi-bookmark-plus ${cls}" title="Save"></i>
-                </td>
-             `;
+                </td >
+    `;
         },
 
         displayGeneratedLocators(locators, elementInfo = null, elementType = null, metadata = null) {
@@ -1811,7 +1812,7 @@ const LocatorX = {
             const detailText = document.getElementById('homeElementDetail');
             if (detailText) {
                 if (metadata && metadata.isCrossOrigin) {
-                    detailText.innerHTML = `<span style="color: #e74c3c; font-weight: bold;">[Security Warning]</span> Element is inside a cross-origin iframe. Browser security blocks access. <br/> <small style="opacity: 0.7;">Only the iframe selector itself can be captured.</small>`;
+                    detailText.innerHTML = `< span style = "color: #e74c3c; font-weight: bold;" > [Security Warning]</span > Element is inside a cross - origin iframe.Browser security blocks access. < br /> <small style="opacity: 0.7;">Only the iframe selector itself can be captured.</small>`;
                 } else {
                     detailText.textContent = info || 'No element selected';
                 }
@@ -1878,7 +1879,7 @@ const LocatorX = {
                         if (name) {
                             // Create page manually to get the ID and object
                             const newPage = {
-                                id: `pom_${Date.now()}`,
+                                id: `pom_${Date.now()} `,
                                 name: name,
                                 locators: []
                             };
@@ -1976,15 +1977,15 @@ const LocatorX = {
 
             // Standard Headers
             standardTypes.forEach(type => {
-                headerRow.innerHTML += `<th>${type}</th>`;
+                headerRow.innerHTML += `< th > ${type}</th > `;
             });
 
             // Grouped Header
             if (hasGrouped) {
-                headerRow.innerHTML += `<th>Relative XPath</th>`;
+                headerRow.innerHTML += `< th > Relative XPath</th > `;
             }
 
-            headerRow.innerHTML += `<th class="time-column ${this.showTimestamp ? '' : 'hidden'}">Time</th>`;
+            headerRow.innerHTML += `< th class="time-column ${this.showTimestamp ? '' : 'hidden'}" > Time</th > `;
             headerRow.innerHTML += '<th>Actions</th>';
             thead.appendChild(headerRow);
 
@@ -2057,8 +2058,8 @@ const LocatorX = {
                     } else {
                         // Calculate position relative to viewport
                         const rect = arrow.getBoundingClientRect();
-                        nested.style.top = `${rect.bottom + 2}px`;
-                        nested.style.left = `${rect.right - 90}px`; // Align right edge
+                        nested.style.top = `${rect.bottom + 2} px`;
+                        nested.style.left = `${rect.right - 90} px`; // Align right edge
                         nested.style.display = 'block';
                         arrow.classList.add('expanded');
                     }
@@ -2318,9 +2319,9 @@ const LocatorX = {
                 liveItem.className = 'dropdown-item live-test-item';
                 const countVal = typeof activeMatchCount === 'number' ? activeMatchCount : '...';
                 liveItem.innerHTML = `
-                    <div class="match-badge" data-count="${countVal}"></div>
-                    <span class="item-text"><strong>${query}</strong></span>
-                `;
+    < div class="match-badge" data - count="${countVal}" ></div >
+        <span class="item-text"><strong>${query}</strong></span>
+`;
                 liveItem.addEventListener('click', () => {
                     this.performEvaluation(query, matches, dropdown);
                 });
@@ -2349,12 +2350,12 @@ const LocatorX = {
                 // Show category if it's not a standard one
                 const categoryInfo = ['Tag', 'ID', 'Class', 'Name'].includes(match.category)
                     ? ''
-                    : `<span class="category-tag">(${match.category})</span> `;
+                    : `< span class="category-tag" > (${match.category})</span > `;
 
                 div.innerHTML = `
-                    <div class="match-badge" data-count="${match.count}"></div>
-                    <span class="item-text">${categoryInfo}${html}</span>
-                `;
+    < div class="match-badge" data - count="${match.count}" ></div >
+        <span class="item-text">${categoryInfo}${html}</span>
+`;
 
                 div.addEventListener('click', () => {
                     const input = document.getElementById('searchInput');
@@ -2465,7 +2466,7 @@ const LocatorX = {
                         // Show element tag + ID but cleanly, OR just "Captured" based on request
                         // User said "remove content show text like captured"
                         // We will show "Captured: Tag#ID" for clarity but keep it simple text
-                        anchorVal.textContent = `Captured: ${message.elementInfo.tagName}`;
+                        anchorVal.textContent = `Captured: ${message.elementInfo.tagName} `;
                         anchorVal.style.color = 'var(--text-primary)';
                         anchorVal.style.fontWeight = '500';
                     }
@@ -2489,7 +2490,7 @@ const LocatorX = {
                     const targetVal = document.getElementById('axesTargetValue');
 
                     if (targetVal) {
-                        targetVal.textContent = `Captured: ${message.elementInfo.tagName}`;
+                        targetVal.textContent = `Captured: ${message.elementInfo.tagName} `;
                         targetVal.style.color = 'var(--text-primary)';
                         targetVal.style.fontWeight = '500';
                     }
@@ -2693,7 +2694,7 @@ const LocatorX = {
                 // Update Header Logo based on plan
                 if (this.headerLogo) {
                     const plan = (typeof planService !== 'undefined' ? planService.currentPlan : (user.plan || 'free')).toLowerCase();
-                    const logoPath = `../../../assets/icons/${plan}48.png`;
+                    const logoPath = `../../../ assets / icons / ${plan} 48.png`;
                     if (this.headerLogo.getAttribute('src') !== logoPath) {
                         this.headerLogo.src = logoPath;
                     }
@@ -2706,7 +2707,7 @@ const LocatorX = {
                         if (this.dropdownUserAvatar) this.dropdownUserAvatar.classList.remove('hidden');
                         if (this.dropdownUserInitials) this.dropdownUserInitials.classList.add('hidden');
 
-                        const avatarUrl = user.avatar + (user._lastUpdated ? `?t=${user._lastUpdated}` : '');
+                        const avatarUrl = user.avatar + (user._lastUpdated ? `? t = ${user._lastUpdated} ` : '');
 
                         // Only update .src if it's different to prevent flicker
                         if (this.userAvatar.getAttribute('src') !== avatarUrl) {
@@ -2813,7 +2814,7 @@ const LocatorX = {
 
         login() {
             const baseUrl = LocatorXConfig.AUTH_DOMAIN || 'http://localhost:3000';
-            window.open(`${baseUrl}/auth/login`, '_blank');
+            window.open(`${baseUrl} /auth/login`, '_blank');
         },
 
         logout() {
@@ -2910,7 +2911,7 @@ const LocatorX = {
             if (!this.container) return;
 
             const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
+            notification.className = `notification ${type} `;
 
             const icons = {
                 success: 'bi-check-circle',
@@ -2920,9 +2921,9 @@ const LocatorX = {
             };
 
             notification.innerHTML = `
-                <i class="${icons[type] || icons.info}"></i>
-                <span>${message}</span>
-            `;
+    < i class="${icons[type] || icons.info}" ></i >
+        <span>${message}</span>
+`;
 
             this.container.appendChild(notification);
 
@@ -2956,41 +2957,41 @@ const LocatorX = {
 
             if (saved.length === 0) {
                 dropdown.innerHTML = `
-                        <div class="dropdown-header">
-                            <strong>Saved Locators</strong>
-                        </div>
-                        <div class="dropdown-content">
-                            <div class="empty-state">
-                                <i class="bi-bookmark-dash" style="font-size: 24px; color: var(--border-dark); margin-bottom: 8px;"></i>
-                                <p>No saved locators yet</p>
-                            </div>
-                        </div>
-                    `;
+    < div class="dropdown-header" >
+        <strong>Saved Locators</strong>
+                        </div >
+    <div class="dropdown-content">
+        <div class="empty-state">
+            <i class="bi-bookmark-dash" style="font-size: 24px; color: var(--border-dark); margin-bottom: 8px;"></i>
+            <p>No saved locators yet</p>
+        </div>
+    </div>
+`;
             } else {
                 let content = `
-                        <div class="dropdown-header">
+    < div class="dropdown-header" >
                             <strong>Saved Locators</strong> <span class="badge-count">${saved.length}</span>
-                        </div>
-                        <div class="dropdown-content">
-                    `;
+                        </div >
+    <div class="dropdown-content">
+        `;
 
                 saved.forEach((item, index) => {
                     const typeClass = item.type ? item.type.toLowerCase().replace(/\s+/g, '-') : 'manual';
                     content += `
-                            <div class="saved-item" data-index="${index}">
-                                <div class="saved-main">
-                                    <div class="saved-info">
-                                        <span class="saved-name lx-editable" title="Double-click to rename" data-target="saved-name" data-index="${index}">${item.name}</span>
-                                        <span class="saved-type-badge ${typeClass}">${item.type}</span>
-                                    </div>
-                                    <div class="saved-actions">
-                                        <button class="action-btn saved-copy" title="Copy Locator"><i class="bi-clipboard"></i></button>
-                                        <button class="action-btn saved-delete" title="Delete"><i class="bi-trash"></i></button>
-                                    </div>
-                                </div>
-                                <div class="saved-locator-code" title="${item.locator}">${item.locator}</div>
-                            </div>
-                        `;
+        <div class="saved-item" data-index="${index}">
+            <div class="saved-main">
+                <div class="saved-info">
+                    <span class="saved-name lx-editable" title="Double-click to rename" data-target="saved-name" data-index="${index}">${item.name}</span>
+                    <span class="saved-type-badge ${typeClass}">${item.type}</span>
+                </div>
+                <div class="saved-actions">
+                    <button class="action-btn saved-copy" title="Copy Locator"><i class="bi-clipboard"></i></button>
+                    <button class="action-btn saved-delete" title="Delete"><i class="bi-trash"></i></button>
+                </div>
+            </div>
+            <div class="saved-locator-code" title="${item.locator}">${item.locator}</div>
+        </div>
+        `;
                 });
 
                 content += '</div>';
