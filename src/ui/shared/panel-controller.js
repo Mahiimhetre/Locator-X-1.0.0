@@ -348,6 +348,11 @@ const LocatorX = {
                     }
                 }
 
+                // Time Column
+                const timestamp = item.timestamp || '-';
+                const showTimestamp = LocatorX.filters.showTimestamp;
+                row.innerHTML += `<td class="time-column ${showTimestamp ? '' : 'hidden'}">${timestamp}</td>`;
+
                 // Actions Column
                 row.innerHTML += `<td>
                     <i class="bi-clipboard" title="Copy"></i>
@@ -1116,14 +1121,17 @@ const LocatorX = {
         lastLocators: null,
         lastLocatorTime: 0,
         lastElementInfo: null,
+        lastElementInfo: null,
         lastElementType: null,
         lastMetadata: null,
+        showTimestamp: false,
 
         init() {
             this.setupSelectAll();
             this.setupCheckboxes();
             this.setupRelativeXPath();
             this.setupGeneratorSettings();
+            this.setupTimestampSetting();
             this.setupSmartCorrectionSetting();
             this.loadFiltersFromStorage();
             this.saveCurrentFilters('home');
@@ -1233,6 +1241,37 @@ const LocatorX = {
                     }
                 });
             }
+        },
+
+        setupTimestampSetting() {
+            const showTimestampCfg = document.getElementById('showTimestampCfg');
+            if (showTimestampCfg) {
+                const updateState = () => {
+                    chrome.storage.local.get(['showTimestamp'], (result) => {
+                        const val = result.showTimestamp !== undefined ? result.showTimestamp : false;
+                        this.showTimestamp = val;
+                        showTimestampCfg.checked = val;
+                        this.toggleTimestampColumn(val);
+                    });
+                };
+
+                updateState();
+
+                showTimestampCfg.addEventListener('change', () => {
+                    const val = showTimestampCfg.checked;
+                    this.showTimestamp = val;
+                    chrome.storage.local.set({ showTimestamp: val });
+                    this.toggleTimestampColumn(val);
+                });
+            }
+        },
+
+        toggleTimestampColumn(show) {
+            const cells = document.querySelectorAll('.time-column');
+            cells.forEach(cell => {
+                if (show) cell.classList.remove('hidden');
+                else cell.classList.add('hidden');
+            });
         },
 
         setupSmartCorrectionSetting() {
@@ -1498,6 +1537,7 @@ const LocatorX = {
                         <td><span class="match-count" data-count="0"></span></td>
                         <td>${type}</td>
                         <td class="lx-editable" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;"></td>
+                        <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">-</td>
                         <td>
                             <i class="bi-clipboard disabled" title="Copy"></i>
                             <i class="bi-bookmark-plus disabled" title="Save"></i>
@@ -1563,6 +1603,10 @@ const LocatorX = {
                     valCell.style.color = '';
                     valCell.style.opacity = '1';
 
+                    // Update Time Cell (4th cell)
+                    const timeCell = row.querySelector('.time-column');
+                    if (timeCell) timeCell.textContent = this.lastMetadata?.timestamp || '-';
+
                     actions.forEach(btn => btn.classList.remove('disabled'));
                 } else {
                     matchCell.setAttribute('data-count', '0');
@@ -1570,6 +1614,10 @@ const LocatorX = {
                     valCell.classList.remove('locator-cell');
                     valCell.style.color = 'var(--secondary-text)';
                     valCell.style.opacity = '0.5';
+
+                    const timeCell = row.querySelector('.time-column');
+                    if (timeCell) timeCell.textContent = '-';
+
                     actions.forEach(btn => btn.classList.add('disabled'));
                 }
             });
@@ -1624,6 +1672,7 @@ const LocatorX = {
                             ${this._createWarningIcon(locator.warnings)}
                         </span>
                     </td>
+                    <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">${this.lastMetadata?.timestamp || '-'}</td>
                     ${this._createActionCell(false)}
                 `;
             } else {
@@ -1631,6 +1680,7 @@ const LocatorX = {
                     ${this._createMatchCell(0)}
                     <td>${type}</td>
                     <td class="lx-editable locator-cell lx-text-disabled" data-target="table-cell"></td>
+                    <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">-</td>
                     ${this._createActionCell(true)}
                 `;
             }
@@ -1671,6 +1721,7 @@ const LocatorX = {
                     </select>
                 </td>
                 <td class="lx-editable ${locatorClass}" id="strategyLocator" data-target="table-cell" ${locatorStyle}>${locatorValue}</td>
+                <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">${this.lastMetadata?.timestamp || '-'}</td>
                 ${this._createActionCell(!locator)}
             `;
 
@@ -1751,7 +1802,7 @@ const LocatorX = {
                 this.updateTableData(locators);
                 this.updateElementInfo(elementInfo, elementType, metadata);
             } else if (LocatorX.tabs.current === 'pom') {
-                this.handlePOMDisplay(locators);
+                this.handlePOMDisplay(locators, metadata);
             }
         },
 
@@ -1812,7 +1863,7 @@ const LocatorX = {
             }
         },
 
-        handlePOMDisplay(locators) {
+        handlePOMDisplay(locators, metadata = null) {
             // Check if page selected
             let currentPage = LocatorX.pom.getCurrentPage();
 
@@ -1837,19 +1888,19 @@ const LocatorX = {
                             currentPage = newPage;
 
                             // Now add the locators
-                            this.addLocatorsToPage(currentPage, locators);
+                            this.addLocatorsToPage(currentPage, locators, metadata);
                         }
                     });
                 return;
             }
 
-            this.addLocatorsToPage(currentPage, locators);
+            this.addLocatorsToPage(currentPage, locators, metadata);
             this.updatePOMTable();
         },
 
 
 
-        addLocatorsToPage(page, locators) {
+        addLocatorsToPage(page, locators, metadata = null) {
             const tbody = document.querySelector('.pom-container .pom-table tbody');
             if (!tbody) return;
 
@@ -1867,7 +1918,10 @@ const LocatorX = {
 
 
             // Add to storage
-            page.locators.push({ locators });
+            page.locators.push({
+                locators,
+                timestamp: metadata?.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false })
+            });
             LocatorX.core.savePOMPage(page);
 
             // Re-render
@@ -1930,6 +1984,7 @@ const LocatorX = {
                 headerRow.innerHTML += `<th>Relative XPath</th>`;
             }
 
+            headerRow.innerHTML += `<th class="time-column ${this.showTimestamp ? '' : 'hidden'}">Time</th>`;
             headerRow.innerHTML += '<th>Actions</th>';
             thead.appendChild(headerRow);
 

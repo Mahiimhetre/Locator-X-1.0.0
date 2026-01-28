@@ -62,7 +62,8 @@ const LocatorXPlans = {
             'ui.copy',
             'ui.save',
             'ui.contextMenu',
-            'ui.settings.excludeNumbers'
+            'ui.settings.excludeNumbers',
+            'ui.settings.showTimestamp'
         ],
         get pro() {
             return [

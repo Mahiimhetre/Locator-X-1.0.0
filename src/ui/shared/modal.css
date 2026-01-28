@@ -212,7 +212,7 @@
 }
 
 .ms-text-input {
-    min-height: 80px;
+    min-height: 90px;
     resize: vertical;
     border-radius: 8px;
     font-family: monospace;

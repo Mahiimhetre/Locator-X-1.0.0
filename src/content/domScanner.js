@@ -338,7 +338,8 @@ class DOMScanner {
                     isInIframe,
                     isCrossOrigin,
                     isDynamic,
-                    iframeXPath
+                    iframeXPath,
+                    timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
                 }
             });
         } catch (e) {
