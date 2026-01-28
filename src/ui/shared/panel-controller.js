@@ -336,7 +336,7 @@ const LocatorX = {
                         row.innerHTML += `
                             <td class="strategy-cell">
                                 <div class="pom-strategy-container">
-                                     <select class="strategy-dropdown pom-strategy-select">
+                                     <select class="strategy-select">
                                         ${options}
                                      </select>
                                      <div class="strategy-value lx-editable" data-target="pom-cell" data-is-strategy="true" style="${valStyle}">${preferredValue}</div>
@@ -361,7 +361,7 @@ const LocatorX = {
 
                 // Bind Events
                 if (hasGrouped) {
-                    const select = row.querySelector('.pom-strategy-select');
+                    const select = row.querySelector('.strategy-select');
                     if (select) {
                         select.addEventListener('change', (e) => {
                             const newType = e.target.value;
@@ -587,17 +587,12 @@ const LocatorX = {
             // Reuse existing modal if available
             if (this.overlay) return;
 
-            // Use the shared modal structure
-            if (!document.querySelector('.locator-x-modal-overlay')) {
-                // Initialize shared modal if not already present
-                new LocatorXModal();
+            // Ensure LocatorX.modal is initialized
+            if (!LocatorX.modal) {
+                LocatorX.modal = new LocatorXModal();
             }
 
-            this.overlay = document.querySelector('.locator-x-modal-overlay');
-            if (!this.overlay) {
-                const modal = new LocatorXModal();
-                this.overlay = modal.overlay;
-            }
+            this.overlay = LocatorX.modal.overlay;
         },
 
         close() {
@@ -606,8 +601,14 @@ const LocatorX = {
 
         show() {
             this.createModal();
-            this.renderInputState();
-            this.overlay.classList.add('active');
+            // Capture Current URL
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0] && tabs[0].url) {
+                    this.currentTabUrl = tabs[0].url;
+                }
+                this.renderInputState();
+                this.overlay.classList.add('active');
+            });
 
             // Custom Close Hander for Multiscan specific state cleanup if needed
             const closeBtn = this.overlay.querySelector('.modal-close');
@@ -638,6 +639,12 @@ const LocatorX = {
                 <!-- Input Area -->
                 <div class="control-group ms-input-area" id="msInputArea">
                     ${this.getInputHtml()}
+                </div>
+
+                <!-- Target URL (New) -->
+                <div class="control-group ms-target-url-group">
+                    <label class="setting-label" style="margin-bottom: 4px; display: block; font-size: 12px; color: var(--secondary-text);">Target URL (for verification)</label>
+                    <input type="text" id="msTargetUrl" class="search-input" placeholder="https://example.com" value="${this.currentTabUrl || ''}" autocomplete="off">
                 </div>
 
                 <!-- Options -->
@@ -868,7 +875,40 @@ const LocatorX = {
             container.classList.remove('hidden');
 
             const seeResult = document.getElementById('msSeeResult');
-            if (seeResult) seeResult.addEventListener('click', () => this.openResultsInTable());
+            if (seeResult) {
+                seeResult.addEventListener('click', () => {
+                    // Check URL Match
+                    const targetUrlInput = document.getElementById('msTargetUrl');
+                    const targetUrl = targetUrlInput ? targetUrlInput.value.trim() : '';
+
+                    if (targetUrl) {
+                        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                            const currentUrl = tabs[0].url;
+
+                            // Simple normalization (remove trailing slash)
+                            const normTarget = targetUrl.replace(/\/$/, '');
+                            const normCurrent = currentUrl.replace(/\/$/, '');
+
+                            if (!normCurrent.includes(normTarget)) {
+                                LocatorX.modal.confirm(
+                                    'URL Mismatch',
+                                    `Target URL: <b>${targetUrl}</b><br>Current URL: <b>${currentUrl}</b><br><br>Verification might fail. Proceed?`,
+                                    { icon: 'bi-exclamation-triangle-fill' }
+                                ).then(confirmed => {
+                                    if (confirmed) this.openResultsInTable();
+                                });
+                            } else {
+                                this.openResultsInTable();
+                            }
+                        });
+                    } else {
+                        // No target URL, verify anyway? Or prompt? 
+                        // Plan said: Optional for scanning, Mandatory for Verify.
+                        // But "See Result" implies viewing them. Verification happens automatically in table.
+                        this.openResultsInTable();
+                    }
+                });
+            }
         },
 
         openResultsInTable() {
@@ -1535,15 +1575,15 @@ const LocatorX = {
                 const row = document.createElement('tr');
                 row.setAttribute('data-type', type);
                 row.innerHTML = `
-    < td > <span class="match-count" data-count="0"></span></td >
-                        <td>${type}</td>
-                        <td class="lx-editable" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;"></td>
-                        <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">-</td>
-                        <td>
-                            <i class="bi-clipboard disabled" title="Copy"></i>
-                            <i class="bi-bookmark-plus disabled" title="Save"></i>
-                        </td>
-`;
+                    <td><span class="match-count" data-count="0"></span></td>
+                    <td>${type}</td>
+                    <td class="lx-editable" data-target="table-cell" style="color: var(--secondary-text); opacity: 0.5;"></td>
+                    <td class="time-column ${this.showTimestamp ? '' : 'hidden'}">-</td>
+                    <td>
+                        <i class="bi-clipboard disabled" title="Copy"></i>
+                        <i class="bi-bookmark-plus disabled" title="Save"></i>
+                    </td>
+                    `;
                 tbody.appendChild(row);
             });
 
@@ -1599,7 +1639,7 @@ const LocatorX = {
                 if (locator) {
                     matchCell.setAttribute('data-count', locator.matches);
 
-                    valCell.innerHTML = `< span class="locator-wrapper" > <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > `;
+                    valCell.innerHTML = `<span class="locator-wrapper"> <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > `;
                     valCell.classList.add('locator-cell');
                     valCell.style.color = '';
                     valCell.style.opacity = '1';
@@ -1691,7 +1731,7 @@ const LocatorX = {
         _createWarningIcon(warnings) {
             if (!warnings || warnings.length === 0) return '';
             const title = warnings.join('\n');
-            return `< i class="bi bi-exclamation-circle-fill warning-icon" title = "${title}" ></i > `;
+            return `<i class="bi bi-exclamation-circle-fill warning-icon" title = "${title}"></i > `;
         },
 
         renderGroupRow(tbody, availableTypes, currentType, allLocators) {
@@ -1706,10 +1746,10 @@ const LocatorX = {
             const options = availableTypes.map(type => {
                 const typeLocator = allLocators.find(l => l.type === type);
                 const isDisabled = false; // Always enabled per user request
-                return `< option value = "${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}> ${type}</option > `;
+                return `<option value = "${type}" ${type === currentType ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}> ${type}</option > `;
             }).join('');
 
-            const locatorValue = locator ? `< span class="locator-wrapper" > <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > ` : '-';
+            const locatorValue = locator ? `<span class="locator-wrapper"> <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > ` : '-';
             const locatorStyle = locator ? '' : '';
             const locatorClass = locator ? 'locator-cell' : 'lx-text-disabled';
             const actionClass = locator ? '' : 'disabled';
@@ -1750,7 +1790,7 @@ const LocatorX = {
             if (locator) {
                 matchBadge.setAttribute('data-count', locator.matches);
 
-                locatorCell.innerHTML = `< span class="locator-wrapper" > <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > `;
+                locatorCell.innerHTML = `<span class="locator-wrapper"> <span class="locator-text">${locator.locator}</span>${this._createWarningIcon(locator.warnings)}</span > `;
                 locatorCell.classList.add('locator-cell');
                 locatorCell.classList.remove('lx-text-disabled');
                 locatorCell.style.color = '';
@@ -1771,13 +1811,13 @@ const LocatorX = {
 
         _createMatchCell(count, id = '') {
             const idAttr = id ? `id = "${id}"` : '';
-            return `< td > <span class="match-count" data-count="${count}" ${idAttr}></span></td > `;
+            return `<td > <span class="match-count" data-count="${count}" ${idAttr}></span></td > `;
         },
 
         _createActionCell(isDisabled) {
             const cls = isDisabled ? 'disabled' : '';
             return `
-    < td >
+    <td >
                     <i class="bi-clipboard ${cls}" title="Copy"></i>
                     <i class="bi-bookmark-plus ${cls}" title="Save"></i>
                 </td >
@@ -1812,7 +1852,7 @@ const LocatorX = {
             const detailText = document.getElementById('homeElementDetail');
             if (detailText) {
                 if (metadata && metadata.isCrossOrigin) {
-                    detailText.innerHTML = `< span style = "color: #e74c3c; font-weight: bold;" > [Security Warning]</span > Element is inside a cross - origin iframe.Browser security blocks access. < br /> <small style="opacity: 0.7;">Only the iframe selector itself can be captured.</small>`;
+                    detailText.innerHTML = `<span style = "color: #e74c3c; font-weight: bold;"> [Security Warning]</span > Element is inside a cross - origin iframe.Browser security blocks access. <br /> <small style="opacity: 0.7;">Only the iframe selector itself can be captured.</small>`;
                 } else {
                     detailText.textContent = info || 'No element selected';
                 }
@@ -1977,15 +2017,15 @@ const LocatorX = {
 
             // Standard Headers
             standardTypes.forEach(type => {
-                headerRow.innerHTML += `< th > ${type}</th > `;
+                headerRow.innerHTML += `<th>${type}</th>`;
             });
 
             // Grouped Header
             if (hasGrouped) {
-                headerRow.innerHTML += `< th > Relative XPath</th > `;
+                headerRow.innerHTML += `<th>Relative XPath</th>`;
             }
 
-            headerRow.innerHTML += `< th class="time-column ${this.showTimestamp ? '' : 'hidden'}" > Time</th > `;
+            headerRow.innerHTML += `<th class="time-column ${this.showTimestamp ? '' : 'hidden'}">Time</th>`;
             headerRow.innerHTML += '<th>Actions</th>';
             thead.appendChild(headerRow);
 
@@ -2319,9 +2359,9 @@ const LocatorX = {
                 liveItem.className = 'dropdown-item live-test-item';
                 const countVal = typeof activeMatchCount === 'number' ? activeMatchCount : '...';
                 liveItem.innerHTML = `
-    < div class="match-badge" data - count="${countVal}" ></div >
-        <span class="item-text"><strong>${query}</strong></span>
-`;
+                    <div class="match-badge" data - count="${countVal}"></div>
+                    <span class="item-text"><strong>${query}</strong></span>
+                `;
                 liveItem.addEventListener('click', () => {
                     this.performEvaluation(query, matches, dropdown);
                 });
@@ -2350,10 +2390,10 @@ const LocatorX = {
                 // Show category if it's not a standard one
                 const categoryInfo = ['Tag', 'ID', 'Class', 'Name'].includes(match.category)
                     ? ''
-                    : `< span class="category-tag" > (${match.category})</span > `;
+                    : `<span class="category-tag"> (${match.category})</span > `;
 
                 div.innerHTML = `
-    < div class="match-badge" data - count="${match.count}" ></div >
+    <div class="match-badge" data - count="${match.count}"></div >
         <span class="item-text">${categoryInfo}${html}</span>
 `;
 
@@ -2921,7 +2961,7 @@ const LocatorX = {
             };
 
             notification.innerHTML = `
-    < i class="${icons[type] || icons.info}" ></i >
+    <i class="${icons[type] || icons.info}"></i >
         <span>${message}</span>
 `;
 
@@ -2957,9 +2997,9 @@ const LocatorX = {
 
             if (saved.length === 0) {
                 dropdown.innerHTML = `
-    < div class="dropdown-header" >
+    <div class="dropdown-header">
         <strong>Saved Locators</strong>
-                        </div >
+                        </div>
     <div class="dropdown-content">
         <div class="empty-state">
             <i class="bi-bookmark-dash" style="font-size: 24px; color: var(--border-dark); margin-bottom: 8px;"></i>
@@ -2969,9 +3009,9 @@ const LocatorX = {
 `;
             } else {
                 let content = `
-    < div class="dropdown-header" >
+    <div class="dropdown-header">
                             <strong>Saved Locators</strong> <span class="badge-count">${saved.length}</span>
-                        </div >
+                        </div>
     <div class="dropdown-content">
         `;
 
