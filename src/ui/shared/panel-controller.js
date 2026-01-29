@@ -643,21 +643,21 @@ const LocatorX = {
 
                 <!-- Target URL (New) -->
                 <div class="control-group ms-target-url-group">
-                    <label class="setting-label" style="margin-bottom: 4px; display: block; font-size: 12px; color: var(--secondary-text);">Target URL (for verification)</label>
+                    <label class="setting-label" style="font-size: smaller;" title="Target URL (for verification)"> URL </label>
                     <input type="text" id="msTargetUrl" class="search-input" placeholder="https://example.com" value="${this.currentTabUrl || ''}" autocomplete="off">
                 </div>
 
                 <!-- Options -->
-                <div class="setting-group ms-setting-group">
-                    <label class="setting-label">Pattern Detection Strategy</label>
+                <div class="control-group ms-setting-group">
+                    <label class="setting-label" style="font-size: smaller;" title="Pattern Detection Strategy">Pattern </label>
                     <select id="msDetectionMode" class="ms-mode-select">
                         <option value="auto" ${this.detectionMode === 'auto' ? 'selected' : ''}>Auto-Analyse (Fast)</option>
                         <option value="manual" ${this.detectionMode === 'manual' ? 'selected' : ''}>Manual Pattern</option>
                         <option value="hybrid" ${this.detectionMode === 'hybrid' ? 'selected' : ''}>Hybrid (Auto + Manual)</option>
                     </select>
-                    <div class="ms-setting-note">
-                        ${this.getModeNote(framework)}
-                    </div>
+                </div>
+                <div class="ms-setting-note" style="margin-top: -8px; margin-bottom: 8px;">
+                     ${this.getModeNote(framework)}
                 </div>
 
                 <!-- Manual Pattern Input (Hidden if Auto) -->
@@ -3377,11 +3377,12 @@ const LocatorX = {
 
         makeEditable(cell) {
             const currentValue = cell.textContent;
+            const originalHTML = cell.innerHTML;
             cell.classList.add('editing');
 
             const input = document.createElement('input');
             input.type = 'text';
-            input.value = currentValue;
+            input.value = currentValue.trim(); // Trim input for better UX
 
             cell.innerHTML = '';
             cell.appendChild(input);
@@ -3389,22 +3390,28 @@ const LocatorX = {
             input.select();
 
             const finishEdit = () => {
-                const newValue = input.value || currentValue;
+                const newValue = input.value; // Allow empty
+
+                // If unchanged, restore original structure (preserves formatting/icons)
+                if (newValue === currentValue.trim()) {
+                    cell.innerHTML = originalHTML;
+                    cell.classList.remove('editing');
+                    return;
+                }
+
                 cell.textContent = newValue;
                 cell.classList.remove('editing');
 
-                if (newValue !== currentValue) {
-                    // Dispatch generic update event
-                    cell.dispatchEvent(new CustomEvent('locatorx-update', {
-                        bubbles: true,
-                        detail: {
-                            oldValue: currentValue,
-                            newValue: newValue,
-                            element: cell,
-                            context: cell.dataset
-                        }
-                    }));
-                }
+                // Dispatch generic update event
+                cell.dispatchEvent(new CustomEvent('locatorx-update', {
+                    bubbles: true,
+                    detail: {
+                        oldValue: currentValue,
+                        newValue: newValue,
+                        element: cell,
+                        context: cell.dataset
+                    }
+                }));
             };
 
             input.addEventListener('blur', finishEdit);
@@ -3420,7 +3427,7 @@ const LocatorX = {
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') finishEdit();
                 if (e.key === 'Escape') {
-                    cell.textContent = currentValue;
+                    cell.innerHTML = originalHTML;
                     cell.classList.remove('editing');
                 }
             });
